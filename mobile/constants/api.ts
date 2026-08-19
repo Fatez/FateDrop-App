@@ -1,5 +1,4 @@
 const DEFAULT_SIGNAL_ENGINE_URL = 'https://fatedrop-cloud-production.up.railway.app';
-const DEFAULT_LEGACY_APP_API_URL = 'http://192.168.68.61:3000';
 
 /** Canonical market/network truth used by Search, Indies catalogue and True Price. */
 export const SIGNAL_ENGINE_URL = (
@@ -7,13 +6,15 @@ export const SIGNAL_ENGINE_URL = (
 ).replace(/\/$/, '');
 
 /**
- * Transitional app API for routes that have not moved to FateDrop Cloud yet
- * (local/demo event data, legacy push registration, etc.).
+ * Transitional app API for routes that have not moved to FateDrop Cloud yet.
+ * Never fall back to a developer LAN address in a production/mobile install:
+ * a missing transitional route should fail fast over HTTPS instead of leaving
+ * the phone waiting for an unreachable private IP.
  */
 export const APP_API_BASE_URL = (
   process.env.EXPO_PUBLIC_APP_API_BASE_URL ||
   process.env.EXPO_PUBLIC_API_BASE_URL ||
-  DEFAULT_LEGACY_APP_API_URL
+  DEFAULT_SIGNAL_ENGINE_URL
 ).replace(/\/$/, '');
 
 /** Backward-compatible alias while legacy screens are migrated individually. */
