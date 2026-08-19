@@ -4,6 +4,7 @@
   "description": "FateDrop Pokémon product lifecycle monitor",
   "main": "monitor/collector.js",
   "scripts": {
+    "start": "node server/index.js",
     "monitor": "node monitor/collector.js",
     "monitor:smyths": "node monitor/smyths.js",
     "monitor:total-cards": "node monitor/shopify.js total-cards",
@@ -19,5 +20,11 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": { "playwright": "^1.62.1" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "playwright": "^1.62.1"
+  }
 }
