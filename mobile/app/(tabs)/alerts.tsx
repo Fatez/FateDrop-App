@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AbstractHero, FateDropBackground, FateDropHeader, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
+import { registerForStockAlerts } from '@/lib/notifications';
 import { fateFindSummary, listLocalFateMatches, LocalFateFindRepository } from '@/services/fatefind';
 import type { AlertMatch, SavedSearch } from '@/types/domain';
 
@@ -16,9 +17,13 @@ const ago = (value?: string) => {
   return minutes < 1 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago` : `${Math.floor(minutes / 1440)}d ago`;
 };
 
+type PushState = 'idle' | 'working' | 'enabled' | 'unavailable';
+
 export default function AlertsScreen() {
   const [searches, setSearches] = useState<SavedSearch[]>([]);
   const [matches, setMatches] = useState<AlertMatch[]>([]);
+  const [pushState, setPushState] = useState<PushState>('idle');
+  const [pushMessage, setPushMessage] = useState('Push is opt-in on this device.');
 
   useFocusEffect(useCallback(() => {
     void Promise.all([repository.list(), listLocalFateMatches()]).then(([saved, history]) => {
@@ -29,6 +34,23 @@ export default function AlertsScreen() {
 
   const searchById = useMemo(() => new Map(searches.map((item) => [item.id, item])), [searches]);
   const active = searches.filter((item) => item.notificationsEnabled);
+
+  const enablePush = async () => {
+    setPushState('working');
+    try {
+      const result = await registerForStockAlerts();
+      if (result.enabled) {
+        setPushState('enabled');
+        setPushMessage('Push notifications are enabled for this device.');
+      } else {
+        setPushState('unavailable');
+        setPushMessage(`Push not enabled: ${result.reason.replaceAll('-', ' ')}.`);
+      }
+    } catch {
+      setPushState('unavailable');
+      setPushMessage('Push registration could not be completed.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -116,9 +138,27 @@ export default function AlertsScreen() {
           )}
         </View>
 
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.eyebrow}>DELIVERY</Text>
+            <Text style={styles.sectionTitle}>Notification channels</Text>
+          </View>
+        </View>
+        <View style={styles.preferenceNote}>
+          <Ionicons name="phone-portrait-outline" size={18} color={FateDropColors.cyan} />
+          <View style={styles.cardCopy}>
+            <Text style={styles.cardTitle}>Push notifications</Text>
+            <Text style={styles.preferenceText}>{pushMessage}</Text>
+            {pushState !== 'enabled' ? (
+              <Pressable disabled={pushState === 'working'} onPress={() => void enablePush()} style={styles.pushButton}>
+                <Text style={styles.pushButtonText}>{pushState === 'working' ? 'ENABLING…' : 'ENABLE PUSH ON THIS DEVICE'}</Text>
+              </Pressable>
+            ) : <StatusBadge label="Enabled" color={FateDropColors.mint} />}
+          </View>
+        </View>
         <View style={styles.preferenceNote}>
           <Ionicons name="options-outline" size={18} color={FateDropColors.cyan} />
-          <Text style={styles.preferenceText}>Shared Echo, Manifested, Vanished, price-change and delivery-channel preferences will connect here when FateDrop ID authentication is shared with the app.</Text>
+          <Text style={styles.preferenceText}>Shared Echo, Manifested, Vanished, price-change, web and Discord preferences will connect here when FateDrop ID authentication is shared with the app.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -152,6 +192,8 @@ const styles = StyleSheet.create({
   emptyText: { color: FateDropColors.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 6 },
   primary: { marginTop: 13, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, backgroundColor: FateDropColors.violet },
   primaryText: { color: FateDropColors.text, fontWeight: '900', fontSize: 11 },
-  preferenceNote: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
-  preferenceText: { flex: 1, color: FateDropColors.muted, fontSize: 9, lineHeight: 15 },
+  preferenceNote: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass, marginBottom: 9 },
+  preferenceText: { flex: 1, color: FateDropColors.muted, fontSize: 9, lineHeight: 15, marginTop: 4 },
+  pushButton: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 9, paddingHorizontal: 11, borderRadius: 10, backgroundColor: FateDropColors.violet },
+  pushButtonText: { color: FateDropColors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
 });
