@@ -1,7 +1,7 @@
-const { chromium } = require("playwright");
 const fs = require("fs");
 const path = require("path");
 const { normaliseProduct, compareProducts, mergeEventHistory } = require("./compare");
+const { openBrowserSession, closeBrowserSession } = require("./browser");
 const { sendStockNotifications } = require("../server/push");
 
 const DATA_DIR = path.join(__dirname, "..", "data");
@@ -42,9 +42,14 @@ async function run(){
   const master=readJson(FILES.products,{}),state=readJson(FILES.state,{});
   if(!state.baselineComplete)throw new Error("Baseline is not marked complete.");
   console.log(`Loaded ${Object.keys(master).length} historical products (previous reported total: ${state.reportedCatalogueTotal??"unknown"})`);
-  const browser=await chromium.connectOverCDP("http://127.0.0.1:9222");
-  const context=browser.contexts()[0];if(!context)throw new Error("No Chrome context found");
-    const page=context.pages().find(p=>p.url().includes("pokemoncenter.com"));if(!page)throw new Error("No Pokémon Center tab found");
+
+  let session;
+  try {
+    session=await openBrowserSession();
+    const context=session.context;
+    let page=context.pages().find(p=>p.url().includes("pokemoncenter.com"));
+    if(!page)page=await context.newPage();
+
     const scan=await collectLiveSnapshot(page,master);
     console.log(`Verified complete live snapshot: ${scan.count}/${scan.reportedTotal}`);
     const compared=compareProducts(master,scan.products,{scanVerified:true,retailerKey:"pokemon-center-uk"});
@@ -56,6 +61,9 @@ async function run(){
     console.log(`Committed ${scan.count} listed products; preserving ${Object.keys(compared.products).length} historical records.`);
     console.log(`Saved ${compared.events.length} new event(s). FateDrop monitoring cycle complete.`);
     return compared;
+  } finally {
+    await closeBrowserSession(session);
+  }
 }
 if(require.main===module)run().catch(e=>{console.error(`\nFATEDROP FAILED: ${e.message}`);console.error("Master database and event history were not changed unless a complete snapshot was verified.");process.exitCode=1});
 module.exports={run,collectLiveSnapshot,responseBatch};
