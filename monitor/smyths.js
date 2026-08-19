@@ -1,7 +1,7 @@
-const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { normaliseProduct, compareProducts, mergeEventHistory } = require('./compare');
+const { openBrowserSession, closeBrowserSession } = require('./browser');
 const { sendStockNotifications } = require('../server/push');
 
 const RETAILER = 'Smyths Toys';
@@ -96,27 +96,29 @@ async function run() {
   console.log('\nFATEDROP SMYTHS IMPORT\n');
   const master = readJson(FILES.products, {});
   const state = readJson(FILES.state, {});
-  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
-  const context = browser.contexts()[0];
-  if (!context) throw new Error('No Chrome context found');
+  let session;
 
-  const scan = await collectCatalogue(context, master);
-  const compared = compareProducts(master, scan.products, { scanVerified: true, retailerKey: RETAILER_KEY });
-  const history = mergeEventHistory(readJson(FILES.events, []), compared.events);
-  const now = new Date().toISOString();
-  writeJsonAtomic(FILES.products, compared.products);
-  writeJsonAtomic(FILES.events, history);
-  writeJsonAtomic(FILES.state, {
-    ...state,
-    retailerStates: {
-      ...(state.retailerStates || {}),
-      [RETAILER_KEY]: { lastSuccessfulScan: now, lastProductCount: scan.expectedCount },
-    },
-  });
-  await sendStockNotifications(compared.events).catch((error) => console.error(`Push delivery failed: ${error.message}`));
-  console.log(`Imported ${scan.expectedCount} verified Smyths products and created ${compared.events.length} event(s).`);
-  await browser.close();
-  return compared;
+  try {
+    session = await openBrowserSession();
+    const scan = await collectCatalogue(session.context, master);
+    const compared = compareProducts(master, scan.products, { scanVerified: true, retailerKey: RETAILER_KEY });
+    const history = mergeEventHistory(readJson(FILES.events, []), compared.events);
+    const now = new Date().toISOString();
+    writeJsonAtomic(FILES.products, compared.products);
+    writeJsonAtomic(FILES.events, history);
+    writeJsonAtomic(FILES.state, {
+      ...state,
+      retailerStates: {
+        ...(state.retailerStates || {}),
+        [RETAILER_KEY]: { lastSuccessfulScan: now, lastProductCount: scan.expectedCount },
+      },
+    });
+    await sendStockNotifications(compared.events).catch((error) => console.error(`Push delivery failed: ${error.message}`));
+    console.log(`Imported ${scan.expectedCount} verified Smyths products and created ${compared.events.length} event(s).`);
+    return compared;
+  } finally {
+    await closeBrowserSession(session);
+  }
 }
 
 if (require.main === module) run().catch((error) => {
