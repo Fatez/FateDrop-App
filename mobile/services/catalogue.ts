@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/constants/api';
+import { SIGNAL_ENGINE_URL } from '@/constants/api';
 import type { Product, ProductCategory, ProductOffer, StockStatus } from '@/types/domain';
 import type { CatalogueApiResponse, LegacyCatalogueProduct } from '@/types/legacy';
 
@@ -21,7 +21,7 @@ export class ApiCatalogueRepository implements CatalogueRepository {
   async list(query:CatalogueQuery={}):Promise<CataloguePage>{
     const params=new URLSearchParams();params.set('limit',String(query.limit||50));
     if(query.cursor)params.set('cursor',query.cursor);if(query.retailerId)params.set('retailer',query.retailerId);if(query.excludedRetailerIds?.length)params.set('excludeRetailers',query.excludedRetailerIds.join(','));if(query.query)params.set('q',query.query);if(query.inStockOnly)params.set('inStock','true');if(query.category)params.set('category',query.category);if(query.condition)params.set('condition',query.condition);if(query.setName)params.set('set',query.setName);if(query.minimumPriceGbp!==undefined)params.set('minPrice',String(query.minimumPriceGbp));if(query.maximumPriceGbp!==undefined)params.set('maxPrice',String(query.maximumPriceGbp));if(query.sort)params.set('sort',query.sort);
-    const response=await fetch(`${API_BASE_URL}/api/catalogue?${params}`);if(!response.ok)throw new Error(`Catalogue request failed with HTTP ${response.status}`);const data=await response.json() as CatalogueApiResponse;const offers=(Array.isArray(data.products)?data.products:Object.values(data.products||{})).map(adaptLegacyOffer);return{offers,products:offers.map(conservativeCanonicalProduct),total:data.total,nextCursor:data.nextCursor||undefined,fetchedAt:data.updatedAt||new Date().toISOString()};
+    const response=await fetch(`${SIGNAL_ENGINE_URL}/api/catalogue?${params}`);if(!response.ok)throw new Error(`Catalogue request failed with HTTP ${response.status}`);const data=await response.json() as CatalogueApiResponse;const offers=(Array.isArray(data.products)?data.products:Object.values(data.products||{})).map(adaptLegacyOffer);return{offers,products:offers.map(conservativeCanonicalProduct),total:data.total,nextCursor:data.nextCursor||undefined,fetchedAt:data.updatedAt||new Date().toISOString()};
   }
   async getOffer(id:string){const separator=id.indexOf(':'),retailerId=separator>0?id.slice(0,separator):undefined,sku=separator>0?id.slice(separator+1):id;let cursor:string|undefined;do{const page=await this.list({retailerId,query:sku,cursor,limit:100});const match=page.offers.find(item=>item.id===id);if(match)return match;cursor=page.nextCursor;}while(cursor);return null;}
 }
