@@ -1,0 +1,44 @@
+name: Verify FateDrop Mobile
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'server/**'
+      - 'monitor/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/verify-mobile.yml'
+  push:
+    branches:
+      - fatedrop-mobile-product-spec-v1
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Run repository tests
+        run: npm test
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Lint and typecheck mobile
+        working-directory: mobile
+        run: npm run verify
