@@ -17,7 +17,7 @@ const { aggregateDemand } = require('./demand-signal');
 
 const app = express();
 app.use(express.json({ limit: '16kb' }));
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const dataDir = path.join(__dirname, '..', 'data');
 
@@ -115,9 +115,9 @@ app.get('/api/events', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('⚡ FateDrop API is running');
-  console.log(`Local: http://localhost:${PORT}`);
-  console.log(`Status: http://localhost:${PORT}/api/status`);
-  console.log(`Products: http://localhost:${PORT}/api/products`);
+  console.log(`Port: ${PORT}`);
+  console.log(`Status: /api/status`);
+  console.log(`Products: /api/products`);
   console.log('');
 });
 app.get('/api/market-summary',(req,res)=>{try{res.json({success:true,...marketSummary(readJson('products.json'))});}catch(error){res.status(500).json({success:false,error:'Could not load market summary'});}});
