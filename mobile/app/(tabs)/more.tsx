@@ -19,6 +19,7 @@ interface Destination {
 
 const destinations: Destination[] = [
   { title: 'FateDrop ID', subtitle: 'Identity, membership and cross-platform sync', icon: 'person-circle', path: '/account', color: FateDropColors.cyan },
+  { title: 'Fate Companion', subtitle: 'Your 3D collector companion and signal droid', icon: 'sparkles', path: '/companion', color: FateDropColors.violetLight },
   { title: 'Wishlist', subtitle: 'Products you want to keep across the network', icon: 'bookmark', path: '/(tabs)/watchlist', color: FateDropColors.violetLight },
   { title: 'FateFind', subtitle: 'Create active product hunts with price and stock rules', icon: 'telescope', path: '/fatefind', color: FateDropColors.violetLight },
   { title: 'True Price', subtitle: 'Compare known delivered cost and RRP context', icon: 'pricetags', path: '/true-price', color: FateDropColors.cyan },
@@ -35,7 +36,7 @@ export default function MoreScreen() {
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content}>
         <FateDropHeader title="More" />
-        <AbstractHero eyebrow="Your FateDrop" title="Everything secondary, kept out of the way." subtitle="Identity, Wishlist, active hunts, local discovery and events live here so Search, Indies and Alerts stay focused." icon="options" />
+        <AbstractHero eyebrow="Your FateDrop" title="Everything secondary, kept out of the way." subtitle="Companion, identity, Wishlist, active hunts, local discovery and events live here so Search, Indies and Alerts stay focused." icon="options" />
 
         <Pressable onPress={() => router.push('/account')} style={styles.identity}>
           <View><Text style={styles.identityLabel}>FATEDROP ID</Text><Text style={styles.identityTitle}>{signedIn ? snapshot?.user.displayName || snapshot?.user.handle || snapshot?.user.fateId : 'Connect your identity'}</Text><Text style={styles.identitySub}>{signedIn ? `${snapshot?.entitlement.effectiveTier.toUpperCase()} · ${syncing ? 'syncing' : 'synced across the network'}` : 'One account for web, app and connected Discord access'}</Text></View>
