@@ -1,0 +1,4 @@
+const test=require('node:test');const assert=require('node:assert/strict');const{evaluateSavedSearch}=require('./fatefind');
+const product={sku:'1',title:'Destined Rivals Elite Trainer Box',price:60,shippingGbp:4,availability:'IN_STOCK',isCurrentlyListed:true,retailerKey:'demo'};
+test('server FateFind respects item and delivered caps',()=>{assert.equal(evaluateSavedSearch(product,{query:'Rivals',maximumItemPriceGbp:65,maximumDeliveredPriceGbp:65,inStockOnly:true,includePreorders:false}).matches,true);assert.equal(evaluateSavedSearch(product,{maximumDeliveredPriceGbp:63,includePreorders:true}).matches,false);});
+test('server FateFind reports distance as unavailable instead of guessing',()=>{const result=evaluateSavedSearch(product,{maximumDistanceMiles:20,includePreorders:true});assert.equal(result.matches,false);assert.deepEqual(result.missing,['distance']);});

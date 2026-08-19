@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const{eventVendors}=require('./event-vendors');
+test('event inventory is scoped, searchable and excludes archived stock',()=>{const rows=[{eventId:'one',inventory:[{title:'Mewtwo',archivedAt:null},{title:'Old card',archivedAt:'2025-01-01'}]},{eventId:'two',inventory:[{title:'Mewtwo'}]}];const result=eventVendors(rows,'one','mew');assert.equal(result.length,1);assert.deepEqual(result[0].inventory.map(item=>item.title),['Mewtwo']);});

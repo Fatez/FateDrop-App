@@ -1,0 +1,2 @@
+retailer_sku,title,description,category,set_name,card_number,condition,grading_company,grade,price_gbp,shipping_gbp,stock_quantity,stock_status,preorder,collection_available,product_url,image_url,barcode,updated_at
+DEMO-001,Example Booster Box,Demo row only,SEALED,,,NEW,,,99.99,4.99,3,IN_STOCK,false,false,https://example.invalid/products/demo,https://example.invalid/images/demo.jpg,,2026-08-16T00:00:00Z

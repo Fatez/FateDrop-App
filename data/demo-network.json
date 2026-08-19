@@ -1,0 +1,24 @@
+{
+  "notice": "All businesses, offers, shipping values and analytics in this file are fictional demo data.",
+  "retailers": [
+    { "id": "demo-nebula-cards", "name": "Nebula Cards (Demo)", "onlineOnly": false, "townCity": "Manchester", "verified": true },
+    { "id": "demo-orbit-collectables", "name": "Orbit Collectables (Demo)", "onlineOnly": true, "verified": false },
+    { "id": "demo-cosmic-card-room", "name": "Cosmic Card Room (Demo)", "onlineOnly": false, "townCity": "Bristol", "verified": true }
+  ],
+  "canonicalProducts": [
+    { "id": "demo-destined-rivals-etb", "title": "Destined Rivals Elite Trainer Box", "category": "SEALED" },
+    { "id": "demo-mewtwo-raw", "title": "Team Rocket's Mewtwo ex", "category": "SINGLE", "setName": "Destined Rivals", "cardNumber": "213/182" },
+    { "id": "demo-mewtwo-graded", "title": "Team Rocket's Mewtwo ex PSA 10", "category": "GRADED", "setName": "Destined Rivals", "cardNumber": "213/182", "gradingCompany": "PSA", "grade": "10" }
+  ],
+  "offers": [
+    { "id": "demo-nebula-etb", "canonicalProductId": "demo-destined-rivals-etb", "retailerId": "demo-nebula-cards", "priceGbp": 59.99, "shippingGbp": 4.99, "stockStatus": "IN_STOCK", "collectionAvailable": true },
+    { "id": "demo-orbit-etb", "canonicalProductId": "demo-destined-rivals-etb", "retailerId": "demo-orbit-collectables", "priceGbp": 57.99, "shippingGbp": null, "stockStatus": "IN_STOCK", "collectionAvailable": false },
+    { "id": "demo-cosmic-etb", "canonicalProductId": "demo-destined-rivals-etb", "retailerId": "demo-cosmic-card-room", "priceGbp": 64.99, "shippingGbp": 0, "stockStatus": "PREORDER", "collectionAvailable": true },
+    { "id": "demo-mewtwo-nm", "canonicalProductId": "demo-mewtwo-raw", "retailerId": "demo-nebula-cards", "priceGbp": 54.99, "shippingGbp": 2.99, "condition": "NEAR_MINT", "stockStatus": "IN_STOCK" },
+    { "id": "demo-mewtwo-psa", "canonicalProductId": "demo-mewtwo-graded", "retailerId": "demo-cosmic-card-room", "priceGbp": 189.99, "shippingGbp": 6.99, "condition": "GRADED", "stockStatus": "OUT_OF_STOCK" }
+  ],
+  "priceHistory": [
+    { "offerId": "demo-nebula-etb", "priceGbp": 69.99, "recordedAt": "2026-08-01T00:00:00Z" },
+    { "offerId": "demo-nebula-etb", "priceGbp": 59.99, "recordedAt": "2026-08-16T00:00:00Z" }
+  ]
+}

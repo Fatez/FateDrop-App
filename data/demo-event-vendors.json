@@ -1,0 +1,26 @@
+[
+  {
+    "id": "demo-vendor-nebula-card-con-iv",
+    "eventId": "card-con-iv-2026",
+    "retailerId": "demo-nebula-cards",
+    "retailerName": "Nebula Cards (Demo)",
+    "stallIdentifier": "Hall A · Stall 14",
+    "isDemo": true,
+    "inventory": [
+      { "id": "demo-inventory-1", "title": "Team Rocket's Mewtwo ex", "category": "SINGLE", "condition": "NEAR_MINT", "priceGbp": 54.99, "stockStatus": "IN_STOCK", "productUrl": "https://example.invalid/demo/mewtwo", "archivedAt": null },
+      { "id": "demo-inventory-2", "title": "Destined Rivals Elite Trainer Box", "category": "SEALED", "condition": "NEW", "priceGbp": 64.99, "stockStatus": "IN_STOCK", "productUrl": "https://example.invalid/demo/destined-rivals-etb", "archivedAt": null }
+    ]
+  },
+  {
+    "id": "demo-vendor-orbit-card-con-iv",
+    "eventId": "card-con-iv-2026",
+    "retailerId": "demo-orbit-collectables",
+    "retailerName": "Orbit Collectables (Demo)",
+    "stallIdentifier": "Hall B · Stall 6",
+    "isDemo": true,
+    "inventory": [
+      { "id": "demo-inventory-3", "title": "Charizard ex PSA 10", "category": "GRADED", "condition": "GRADED", "priceGbp": 189.99, "stockStatus": "IN_STOCK", "productUrl": "https://example.invalid/demo/charizard", "archivedAt": null },
+      { "id": "demo-inventory-archived", "title": "Archived event stock example", "category": "SINGLE", "condition": "LIGHTLY_PLAYED", "priceGbp": 9.99, "stockStatus": "OUT_OF_STOCK", "productUrl": "https://example.invalid/demo/archived", "archivedAt": "2026-01-01T00:00:00Z" }
+    ]
+  }
+]

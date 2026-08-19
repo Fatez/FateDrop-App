@@ -1,0 +1,23 @@
+{
+  "name": "fatedrop",
+  "version": "1.0.0",
+  "description": "FateDrop Pokémon product lifecycle monitor",
+  "main": "monitor/collector.js",
+  "scripts": {
+    "monitor": "node monitor/collector.js",
+    "monitor:smyths": "node monitor/smyths.js",
+    "monitor:total-cards": "node monitor/shopify.js total-cards",
+    "monitor:double-sleeved": "node monitor/shopify.js double-sleeved",
+    "monitor:cob-and-pip": "node monitor/shopify.js cob-and-pip",
+    "monitor:auto": "node monitor/worker.js",
+    "monitor:auto:once": "node monitor/worker.js --once",
+    "test": "node --test monitor/compare.test.js server/*.test.js mobile/lib/*.test.js",
+    "server": "node server/index.js",
+    "monitor:legacy-alias": "node monitor/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": { "playwright": "^1.62.1" }
+}

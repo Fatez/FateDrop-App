@@ -1,0 +1,2 @@
+function marketSummary(database){const products=Object.values(database||{}),retailers=new Map();let inStock=0;for(const product of products){const name=product.retailer||'Pokémon Center UK';retailers.set(name,(retailers.get(name)||0)+1);if(product.availability==='IN_STOCK'&&product.isCurrentlyListed!==false)inStock++;}return{productsTracked:products.length,inStockCount:inStock,retailerCount:retailers.size,retailers:[...retailers.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)};}
+module.exports={marketSummary};

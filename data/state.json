@@ -1,0 +1,21 @@
+{
+  "baselineComplete": true,
+  "baselineProducts": 949,
+  "reportedCatalogueTotal": 949,
+  "lastSuccessfulScan": "2026-08-16T11:52:50.380Z",
+  "lastProductCount": 949,
+  "retailerStates": {
+    "total-cards": {
+      "lastSuccessfulScan": "2026-08-16T22:10:42.859Z",
+      "lastProductCount": 2390
+    },
+    "double-sleeved": {
+      "lastSuccessfulScan": "2026-08-16T22:10:43.615Z",
+      "lastProductCount": 524
+    },
+    "cob-and-pip": {
+      "lastSuccessfulScan": "2026-08-16T22:10:47.227Z",
+      "lastProductCount": 2469
+    }
+  }
+}

@@ -1,0 +1,2 @@
+function eventVendors(rows,eventId,query=''){const term=String(query).trim().toLowerCase().slice(0,120);return(Array.isArray(rows)?rows:[]).filter(vendor=>vendor.eventId===eventId).map(vendor=>({...vendor,inventory:(vendor.inventory||[]).filter(item=>!item.archivedAt&&(!term||item.title.toLowerCase().includes(term)))})).filter(vendor=>!term||vendor.inventory.length);}
+module.exports={eventVendors};

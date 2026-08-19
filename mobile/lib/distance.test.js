@@ -1,0 +1,1 @@
+const test=require('node:test');const assert=require('node:assert/strict');const{distanceMiles}=require('./distance');test('distance uses geographic coordinates in miles',()=>{const distance=distanceMiles({latitude:51.5074,longitude:-.1278},{latitude:53.4808,longitude:-2.2426});assert.ok(distance>160&&distance<170);});

@@ -1,0 +1,3 @@
+import type { FateScore,Retailer } from '@/types/domain';
+export function describeFateScore(retailer:Retailer):{label:string;explanation:string;score?:number}{const score=retailer.fateScore;if(!score||score.status==='NOT_ENOUGH_DATA')return{label:'Not enough data',explanation:'FateScore needs measured dispatch, preorder, cancellation and service evidence. Verified-business status is assessed separately.'};return{label:`FateScore ${score.score}`,score:score.score,explanation:'Based only on available measured performance evidence. Sponsorship and retailer plan do not increase this score.'};}
+export function emptyFateScore():FateScore{return{status:'NOT_ENOUGH_DATA'};}

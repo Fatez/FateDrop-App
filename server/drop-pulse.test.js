@@ -1,0 +1,3 @@
+const test=require('node:test');const assert=require('node:assert/strict');const{dropPulse}=require('./drop-pulse');
+test('pulse labels require measurable evidence',()=>{const now=Date.parse('2026-08-16T12:00:00Z'),product={firstSeen:'2026-08-16T10:00:00Z',returnedAt:'2026-08-16T11:00:00Z',lastSeen:'2026-08-16T11:30:00Z',timesRestocked:3,price:40};assert.deepEqual(dropPulse(product,[{type:'PRICE_CHANGE',previousValues:{price:50}}],now),['JUST_LISTED','RECENTLY_RESTOCKED','RESTOCKED_REPEATEDLY','PRICE_DROPPED']);});
+test('popularity alone never claims selling quickly',()=>{assert.equal(dropPulse({lastSeen:new Date().toISOString()},Array.from({length:30},()=>({type:'OUTBOUND_CLICK',detectedAt:new Date().toISOString()}))).includes('SELLING_QUICKLY'),false);});

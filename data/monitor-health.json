@@ -1,0 +1,44 @@
+{
+  "retailers": {
+    "total-cards": {
+      "retailer": "Total Cards",
+      "status": "healthy",
+      "startedAt": "2026-08-16T22:10:39.409Z",
+      "lastError": null,
+      "lastSuccessAt": "2026-08-16T22:10:42.993Z",
+      "durationMs": 3584,
+      "productCount": 2390,
+      "eventsCreated": 0,
+      "consecutiveFailures": 0,
+      "inStockCount": 52,
+      "unavailableCount": 2338
+    },
+    "double-sleeved": {
+      "retailer": "Double Sleeved",
+      "status": "healthy",
+      "startedAt": "2026-08-16T22:10:42.998Z",
+      "lastError": null,
+      "lastSuccessAt": "2026-08-16T22:10:43.746Z",
+      "durationMs": 748,
+      "productCount": 524,
+      "eventsCreated": 0,
+      "consecutiveFailures": 0,
+      "inStockCount": 55,
+      "unavailableCount": 469
+    },
+    "cob-and-pip": {
+      "retailer": "Cob & Pip",
+      "status": "healthy",
+      "startedAt": "2026-08-16T22:10:43.753Z",
+      "lastError": null,
+      "lastSuccessAt": "2026-08-16T22:10:47.303Z",
+      "durationMs": 3550,
+      "productCount": 2469,
+      "eventsCreated": 0,
+      "consecutiveFailures": 0,
+      "inStockCount": 2353,
+      "unavailableCount": 116
+    }
+  },
+  "updatedAt": "2026-08-16T22:10:47.305Z"
+}

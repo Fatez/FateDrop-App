@@ -1,0 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FateDropColors } from '@/constants/theme';
+import { describeFateScore } from '@/services/fatescore';
+import type { Retailer } from '@/types/domain';
+
+export function RetailerCard({retailer}:{retailer:Retailer}){
+  const verified=retailer.verification.status==='VERIFIED',score=describeFateScore(retailer),location=retailer.locations[0];
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${retailer.name} storefront`} onPress={()=>router.push({pathname:'/retailers/[id]',params:{id:retailer.id}})} style={({pressed})=>[styles.card,pressed&&styles.pressed]}><View style={styles.logo}><Ionicons name="storefront" size={22} color={FateDropColors.cyan}/></View><View style={styles.copy}><View style={styles.titleRow}><Text style={styles.name}>{retailer.name}</Text>{verified?<Ionicons name="checkmark-circle" size={16} color={FateDropColors.mint}/>:null}</View><Text style={styles.meta}>{retailer.onlineOnly?'Online retailer':location?.townCity||'Physical retailer'} · {verified?'Verified business':'Verification not established'}</Text><Text style={styles.score}>FateScore: {score.label}</Text>{retailer.sponsored?<Text style={styles.sponsored}>Sponsored placement</Text>:null}{retailer.isDemo?<Text style={styles.demo}>Fictional demo retailer</Text>:null}</View><Ionicons name="chevron-forward" size={17} color={FateDropColors.muted}/></Pressable>;
+}
+const styles=StyleSheet.create({card:{flexDirection:'row',alignItems:'center',gap:12,padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},logo:{width:44,height:44,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:`${FateDropColors.cyan}12`,borderWidth:1,borderColor:`${FateDropColors.cyan}33`},copy:{flex:1},titleRow:{flexDirection:'row',alignItems:'center',gap:6},name:{color:FateDropColors.text,fontWeight:'900',fontSize:15},meta:{color:FateDropColors.muted,fontSize:10,marginTop:4},score:{color:FateDropColors.secondary,fontSize:9,marginTop:4},sponsored:{color:FateDropColors.amber,fontSize:9,fontWeight:'800',marginTop:4,textTransform:'uppercase'},demo:{color:FateDropColors.coral,fontSize:9,fontWeight:'800',marginTop:4,textTransform:'uppercase'},pressed:{opacity:.8,transform:[{scale:.99}]}});
