@@ -6,22 +6,28 @@ import { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { registerForStockAlerts } from '@/lib/notifications';
 import { FateDropColors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export function ErrorBoundary({error,retry}:ErrorBoundaryProps){return <View style={errorStyles.screen}><Text style={errorStyles.title}>The signal was interrupted</Text><Text style={errorStyles.message}>{error.message||'FateDrop could not load this page.'}</Text><Pressable onPress={retry} style={errorStyles.primary}><Text style={errorStyles.primaryText}>Try again</Text></Pressable><Pressable onPress={()=>router.replace('/')} style={errorStyles.secondary}><Text style={errorStyles.secondaryText}>Return home</Text></Pressable></View>}
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <View style={errorStyles.screen}>
+    <Text style={errorStyles.title}>The signal was interrupted</Text>
+    <Text style={errorStyles.message}>{error.message || 'FateDrop could not load this page.'}</Text>
+    <Pressable onPress={retry} style={errorStyles.primary}><Text style={errorStyles.primaryText}>Try again</Text></Pressable>
+    <Pressable onPress={() => router.replace('/')} style={errorStyles.secondary}><Text style={errorStyles.secondaryText}>Return home</Text></Pressable>
+  </View>;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
   useEffect(() => {
-    void registerForStockAlerts().then((result) => {
-      if (!result.enabled) console.info(`Stock alerts pending: ${result.reason}`);
-    }).catch((error) => console.error('Stock alert registration failed:', error));
+    // Do not request notification permission automatically on launch. Product
+    // Spec v1 requires an explicit user-controlled opt-in from Alerts/settings.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const productUrl = response.notification.request.content.data?.productUrl;
       if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
@@ -55,4 +61,12 @@ export default function RootLayout() {
   );
 }
 
-const errorStyles=StyleSheet.create({screen:{flex:1,justifyContent:'center',padding:28,backgroundColor:FateDropColors.background},title:{color:FateDropColors.text,fontSize:24,fontWeight:'900'},message:{color:FateDropColors.secondary,fontSize:13,lineHeight:20,marginVertical:12},primary:{alignItems:'center',padding:14,borderRadius:14,backgroundColor:FateDropColors.violet},primaryText:{color:FateDropColors.text,fontWeight:'900'},secondary:{alignItems:'center',padding:14,marginTop:9},secondaryText:{color:FateDropColors.violetLight,fontWeight:'800'}});
+const errorStyles = StyleSheet.create({
+  screen: { flex: 1, justifyContent: 'center', padding: 28, backgroundColor: FateDropColors.background },
+  title: { color: FateDropColors.text, fontSize: 24, fontWeight: '900' },
+  message: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 20, marginVertical: 12 },
+  primary: { alignItems: 'center', padding: 14, borderRadius: 14, backgroundColor: FateDropColors.violet },
+  primaryText: { color: FateDropColors.text, fontWeight: '900' },
+  secondary: { alignItems: 'center', padding: 14, marginTop: 9 },
+  secondaryText: { color: FateDropColors.violetLight, fontWeight: '800' },
+});
