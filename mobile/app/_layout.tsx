@@ -7,6 +7,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { FateDropColors } from '@/constants/theme';
+import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
@@ -26,8 +27,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // Do not request notification permission automatically on launch. Product
-    // Spec v1 requires an explicit user-controlled opt-in from Alerts/settings.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const productUrl = response.notification.request.content.data?.productUrl;
       if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
@@ -36,28 +35,31 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
-        <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
-        <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="retailer-partners" options={{ headerShown: false }} />
-        <Stack.Screen name="retailers/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="true-price" options={{ headerShown: false }} />
-        <Stack.Screen name="fatefind" options={{ headerShown: false }} />
-        <Stack.Screen name="local-radar" options={{ headerShown: false }} />
-        <Stack.Screen name="event-vendors" options={{ headerShown: false }} />
-        <Stack.Screen name="retailer-dashboard" options={{ headerShown: false }} />
-        <Stack.Screen name="fatescore" options={{ headerShown: false }} />
-        <Stack.Screen name="reserve-demo" options={{ headerShown: false }} />
-        <Stack.Screen name="basket-breaker" options={{ headerShown: false }} />
-        <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
-        <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <FateDropIdProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
+          <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
+          <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="retailer-partners" options={{ headerShown: false }} />
+          <Stack.Screen name="retailers/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="true-price" options={{ headerShown: false }} />
+          <Stack.Screen name="fatefind" options={{ headerShown: false }} />
+          <Stack.Screen name="local-radar" options={{ headerShown: false }} />
+          <Stack.Screen name="event-vendors" options={{ headerShown: false }} />
+          <Stack.Screen name="retailer-dashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="fatescore" options={{ headerShown: false }} />
+          <Stack.Screen name="reserve-demo" options={{ headerShown: false }} />
+          <Stack.Screen name="basket-breaker" options={{ headerShown: false }} />
+          <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
+          <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </FateDropIdProvider>
   );
 }
 
