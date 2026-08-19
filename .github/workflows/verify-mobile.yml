@@ -13,8 +13,45 @@ on:
     branches:
       - fatedrop-mobile-product-spec-v1
 
+permissions:
+  contents: write
+
 jobs:
+  securestore_dependency:
+    if: github.event_name == 'pull_request' && github.head_ref == 'launch-foundation-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout launch branch head
+        uses: actions/checkout@v4
+        with:
+          ref: launch-foundation-v1
+          fetch-depth: 0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Generate SDK-compatible SecureStore dependency files
+        shell: bash
+        run: |
+          if grep -q '"expo-secure-store"' mobile/package.json; then
+            echo "SecureStore dependency already present."
+            exit 0
+          fi
+          cd mobile
+          CI=1 npx expo install expo-secure-store --npm
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/package.json mobile/package-lock.json
+          git commit -m "Install Expo SecureStore for mobile session vault"
+          git push origin HEAD:launch-foundation-v1
+
   verify:
+    if: always()
+    needs: [securestore_dependency]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
