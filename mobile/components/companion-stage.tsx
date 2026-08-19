@@ -1,5 +1,3 @@
-import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -9,10 +7,11 @@ import type { CompanionReaction } from '@/lib/companion-contract';
 
 export type CompanionVariant = 'male' | 'female' | 'droid';
 
-const MODELS: Record<CompanionVariant, { model: number; label: string }> = {
-  male: { model: require('../assets/models/fatedrop-male.glb'), label: 'Male companion' },
-  female: { model: require('../assets/models/fatedrop-female.glb'), label: 'Female companion' },
-  droid: { model: require('../assets/models/fatedrop-droid.glb'), label: 'Signal droid' },
+const ASSET_BASE = (process.env.EXPO_PUBLIC_FATEDROP_COMPANION_ASSET_BASE || 'https://fate-drop.com/assets/companions').replace(/\/$/, '');
+const MODELS: Record<CompanionVariant, { file: string; label: string }> = {
+  male: { file: 'fatedrop-male.glb', label: 'Male companion' },
+  female: { file: 'fatedrop-female.glb', label: 'Female companion' },
+  droid: { file: 'fatedrop-droid.glb', label: 'Signal droid' },
 };
 
 type Accessor = { bufferView?: number; byteOffset?: number; componentType: number; count: number; type: 'SCALAR'|'VEC2'|'VEC3'|'VEC4'; normalized?: boolean };
@@ -41,16 +40,14 @@ function accessor(document: Glb, binary: ArrayBuffer, index: number) {
   const start = (bufferView.byteOffset || 0) + (item.byteOffset || 0);
   const input = new DataView(binary);
   const output = new Float32Array(item.count * components);
-  for (let row = 0; row < item.count; row += 1) {
-    for (let column = 0; column < components; column += 1) {
-      let value = component(input, start + row * stride + column * bytes, item.componentType);
-      if (item.normalized) {
-        if (item.componentType === 5122) value = Math.max(value / 32767, -1);
-        else if (item.componentType === 5123) value /= 65535;
-        else if (item.componentType === 5121) value /= 255;
-      }
-      output[row * components + column] = value;
+  for (let row = 0; row < item.count; row += 1) for (let column = 0; column < components; column += 1) {
+    let value = component(input, start + row * stride + column * bytes, item.componentType);
+    if (item.normalized) {
+      if (item.componentType === 5122) value = Math.max(value / 32767, -1);
+      else if (item.componentType === 5123) value /= 65535;
+      else if (item.componentType === 5121) value /= 255;
     }
+    output[row * components + column] = value;
   }
   return output;
 }
@@ -93,13 +90,14 @@ function tint(reaction: CompanionReaction): [number,number,number] {
   if(reaction==='manifested'||reaction==='fatematch')return[0.55,1,0.82];
   if(reaction==='vanished')return[1,0.5,0.58];
   if(reaction==='echo'||reaction==='major')return[0.74,0.48,1];
+  if(reaction==='watching')return[0.4,0.88,1];
   return[1,0.94,1];
 }
 
 async function draw(gl: ExpoWebGLRenderingContext, variant: CompanionVariant, reaction: CompanionReaction, disposed:()=>boolean) {
-  const asset=await Asset.fromModule(MODELS[variant].model).downloadAsync();
-  if(!asset.localUri)throw new Error('Companion model could not be cached.');
-  const mesh=parseGlb(await new File(asset.localUri).arrayBuffer());if(disposed())return;
+  const response = await fetch(`${ASSET_BASE}/${MODELS[variant].file}`);
+  if (!response.ok) throw new Error(`Companion asset returned ${response.status}.`);
+  const mesh=parseGlb(await response.arrayBuffer());if(disposed())return;
   const vs=shader(gl,gl.VERTEX_SHADER,`precision mediump float;attribute vec3 aPosition;attribute vec4 aColor;uniform float uAngle;uniform float uAspect;uniform float uBob;varying vec4 vColor;varying float vLight;void main(){float c=cos(uAngle),s=sin(uAngle);mat3 r=mat3(c,0.0,-s,0.0,1.0,0.0,s,0.0,c);vec3 p=r*aPosition;float a=max(uAspect,0.01);if(a>1.0)p.x/=a;else p.y*=a;p.y+=uBob;gl_Position=vec4(p.x,p.y,p.z*0.45,1.0);vColor=aColor;vLight=0.82+0.18*clamp(p.z+0.5,0.0,1.0);}`);
   const fs=shader(gl,gl.FRAGMENT_SHADER,`precision mediump float;uniform vec3 uTint;varying vec4 vColor;varying float vLight;void main(){vec3 t=mix(vec3(1.0),uTint,0.12);gl_FragColor=vec4(vColor.rgb*t*vLight,vColor.a);}`);
   const program=gl.createProgram();if(!program)throw new Error('Could not create Companion program.');gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program)||'Companion program failed.');gl.useProgram(program);
