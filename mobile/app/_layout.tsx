@@ -6,6 +6,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { FateDropColors } from '@/constants/theme';
+import { CompanionProvider } from '@/contexts/companion-context';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -50,30 +51,32 @@ export default function RootLayout() {
 
   return (
     <FateDropIdProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen name="companion" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
-          <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
-          <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="retailer-partners" options={{ headerShown: false }} />
-          <Stack.Screen name="retailers/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="true-price" options={{ headerShown: false }} />
-          <Stack.Screen name="fatefind" options={{ headerShown: false }} />
-          <Stack.Screen name="local-radar" options={{ headerShown: false }} />
-          <Stack.Screen name="event-vendors" options={{ headerShown: false }} />
-          <Stack.Screen name="retailer-dashboard" options={{ headerShown: false }} />
-          <Stack.Screen name="fatescore" options={{ headerShown: false }} />
-          <Stack.Screen name="reserve-demo" options={{ headerShown: false }} />
-          <Stack.Screen name="basket-breaker" options={{ headerShown: false }} />
-          <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
-          <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <CompanionProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="account" options={{ headerShown: false }} />
+            <Stack.Screen name="companion" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
+            <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
+            <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="retailer-partners" options={{ headerShown: false }} />
+            <Stack.Screen name="retailers/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="true-price" options={{ headerShown: false }} />
+            <Stack.Screen name="fatefind" options={{ headerShown: false }} />
+            <Stack.Screen name="local-radar" options={{ headerShown: false }} />
+            <Stack.Screen name="event-vendors" options={{ headerShown: false }} />
+            <Stack.Screen name="retailer-dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="fatescore" options={{ headerShown: false }} />
+            <Stack.Screen name="reserve-demo" options={{ headerShown: false }} />
+            <Stack.Screen name="basket-breaker" options={{ headerShown: false }} />
+            <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
+            <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </CompanionProvider>
     </FateDropIdProvider>
   );
 }
