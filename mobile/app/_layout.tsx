@@ -34,7 +34,13 @@ export default function RootLayout() {
       .then((Notifications) => {
         if (!active) return;
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          const productUrl = response.notification.request.content.data?.productUrl;
+          const data = response.notification.request.content.data;
+          if (data?.route === 'alerts') {
+            router.push('/alerts');
+            return;
+          }
+
+          const productUrl = data?.productUrl;
           if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
         });
       })
