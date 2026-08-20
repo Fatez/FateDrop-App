@@ -36,7 +36,9 @@ export default function RootLayout() {
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
           const data = response.notification.request.content.data;
           if (data?.route === 'alerts') {
-            router.push('/alerts');
+            const alertId = typeof data.alertId === 'string' ? data.alertId : null;
+            if (alertId) router.push({ pathname: '/alerts', params: { alertId } });
+            else router.push('/alerts');
             return;
           }
 
