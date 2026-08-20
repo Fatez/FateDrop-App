@@ -1,7 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
@@ -27,11 +26,26 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const productUrl = response.notification.request.content.data?.productUrl;
-      if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
-    });
-    return () => subscription.remove();
+    let active = true;
+    let subscription: { remove(): void } | undefined;
+
+    void import('expo-notifications')
+      .then((Notifications) => {
+        if (!active) return;
+        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          const productUrl = response.notification.request.content.data?.productUrl;
+          if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
+        });
+      })
+      .catch(() => {
+        // Expo Go does not provide full remote-push support on every platform.
+        // Notification bootstrapping must never prevent the FateDrop shell from loading.
+      });
+
+    return () => {
+      active = false;
+      subscription?.remove();
+    };
   }, []);
 
   return (
@@ -40,6 +54,7 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />
+          <Stack.Screen name="companion" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
