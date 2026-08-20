@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +28,9 @@ const reactions: { id: CompanionReaction; label: string }[] = [
 ];
 
 export default function CompanionScreen() {
-  const [variant, setVariant] = useState<CompanionVariant>('male');
+  const params = useLocalSearchParams<{ variant?: string }>();
+  const initialVariant: CompanionVariant = params.variant === 'female' ? 'female' : 'male';
+  const [variant, setVariant] = useState<CompanionVariant>(initialVariant);
   const [reaction, setReaction] = useState<CompanionReaction>('idle');
 
   return (
