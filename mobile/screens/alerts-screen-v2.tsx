@@ -5,13 +5,18 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CompanionStage } from '@/components/companion-stage';
+import { DevelopmentAlertTester } from '@/components/development-alert-tester';
 import { AbstractHero, FateDropBackground, FateDropHeader, StatusBadge, statusColors } from '@/components/fatedrop-ui';
 import { API_BASE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
 import { useCompanion } from '@/contexts/companion-context';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import type { CompanionReaction } from '@/lib/companion-contract';
-import { registerForStockAlerts, unregisterStockAlerts } from '@/lib/notifications';
+import {
+  registerForStockAlerts,
+  unregisterStockAlerts,
+  type DevelopmentSignalNotification,
+} from '@/lib/notifications';
 import {
   companionLineForSignal,
   signalPresentation,
@@ -45,6 +50,56 @@ function signalPriceContext(event: MarketEvent) {
   return `${pounds(delivered)} delivered · RRP ${pounds(rrp)} · ${direction}`;
 }
 
+function developmentAlert(signal: DevelopmentSignalNotification) {
+  switch (signal) {
+    case 'echo':
+      return {
+        label: 'Echo',
+        color: FateDropColors.violetLight,
+        title: 'Development Echo signal',
+        detail: 'Early movement detected. This is not confirmed stock.',
+        meta: 'FateDrop test network · Just now',
+        price: null as string | null,
+      };
+    case 'manifested':
+      return {
+        label: 'Manifested',
+        color: FateDropColors.mint,
+        title: 'Development confirmed-stock signal',
+        detail: 'Confirmed. Stock is live.',
+        meta: 'FateDrop test retailer · Just now',
+        price: '£54.99 delivered · RRP £54.99 · at RRP',
+      };
+    case 'vanished':
+      return {
+        label: 'Vanished',
+        color: FateDropColors.coral,
+        title: 'Development vanished signal',
+        detail: 'Observed availability has disappeared.',
+        meta: 'FateDrop test retailer · Just now',
+        price: null as string | null,
+      };
+    case 'fatematch':
+      return {
+        label: 'FateMatch',
+        color: FateDropColors.cyan,
+        title: 'Development FateMatch',
+        detail: 'Match found. This observed offer satisfies one of your hosted hunts.',
+        meta: 'FateDrop test retailer · £49.99 delivered · Just now',
+        price: null as string | null,
+      };
+    case 'major':
+      return {
+        label: 'Major',
+        color: FateDropColors.amber,
+        title: 'Development major confirmed signal',
+        detail: 'High-priority confirmed signal. Celebrate is reserved for moments like this.',
+        meta: 'FateDrop test network · Just now',
+        price: null as string | null,
+      };
+  }
+}
+
 export default function AlertsScreenV2() {
   const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const { selectedCompanion, selectCompanion } = useCompanion();
@@ -54,6 +109,7 @@ export default function AlertsScreenV2() {
   const [signalsLoading, setSignalsLoading] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedFateMatchId, setSelectedFateMatchId] = useState<string | null>(null);
+  const [developmentSignal, setDevelopmentSignal] = useState<DevelopmentSignalNotification | null>(null);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -90,11 +146,12 @@ export default function AlertsScreenV2() {
   const selectedFateMatch = fateMatches.find((match) => match.id === selectedFateMatchId) ?? null;
   const selectedPresentation = selectedEvent ? signalPresentation(selectedEvent) : null;
 
-  const activeReaction: CompanionReaction = selectedFateMatch ? 'fatematch' : selectedPresentation?.reaction ?? 'idle';
+  const activeReaction: CompanionReaction = developmentSignal ?? (selectedFateMatch ? 'fatematch' : selectedPresentation?.reaction ?? 'idle');
   const companionName = selectedCompanion === 'male' ? 'KAEL' : 'NYRA';
   const companionCode = selectedCompanion === 'male' ? 'K-01' : 'N-02';
 
   const selectedAlert = useMemo(() => {
+    if (developmentSignal) return developmentAlert(developmentSignal);
     if (selectedFateMatch) {
       return {
         label: 'FateMatch',
@@ -116,7 +173,7 @@ export default function AlertsScreenV2() {
       };
     }
     return null;
-  }, [selectedEvent, selectedFateMatch, selectedPresentation]);
+  }, [developmentSignal, selectedEvent, selectedFateMatch, selectedPresentation]);
 
   const toggle = async (key: 'echo' | 'manifested' | 'vanished' | 'priceChange' | 'fateMatch' | 'web' | 'discord') => {
     if (!preferences) return;
@@ -141,6 +198,12 @@ export default function AlertsScreenV2() {
     } finally {
       setPushWorking(false);
     }
+  };
+
+  const previewDevelopmentSignal = (signal: DevelopmentSignalNotification) => {
+    setSelectedEventId(null);
+    setSelectedFateMatchId(null);
+    setDevelopmentSignal(signal);
   };
 
   return (
@@ -191,17 +254,20 @@ export default function AlertsScreenV2() {
           </>}
         </View>
 
+        <DevelopmentAlertTester onPreview={previewDevelopmentSignal} />
+
         <Header eyebrow="RECENT SIGNALS" title="Network alert feed" />
         <View style={styles.list}>
           {signalsLoading && !signalEvents.length ? <Compact title="Reading the network" text="Loading observed FateDrop activity…" /> : null}
           {!signalsLoading && !signalEvents.length ? <Compact title="No recent signals available" text="FateDrop does not fabricate sample alerts when the activity source has nothing to report." /> : null}
           {signalEvents.map((event) => {
             const presentation = signalPresentation(event);
-            const selected = !selectedFateMatch && event.id === selectedEventId;
+            const selected = !developmentSignal && !selectedFateMatch && event.id === selectedEventId;
             return (
               <Pressable
                 key={event.id}
                 onPress={() => {
+                  setDevelopmentSignal(null);
                   setSelectedFateMatchId(null);
                   setSelectedEventId(event.id);
                 }}
@@ -248,11 +314,12 @@ export default function AlertsScreenV2() {
           <Header eyebrow="PERSONAL HISTORY" title="FateMatch results" />
           <View style={styles.list}>
             {fateMatches.length ? fateMatches.slice(0, 50).map((match) => {
-              const selected = match.id === selectedFateMatchId;
+              const selected = !developmentSignal && match.id === selectedFateMatchId;
               return (
                 <Pressable
                   key={match.id}
                   onPress={() => {
+                    setDevelopmentSignal(null);
                     setSelectedEventId(null);
                     setSelectedFateMatchId(match.id);
                   }}
