@@ -71,7 +71,29 @@ function signalPriceContext(event: MarketEvent) {
 }
 
 function signalVerdict(event: MarketEvent): VerdictLine {
+  const stage = String(event.fateStage || '').toUpperCase();
   const intelligence = event.priceIntelligence;
+
+  if (stage === 'VANISHED') {
+    const alternatives = event.preparedLinks?.alternatives.length ?? 0;
+    return {
+      text: alternatives
+        ? `VANISHED · ${alternatives} LIVE ALTERNATIVE${alternatives === 1 ? '' : 'S'} READY`
+        : 'VANISHED · No live alternative currently verified',
+      color: alternatives ? FateDropColors.cyan : FateDropColors.muted,
+    };
+  }
+
+  if (stage === 'ECHO') {
+    const knownRetailer = intelligence?.lowestKnown?.retailer;
+    return {
+      text: knownRetailer
+        ? `LINKS PREPARED · Stock not confirmed · ${knownRetailer} already in network`
+        : 'LINKS PREPARED · Stock not confirmed',
+      color: FateDropColors.violetLight,
+    };
+  }
+
   if (!intelligence?.verdict) return null;
 
   if (intelligence.verdict === 'BETTER_OFFER_FOUND' && intelligence.lowestKnown?.comparisonPricePence != null) {
