@@ -28,7 +28,9 @@ async function requestAlerts(query: string) {
 
 export async function loadCanonicalAlertInbox(alertId?: string | null) {
   const recentPromise = requestAlerts('?limit=30');
-  const exactPromise = alertId ? requestAlerts(`?id=${encodeURIComponent(alertId)}`) : Promise.resolve(null);
+  const exactPromise = alertId
+    ? requestAlerts(`?id=${encodeURIComponent(alertId)}`).catch(() => null)
+    : Promise.resolve(null);
   const [recent, exact] = await Promise.all([recentPromise, exactPromise]);
 
   const merged = [...(exact?.alerts || []), ...(recent?.alerts || [])];
