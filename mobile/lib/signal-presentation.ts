@@ -1,6 +1,7 @@
 import { companionReactionFromSignal, type CompanionReaction } from '@/lib/companion-contract';
 
 export type SignalTone = 'mint' | 'red' | 'amber' | 'blue' | 'violet' | 'neutral';
+export type FatePriceVerdict = 'LOWEST_KNOWN' | 'BETTER_OFFER_FOUND' | 'NO_FAIR_COMPARISON';
 
 export interface MarketEvent {
   id: string;
@@ -21,6 +22,28 @@ export interface MarketEvent {
     pricePence?: number | null;
     rrpPence?: number | null;
     deliveredPricePence?: number | null;
+  };
+  priceIntelligence?: {
+    rrpPence?: number | null;
+    rrpDeltaPercent?: number | null;
+    comparisonBasis?: 'item' | 'delivered';
+    verdict?: FatePriceVerdict;
+    currentComparisonPence?: number | null;
+    lowestKnown?: {
+      offerId?: string | null;
+      retailer?: string | null;
+      url?: string | null;
+      itemPricePence?: number | null;
+      deliveredPricePence?: number | null;
+      comparisonPricePence?: number | null;
+    } | null;
+    savingsPence?: number | null;
+    savingsPercent?: number | null;
+  };
+  notification?: {
+    title?: string;
+    body?: string;
+    data?: Record<string, unknown>;
   };
 }
 
@@ -57,8 +80,6 @@ export function signalPresentation(event: MarketEvent): SignalPresentation {
     };
   }
 
-  // Explicit early stages always remain early intelligence. A RESTOCK-like
-  // internal event name must not silently promote an Echo/Whisper to confirmed.
   const explicitlyEarly = stage === 'WHISPER' || stage === 'ECHO';
   if (explicitlyEarly || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
     return {
@@ -69,8 +90,6 @@ export function signalPresentation(event: MarketEvent): SignalPresentation {
     };
   }
 
-  // Canonical confirmation wins. Legacy no-stage events may still classify from
-  // observed stock event types until the alert-history API carries the stage.
   const confirmedAvailability =
     stage === 'MANIFESTED' ||
     event.confirmed === true ||
