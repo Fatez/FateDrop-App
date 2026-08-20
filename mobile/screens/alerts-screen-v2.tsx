@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CompanionStage } from '@/components/companion-stage';
 import { DevelopmentAlertTester } from '@/components/development-alert-tester';
 import { AbstractHero, FateDropBackground, FateDropHeader, StatusBadge, statusColors } from '@/components/fatedrop-ui';
-import { API_BASE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
 import { useCompanion } from '@/contexts/companion-context';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -22,6 +21,7 @@ import {
   signalPresentation,
   type MarketEvent,
 } from '@/lib/signal-presentation';
+import { loadCanonicalAlertInbox } from '@/services/alerts';
 import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
 const money = (pence?: number | null) => pence == null ? 'delivery unknown' : `£${(pence / 100).toFixed(2)} delivered`;
@@ -103,6 +103,8 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
 export default function AlertsScreenV2() {
   const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const { selectedCompanion, selectCompanion } = useCompanion();
+  const params = useLocalSearchParams<{ alertId?: string | string[] }>();
+  const requestedAlertId = Array.isArray(params.alertId) ? params.alertId[0] : params.alertId;
   const [pushWorking, setPushWorking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [signalEvents, setSignalEvents] = useState<MarketEvent[]>([]);
@@ -117,15 +119,24 @@ export default function AlertsScreenV2() {
     if (signedIn) void refresh();
 
     const loadSignals = async () => {
+      if (!signedIn) {
+        setSignalEvents([]);
+        setSelectedEventId(null);
+        setSignalsLoading(false);
+        return;
+      }
+
       setSignalsLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/events`);
-        if (!response.ok) throw new Error(`Alert history HTTP ${response.status}`);
-        const data = await response.json() as { events?: MarketEvent[] };
+        const data = await loadCanonicalAlertInbox(requestedAlertId);
         if (!active) return;
-        const events = Array.isArray(data.events) ? data.events.slice(0, 30) : [];
+        const events = data.alerts.slice(0, 30);
         setSignalEvents(events);
-        setSelectedEventId((current) => current && events.some((event) => event.id === current) ? current : events[0]?.id ?? null);
+        setSelectedEventId((current) => {
+          if (requestedAlertId && events.some((event) => event.id === requestedAlertId)) return requestedAlertId;
+          if (current && events.some((event) => event.id === current)) return current;
+          return events[0]?.id ?? null;
+        });
       } catch {
         if (active) setSignalEvents([]);
       } finally {
@@ -137,7 +148,7 @@ export default function AlertsScreenV2() {
     return () => {
       active = false;
     };
-  }, [refresh, signedIn]));
+  }, [refresh, requestedAlertId, signedIn]));
 
   const preferences = snapshot?.notificationPreferences;
   const fateFinds = snapshot?.fateFinds || [];
