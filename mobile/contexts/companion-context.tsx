@@ -26,6 +26,7 @@ export function CompanionProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         if (stored === 'male' || stored === 'female') setSelectedCompanion(stored);
       })
+      .catch(() => undefined)
       .finally(() => {
         if (active) setHydrated(true);
       });
@@ -37,7 +38,7 @@ export function CompanionProvider({ children }: { children: ReactNode }) {
 
   const selectCompanion = useCallback((variant: CompanionVariant) => {
     setSelectedCompanion(variant);
-    void AsyncStorage.setItem(STORAGE_KEY, variant);
+    void AsyncStorage.setItem(STORAGE_KEY, variant).catch(() => undefined);
   }, []);
 
   const value = useMemo(
