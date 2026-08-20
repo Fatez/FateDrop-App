@@ -1,6 +1,7 @@
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
+import { decode as decodeJpeg } from 'jpeg-js';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import * as THREE from 'three';
@@ -13,14 +14,16 @@ export type CompanionVariant = 'male' | 'female';
 export const REQUIRED_COMPANION_CLIPS = ['Idle', 'Echo', 'Notice', 'Manifested', 'Celebrate', 'Walk', 'Run'] as const;
 export type CompanionClipName = (typeof REQUIRED_COMPANION_CLIPS)[number];
 
-const MODELS: Record<CompanionVariant, { assetModule: number; label: string; code: string }> = {
+const MODELS: Record<CompanionVariant, { assetModule: number; textureModule: number; label: string; code: string }> = {
   male: {
-    assetModule: require('../assets/companions/fatedrop-male-mobile.glb'),
+    assetModule: require('../assets/companions/fatedrop-male-textured-mobile.glb'),
+    textureModule: require('../assets/companions/fatedrop-male-texture.jpg'),
     label: 'KAEL',
     code: 'K-01',
   },
   female: {
-    assetModule: require('../assets/companions/fatedrop-female-mobile.glb'),
+    assetModule: require('../assets/companions/fatedrop-female-textured-mobile.glb'),
+    textureModule: require('../assets/companions/fatedrop-female-texture.jpg'),
     label: 'NYRA',
     code: 'N-02',
   },
@@ -42,11 +45,6 @@ type CanvasShim = HTMLCanvasElement & {
   clientHeight: number;
 };
 
-/**
- * Expo GL gives us the native WebGL context directly. Three only needs this
- * minimal canvas surface; keeping the bridge here avoids reintroducing
- * expo-three and preserves the known-good Expo Go boot path.
- */
 function createRenderer(gl: ExpoWebGLRenderingContext) {
   const canvas = {
     width: gl.drawingBufferWidth,
@@ -71,9 +69,7 @@ function createRenderer(gl: ExpoWebGLRenderingContext) {
 
 /**
  * Three r166's GLTFLoader checks navigator.userAgent when constructing its
- * parser. React Native/Hermes can expose navigator without a userAgent string,
- * which makes GLTFLoader call .match() on undefined before it ever reads our
- * valid GLB. Only fill the missing value; never overwrite a real user agent.
+ * parser. React Native/Hermes can expose navigator without a userAgent string.
  */
 function ensureThreeNativeNavigatorCompatibility() {
   if (typeof navigator === 'undefined' || typeof navigator.userAgent === 'string') return;
@@ -88,12 +84,15 @@ function ensureThreeNativeNavigatorCompatibility() {
   }
 }
 
-async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
+async function readBundledAsset(assetModule: number, label: string) {
   const asset = Asset.fromModule(assetModule);
   await asset.downloadAsync();
-  if (!asset.localUri) throw new Error('Companion asset did not resolve to a local file.');
+  if (!asset.localUri) throw new Error(`${label} did not resolve to a local file.`);
+  return new File(asset.localUri).arrayBuffer();
+}
 
-  const buffer = await new File(asset.localUri).arrayBuffer();
+async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
+  const buffer = await readBundledAsset(assetModule, 'Companion GLB');
   if (buffer.byteLength < 20) throw new Error('Companion GLB was empty or invalid.');
 
   const view = new DataView(buffer);
@@ -111,6 +110,65 @@ async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
       (cause) => reject(cause instanceof Error ? cause : new Error('Companion GLB could not be parsed.')),
     );
   });
+}
+
+async function loadCompanionTexture(textureModule: number) {
+  const jpegBuffer = await readBundledAsset(textureModule, 'Companion texture');
+  const decoded = decodeJpeg(jpegBuffer, {
+    useTArray: true,
+    formatAsRGBA: true,
+    maxResolutionInMP: 8,
+    maxMemoryUsageInMB: 64,
+  });
+
+  if (!decoded.width || !decoded.height || decoded.data.length !== decoded.width * decoded.height * 4) {
+    throw new Error('Companion texture could not be decoded.');
+  }
+
+  // jpeg-js types its output as Uint8Array<ArrayBufferLike>.
+  // Copy into a fresh ArrayBuffer-backed Uint8Array for Three/DataTexture.
+  const rgbaPixels = new Uint8Array(decoded.data);
+
+  const texture = new THREE.DataTexture(
+    rgbaPixels,
+    decoded.width,
+    decoded.height,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.flipY = false;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function applyProductionTexture(model: THREE.Object3D, texture: THREE.DataTexture) {
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.41,
+    metalness: 0,
+    side: THREE.DoubleSide,
+  });
+
+  let meshCount = 0;
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    meshCount += 1;
+    const previous = Array.isArray(child.material) ? child.material : [child.material];
+    for (const item of previous) item?.dispose();
+    child.material = material;
+  });
+
+  if (!meshCount) {
+    material.dispose();
+    texture.dispose();
+    throw new Error('Companion GLB has no textured mesh.');
+  }
 }
 
 function fitModel(model: THREE.Object3D) {
@@ -132,16 +190,23 @@ function fitModel(model: THREE.Object3D) {
 }
 
 function disposeObject(root: THREE.Object3D) {
+  const disposedMaterials = new Set<THREE.Material>();
+  const disposedTextures = new Set<THREE.Texture>();
+
   root.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     child.geometry?.dispose();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     for (const material of materials) {
-      if (!material) continue;
+      if (!material || disposedMaterials.has(material)) continue;
       for (const value of Object.values(material)) {
-        if (value instanceof THREE.Texture) value.dispose();
+        if (value instanceof THREE.Texture && !disposedTextures.has(value)) {
+          value.dispose();
+          disposedTextures.add(value);
+        }
       }
       material.dispose();
+      disposedMaterials.add(material);
     }
   });
 }
@@ -164,84 +229,103 @@ async function createScene(
   camera.position.set(0, 0.03, 4.05);
   camera.lookAt(0, 0, 0);
 
-  scene.add(new THREE.HemisphereLight(0xdcecff, 0x140b22, 2.15));
-  const key = new THREE.DirectionalLight(0xffffff, 2.8);
+  scene.add(new THREE.HemisphereLight(0xe9f1ff, 0x100a19, 1.55));
+  const key = new THREE.DirectionalLight(0xffffff, 2.15);
   key.position.set(3.4, 5, 4.2);
   scene.add(key);
-  const violet = new THREE.DirectionalLight(0x9d6dff, 1.7);
+  const violet = new THREE.DirectionalLight(0x9d6dff, 1.05);
   violet.position.set(-4, 2.7, 2.2);
   scene.add(violet);
-  const cyan = new THREE.DirectionalLight(0x6ee7ff, 1.05);
+  const cyan = new THREE.DirectionalLight(0x6ee7ff, 0.55);
   cyan.position.set(3, -0.8, 1.6);
   scene.add(cyan);
 
-  const loaded = await loadCompanionGltf(MODELS[variant].assetModule);
-  if (disposed()) {
-    renderer.dispose();
-    return () => undefined;
-  }
+  let texture: THREE.DataTexture | null = null;
+  let model: THREE.Object3D | null = null;
 
-  const model = loaded.scene ?? loaded.scenes?.[0];
-  if (!model) throw new Error(`${MODELS[variant].label} GLB did not contain a scene.`);
+  try {
+    const [loaded, loadedTexture] = await Promise.all([
+      loadCompanionGltf(MODELS[variant].assetModule),
+      loadCompanionTexture(MODELS[variant].textureModule),
+    ]);
+    texture = loadedTexture;
 
-  fitModel(model);
-  scene.add(model);
-
-  const clips = loaded.animations ?? [];
-  const clipNames = new Set(clips.map((clip) => clip.name));
-  const missing = REQUIRED_COMPANION_CLIPS.filter((name) => !clipNames.has(name));
-  if (missing.length) {
-    throw new Error(`${MODELS[variant].label} is missing clips: ${missing.join(', ')}`);
-  }
-
-  const mixer = new THREE.AnimationMixer(model);
-  const actions = new Map<string, THREE.AnimationAction>();
-  for (const clip of clips) actions.set(clip.name, mixer.clipAction(clip));
-
-  let activeAction: THREE.AnimationAction | null = null;
-  let activeClipName = '';
-
-  function syncAction() {
-    const clipName = previewClip() ?? CLIP_BY_REACTION[reaction()];
-    if (clipName === activeClipName) return;
-
-    const nextAction = actions.get(clipName) ?? actions.get('Idle');
-    if (!nextAction) return;
-
-    nextAction.enabled = true;
-    nextAction.reset();
-    nextAction.setEffectiveWeight(1);
-    nextAction.setEffectiveTimeScale(1);
-    nextAction.setLoop(THREE.LoopRepeat, Infinity);
-    nextAction.play();
-
-    if (activeAction && activeAction !== nextAction) {
-      activeAction.crossFadeTo(nextAction, 0.22, false);
+    if (disposed()) {
+      texture.dispose();
+      renderer.dispose();
+      return () => undefined;
     }
-    activeAction = nextAction;
-    activeClipName = clipName;
-  }
 
-  syncAction();
-  const clock = new THREE.Clock();
-  let frameId = 0;
-  const frame = () => {
-    if (disposed()) return;
-    frameId = requestAnimationFrame(frame);
+    model = loaded.scene ?? loaded.scenes?.[0] ?? null;
+    if (!model) throw new Error(`${MODELS[variant].label} GLB did not contain a scene.`);
+
+    applyProductionTexture(model, texture);
+    fitModel(model);
+    scene.add(model);
+
+    const clips = loaded.animations ?? [];
+    const clipNames = new Set(clips.map((clip) => clip.name));
+    const missing = REQUIRED_COMPANION_CLIPS.filter((name) => !clipNames.has(name));
+    if (missing.length) {
+      throw new Error(`${MODELS[variant].label} is missing clips: ${missing.join(', ')}`);
+    }
+
+    const mixer = new THREE.AnimationMixer(model);
+    const actions = new Map<string, THREE.AnimationAction>();
+    for (const clip of clips) actions.set(clip.name, mixer.clipAction(clip));
+
+    let activeAction: THREE.AnimationAction | null = null;
+    let activeClipName = '';
+
+    function syncAction() {
+      const clipName = previewClip() ?? CLIP_BY_REACTION[reaction()];
+      if (clipName === activeClipName) return;
+
+      const nextAction = actions.get(clipName) ?? actions.get('Idle');
+      if (!nextAction) return;
+
+      nextAction.enabled = true;
+      nextAction.reset();
+      nextAction.setEffectiveWeight(1);
+      nextAction.setEffectiveTimeScale(1);
+      nextAction.setLoop(THREE.LoopRepeat, Infinity);
+      nextAction.play();
+
+      if (activeAction && activeAction !== nextAction) {
+        activeAction.crossFadeTo(nextAction, 0.22, false);
+      }
+      activeAction = nextAction;
+      activeClipName = clipName;
+    }
+
     syncAction();
-    mixer.update(Math.min(clock.getDelta(), 0.05));
-    renderer.render(scene, camera);
-    gl.endFrameEXP();
-  };
-  frame();
+    const clock = new THREE.Clock();
+    let frameId = 0;
+    const frame = () => {
+      if (disposed()) return;
+      frameId = requestAnimationFrame(frame);
+      syncAction();
+      mixer.update(Math.min(clock.getDelta(), 0.05));
+      renderer.render(scene, camera);
+      gl.endFrameEXP();
+    };
+    frame();
 
-  return () => {
-    cancelAnimationFrame(frameId);
-    mixer.stopAllAction();
-    scene.remove(model);
-    disposeObject(model);
+    return () => {
+      cancelAnimationFrame(frameId);
+      mixer.stopAllAction();
+      if (model) {
+        scene.remove(model);
+        disposeObject(model);
+      }
+      renderer.dispose();
+    };
+  } catch (cause) {
+    if (model) disposeObject(model);
+    else texture?.dispose();
     renderer.dispose();
-  };
+    throw cause;
+  }
 }
 
 export function CompanionStage({
