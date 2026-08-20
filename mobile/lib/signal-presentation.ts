@@ -2,11 +2,38 @@ import { companionReactionFromSignal, type CompanionReaction } from '@/lib/compa
 
 export type SignalTone = 'mint' | 'red' | 'amber' | 'blue' | 'violet' | 'neutral';
 export type FatePriceVerdict = 'LOWEST_KNOWN' | 'BETTER_OFFER_FOUND' | 'NO_FAIR_COMPARISON';
+export type CanonicalSignalStage = 'ECHO' | 'MANIFESTED' | 'VANISHED' | 'NETWORK';
+
+export type CanonicalOfferLink = {
+  offerId: string;
+  retailerId: string;
+  retailer: string;
+  url: string;
+  itemPricePence: number | null;
+  deliveredPricePence: number | null;
+  stockStatus: string | null;
+};
+
+export type CanonicalSignalThreadEntry = {
+  id: string;
+  state: string;
+  fateStage: CanonicalSignalStage;
+  retailer: string;
+  occurredAt: string;
+  reason: string;
+  pricePence: number | null;
+  stockStatus: string | null;
+  previousStockStatus: string | null;
+  url: string;
+};
 
 export interface MarketEvent {
   id: string;
   type?: string;
   fateStage?: string;
+  productId?: string;
+  offerId?: string;
+  retailerId?: string;
   title?: string;
   message?: string;
   retailer?: string;
@@ -19,6 +46,7 @@ export interface MarketEvent {
   product?: {
     title?: string;
     url?: string;
+    imageUrl?: string | null;
     pricePence?: number | null;
     rrpPence?: number | null;
     deliveredPricePence?: number | null;
@@ -31,14 +59,28 @@ export interface MarketEvent {
     currentComparisonPence?: number | null;
     lowestKnown?: {
       offerId?: string | null;
+      retailerId?: string | null;
       retailer?: string | null;
       url?: string | null;
       itemPricePence?: number | null;
       deliveredPricePence?: number | null;
       comparisonPricePence?: number | null;
+      stockStatus?: string | null;
     } | null;
     savingsPence?: number | null;
     savingsPercent?: number | null;
+  };
+  signalThread?: CanonicalSignalThreadEntry[];
+  preparedLinks?: {
+    primary: CanonicalOfferLink & {
+      intent: 'inspect' | 'buy';
+      label: string;
+    };
+    lowestKnown: CanonicalOfferLink | null;
+    officialReference: CanonicalOfferLink | null;
+    alternatives: CanonicalOfferLink[];
+    compareQuery: string;
+    fateFindQuery: string;
   };
   notification?: {
     title?: string;
