@@ -144,9 +144,9 @@ async function loadCompanionTexture(textureModule: number) {
   texture.flipY = false;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
+  texture.generateMipmaps = false;
   texture.needsUpdate = true;
   return texture;
 }
