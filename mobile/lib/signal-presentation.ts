@@ -11,8 +11,13 @@ export interface MarketEvent {
   retailer?: string;
   detectedAt?: string;
   major?: boolean;
+  confirmed?: boolean;
+  confirmedRestock?: boolean;
+  productUrl?: string;
+  retailerUrl?: string;
   product?: {
     title?: string;
+    url?: string;
     pricePence?: number | null;
     rrpPence?: number | null;
     deliveredPricePence?: number | null;
@@ -25,6 +30,10 @@ export type SignalPresentation = {
   icon: 'flash' | 'sparkles' | 'close-circle' | 'trophy' | 'radio';
   reaction: CompanionReaction;
 };
+
+export function retailerDestination(event: MarketEvent) {
+  return event.product?.url ?? event.productUrl ?? event.retailerUrl ?? null;
+}
 
 export function signalPresentation(event: MarketEvent): SignalPresentation {
   const type = String(event.type || '').toUpperCase();
@@ -48,22 +57,32 @@ export function signalPresentation(event: MarketEvent): SignalPresentation {
     };
   }
 
-  const confirmedRestock = stage === 'MANIFESTED' || (stage === 'ECHO' && /RESTOCK/.test(type)) || /RESTOCK|IN_STOCK|NEW_PRODUCT/.test(type);
-  if (confirmedRestock) {
-    return {
-      label: 'Manifested',
-      tone: 'mint',
-      icon: 'sparkles',
-      reaction: companionReactionFromSignal({ state: 'manifested', confirmedRestock: true }),
-    };
-  }
-
-  if (stage === 'WHISPER' || stage === 'ECHO' || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
+  // Explicit early stages always remain early intelligence. A RESTOCK-like
+  // internal event name must not silently promote an Echo/Whisper to confirmed.
+  const explicitlyEarly = stage === 'WHISPER' || stage === 'ECHO';
+  if (explicitlyEarly || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
     return {
       label: 'Echo',
       tone: 'violet',
       icon: 'flash',
       reaction: companionReactionFromSignal({ state: 'echo' }),
+    };
+  }
+
+  // Canonical confirmation wins. Legacy no-stage events may still classify from
+  // observed stock event types until the alert-history API carries the stage.
+  const confirmedAvailability =
+    stage === 'MANIFESTED' ||
+    event.confirmed === true ||
+    event.confirmedRestock === true ||
+    (!stage && /RESTOCK|IN_STOCK|NEW_PRODUCT/.test(type));
+
+  if (confirmedAvailability) {
+    return {
+      label: 'Manifested',
+      tone: 'mint',
+      icon: 'sparkles',
+      reaction: companionReactionFromSignal({ state: 'manifested', confirmedRestock: true }),
     };
   }
 
