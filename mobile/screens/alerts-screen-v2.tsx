@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AlertSignalPack } from '@/components/alert-signal-pack';
 import { CompanionStage } from '@/components/companion-stage';
 import { DevelopmentAlertTester } from '@/components/development-alert-tester';
 import { AbstractHero, FateDropBackground, FateDropHeader, StatusBadge, statusColors } from '@/components/fatedrop-ui';
@@ -316,6 +317,7 @@ export default function AlertsScreenV2() {
             <Text style={styles.selectedAlertMeta}>{selectedAlert.meta}</Text>
             {selectedAlert.price ? <Text style={styles.selectedAlertPrice}>{selectedAlert.price}</Text> : null}
             {selectedAlert.verdict ? <Text style={[styles.selectedAlertVerdict, { color: selectedAlert.verdict.color }]}>{selectedAlert.verdict.text}</Text> : null}
+            {selectedEvent && !developmentSignal && !selectedFateMatch ? <AlertSignalPack event={selectedEvent} /> : null}
           </> : <>
             <Text style={styles.selectedAlertLabel}>IDLE</Text>
             <Text style={styles.selectedAlertTitle}>No signal selected</Text>
