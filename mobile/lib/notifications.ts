@@ -13,19 +13,87 @@ Notifications.setNotificationHandler({
 
 const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fate-drop.com').replace(/\/$/, '');
 
+export type DevelopmentSignalNotification = 'echo' | 'manifested' | 'vanished' | 'fatematch' | 'major';
+
+const developmentNotificationCopy: Record<DevelopmentSignalNotification, { title: string; body: string }> = {
+  echo: {
+    title: 'FateDrop · Echo detected',
+    body: 'Early movement detected. KAEL / NYRA is watching the signal.',
+  },
+  manifested: {
+    title: 'FateDrop · Manifested',
+    body: 'Confirmed availability detected. Stock is live.',
+  },
+  vanished: {
+    title: 'FateDrop · Vanished',
+    body: 'Observed availability has disappeared.',
+  },
+  fatematch: {
+    title: 'FateDrop · FateMatch',
+    body: 'An observed offer matches one of your hosted hunts.',
+  },
+  major: {
+    title: 'FateDrop · Major signal',
+    body: 'A high-priority confirmed signal has been detected.',
+  },
+};
+
+async function ensureNotificationPermission() {
+  if (!Device.isDevice) return { granted: false as const, reason: 'physical-device-required' };
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('stock-alerts', {
+      name: 'FateDrop alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: '#A855F7',
+      sound: 'default',
+    });
+  }
+
+  const existing = await Notifications.getPermissionsAsync();
+  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
+  if (permission.status !== 'granted') return { granted: false as const, reason: 'permission-denied' };
+  return { granted: true as const };
+}
+
+export async function scheduleDevelopmentSignalNotification(signal: DevelopmentSignalNotification, delaySeconds = 5) {
+  if (!__DEV__) throw new Error('Development notification tests are disabled in production builds.');
+
+  const permission = await ensureNotificationPermission();
+  if (!permission.granted) return { scheduled: false as const, reason: permission.reason };
+
+  const copy = developmentNotificationCopy[signal];
+  const seconds = Math.max(1, Math.floor(delaySeconds));
+  const identifier = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: copy.title,
+      body: copy.body,
+      sound: 'default',
+      data: {
+        route: 'alerts',
+        testSignal: signal,
+        source: 'development-local-notification',
+      },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds,
+      repeats: false,
+      ...(Platform.OS === 'android' ? { channelId: 'stock-alerts' } : {}),
+    },
+  });
+
+  return { scheduled: true as const, identifier, delaySeconds: seconds };
+}
+
 export async function registerForStockAlerts() {
   const sessionToken = await getStoredSessionToken();
   if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
-  if (!Device.isDevice) return { enabled: false, reason: 'physical-device-required' };
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('stock-alerts', {
-      name: 'FateDrop alerts', importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 150, 250], lightColor: '#A855F7', sound: 'default',
-    });
-  }
-  const existing = await Notifications.getPermissionsAsync();
-  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') return { enabled: false, reason: 'permission-denied' };
+
+  const permission = await ensureNotificationPermission();
+  if (!permission.granted) return { enabled: false, reason: permission.reason };
+
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   if (!projectId) return { enabled: false, reason: 'eas-project-id-required' };
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
