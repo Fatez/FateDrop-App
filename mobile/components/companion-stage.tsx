@@ -69,6 +69,25 @@ function createRenderer(gl: ExpoWebGLRenderingContext) {
   return renderer;
 }
 
+/**
+ * Three r166's GLTFLoader checks navigator.userAgent when constructing its
+ * parser. React Native/Hermes can expose navigator without a userAgent string,
+ * which makes GLTFLoader call .match() on undefined before it ever reads our
+ * valid GLB. Only fill the missing value; never overwrite a real user agent.
+ */
+function ensureThreeNativeNavigatorCompatibility() {
+  if (typeof navigator === 'undefined' || typeof navigator.userAgent === 'string') return;
+
+  try {
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: 'ReactNative',
+    });
+  } catch {
+    (navigator as unknown as { userAgent?: string }).userAgent = 'ReactNative';
+  }
+}
+
 async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
   const asset = Asset.fromModule(assetModule);
   await asset.downloadAsync();
@@ -82,6 +101,7 @@ async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
     throw new Error('Companion asset is not a valid GLB v2 file.');
   }
 
+  ensureThreeNativeNavigatorCompatibility();
   const loader = new GLTFLoader();
   return new Promise<GLTF>((resolve, reject) => {
     loader.parse(
