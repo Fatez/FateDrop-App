@@ -141,7 +141,7 @@ async function loadCompanionTexture(textureModule: number) {
   texture.isDataTexture = true;
   texture.image = { data: asset, width, height } as unknown as TexImageSource;
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.flipY = true;
+  texture.flipY = false;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
