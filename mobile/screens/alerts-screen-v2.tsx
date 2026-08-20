@@ -38,16 +38,66 @@ const agoDate = (value?: string) => {
   return minutes < 1 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago` : `${Math.floor(minutes / 1440)}d ago`;
 };
 
+type VerdictLine = { text: string; color: string } | null;
+
 function signalPriceContext(event: MarketEvent) {
-  const delivered = event.product?.deliveredPricePence ?? event.product?.pricePence;
-  const rrp = event.product?.rrpPence;
-  if (delivered == null && rrp == null) return null;
-  if (delivered == null) return `RRP ${pounds(rrp)}`;
-  if (rrp == null || rrp <= 0) return `${pounds(delivered)} observed`;
-  const difference = delivered - rrp;
-  const percent = (difference / rrp) * 100;
-  const direction = difference === 0 ? 'at RRP' : difference < 0 ? `${Math.abs(percent).toFixed(1)}% below RRP` : `${percent.toFixed(1)}% above RRP`;
-  return `${pounds(delivered)} delivered · RRP ${pounds(rrp)} · ${direction}`;
+  const itemPrice = event.product?.pricePence;
+  const delivered = event.product?.deliveredPricePence;
+  const intelligence = event.priceIntelligence;
+  const rrp = intelligence?.rrpPence ?? event.product?.rrpPence;
+  const rrpDelta = intelligence?.rrpDeltaPercent;
+
+  if (itemPrice == null && delivered == null && rrp == null) return null;
+
+  const parts: string[] = [];
+  if (itemPrice != null) parts.push(`${pounds(itemPrice)} item`);
+  if (delivered != null && delivered !== itemPrice) parts.push(`${pounds(delivered)} delivered`);
+
+  if (rrp != null && rrp > 0) {
+    if (rrpDelta != null) {
+      const direction = rrpDelta === 0
+        ? 'at RRP'
+        : rrpDelta < 0
+          ? `${Math.abs(rrpDelta).toFixed(1)}% below RRP`
+          : `${rrpDelta.toFixed(1)}% above RRP`;
+      parts.push(`RRP ${pounds(rrp)} · ${direction}`);
+    } else {
+      parts.push(`RRP ${pounds(rrp)}`);
+    }
+  }
+
+  return parts.join(' · ') || null;
+}
+
+function signalVerdict(event: MarketEvent): VerdictLine {
+  const intelligence = event.priceIntelligence;
+  if (!intelligence?.verdict) return null;
+
+  if (intelligence.verdict === 'BETTER_OFFER_FOUND' && intelligence.lowestKnown?.comparisonPricePence != null) {
+    const lowest = pounds(intelligence.lowestKnown.comparisonPricePence);
+    const saving = pounds(intelligence.savingsPence);
+    const savingPercent = intelligence.savingsPercent == null ? null : `${intelligence.savingsPercent.toFixed(1)}%`;
+    const basis = intelligence.comparisonBasis === 'delivered' ? 'delivered' : 'item price';
+    const retailer = intelligence.lowestKnown.retailer || 'another retailer';
+    const savingCopy = saving ? ` · save ${saving}${savingPercent ? ` (${savingPercent})` : ''}` : '';
+    return {
+      text: `BETTER OFFER FOUND · ${lowest} at ${retailer}${savingCopy} · ${basis} comparison`,
+      color: FateDropColors.amber,
+    };
+  }
+
+  if (intelligence.verdict === 'LOWEST_KNOWN') {
+    const basis = intelligence.comparisonBasis === 'delivered' ? 'delivered price' : 'item price';
+    return {
+      text: `LOWEST KNOWN · Best comparable ${basis} currently in FateDrop`,
+      color: FateDropColors.mint,
+    };
+  }
+
+  return {
+    text: 'NO FAIR COMPARISON · Delivery or comparable pricing is not complete enough yet',
+    color: FateDropColors.muted,
+  };
 }
 
 function developmentAlert(signal: DevelopmentSignalNotification) {
@@ -60,6 +110,7 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
         detail: 'Early movement detected. This is not confirmed stock.',
         meta: 'FateDrop test network · Just now',
         price: null as string | null,
+        verdict: null as VerdictLine,
       };
     case 'manifested':
       return {
@@ -68,7 +119,8 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
         title: 'Development confirmed-stock signal',
         detail: 'Confirmed. Stock is live.',
         meta: 'FateDrop test retailer · Just now',
-        price: '£54.99 delivered · RRP £54.99 · at RRP',
+        price: '£54.99 item · RRP £49.99 · 10.0% above RRP',
+        verdict: { text: 'BETTER OFFER FOUND · £49.99 at FateDrop test retailer · save £5.00 (9.1%) · item price comparison', color: FateDropColors.amber } as VerdictLine,
       };
     case 'vanished':
       return {
@@ -78,6 +130,7 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
         detail: 'Observed availability has disappeared.',
         meta: 'FateDrop test retailer · Just now',
         price: null as string | null,
+        verdict: null as VerdictLine,
       };
     case 'fatematch':
       return {
@@ -87,6 +140,7 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
         detail: 'Match found. This observed offer satisfies one of your hosted hunts.',
         meta: 'FateDrop test retailer · £49.99 delivered · Just now',
         price: null as string | null,
+        verdict: null as VerdictLine,
       };
     case 'major':
       return {
@@ -96,6 +150,7 @@ function developmentAlert(signal: DevelopmentSignalNotification) {
         detail: 'High-priority confirmed signal. Celebrate is reserved for moments like this.',
         meta: 'FateDrop test network · Just now',
         price: null as string | null,
+        verdict: null as VerdictLine,
       };
   }
 }
@@ -171,6 +226,7 @@ export default function AlertsScreenV2() {
         detail: 'Match found. This observed offer satisfies one of your hosted hunts.',
         meta: `${selectedFateMatch.retailerName} · ${money(selectedFateMatch.deliveredPricePence)} · ${agoEpoch(selectedFateMatch.matchedAt)}`,
         price: null as string | null,
+        verdict: null as VerdictLine,
       };
     }
     if (selectedEvent && selectedPresentation) {
@@ -181,6 +237,7 @@ export default function AlertsScreenV2() {
         detail: companionLineForSignal(selectedPresentation),
         meta: `${selectedEvent.retailer || 'Connected retailer'} · ${agoDate(selectedEvent.detectedAt)}`,
         price: signalPriceContext(selectedEvent),
+        verdict: signalVerdict(selectedEvent),
       };
     }
     return null;
@@ -258,6 +315,7 @@ export default function AlertsScreenV2() {
             <Text style={styles.selectedAlertDetail}>{selectedAlert.detail}</Text>
             <Text style={styles.selectedAlertMeta}>{selectedAlert.meta}</Text>
             {selectedAlert.price ? <Text style={styles.selectedAlertPrice}>{selectedAlert.price}</Text> : null}
+            {selectedAlert.verdict ? <Text style={[styles.selectedAlertVerdict, { color: selectedAlert.verdict.color }]}>{selectedAlert.verdict.text}</Text> : null}
           </> : <>
             <Text style={styles.selectedAlertLabel}>IDLE</Text>
             <Text style={styles.selectedAlertTitle}>No signal selected</Text>
@@ -274,6 +332,8 @@ export default function AlertsScreenV2() {
           {signalEvents.map((event) => {
             const presentation = signalPresentation(event);
             const selected = !developmentSignal && !selectedFateMatch && event.id === selectedEventId;
+            const verdict = signalVerdict(event);
+            const priceContext = signalPriceContext(event);
             return (
               <Pressable
                 key={event.id}
@@ -291,7 +351,8 @@ export default function AlertsScreenV2() {
                   <Text style={[styles.signalLabel, { color: statusColors[presentation.tone] }]}>{presentation.label.toUpperCase()}</Text>
                   <Text style={styles.cardTitle}>{event.product?.title || event.title || 'Network activity'}</Text>
                   <Text style={styles.cardDetail}>{event.retailer || 'Connected retailer'} · {agoDate(event.detectedAt)}</Text>
-                  {signalPriceContext(event) ? <Text style={styles.signalPrice}>{signalPriceContext(event)}</Text> : null}
+                  {priceContext ? <Text style={styles.signalPrice}>{priceContext}</Text> : null}
+                  {verdict ? <Text style={[styles.signalVerdict, { color: verdict.color }]}>{verdict.text}</Text> : null}
                 </View>
                 <Ionicons name={selected ? 'radio-button-on' : 'chevron-forward'} size={17} color={selected ? FateDropColors.cyan : FateDropColors.muted} />
               </Pressable>
@@ -396,11 +457,13 @@ const styles = StyleSheet.create({
   selectedAlertDetail: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 5 },
   selectedAlertMeta: { color: FateDropColors.muted, fontSize: 9, marginTop: 8 },
   selectedAlertPrice: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '800', marginTop: 5 },
+  selectedAlertVerdict: { fontSize: 9, fontWeight: '900', lineHeight: 14, marginTop: 6 },
   signalCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   signalCardSelected: { borderColor: `${FateDropColors.cyan}70`, backgroundColor: `${FateDropColors.cyan}08` },
   signalIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   signalLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.1, marginBottom: 3 },
   signalPrice: { color: FateDropColors.cyan, fontSize: 8, marginTop: 4 },
+  signalVerdict: { fontSize: 8, fontWeight: '900', lineHeight: 12, marginTop: 4 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 18, marginBottom: 18 },
   stat: { flex: 1, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   statValue: { color: FateDropColors.text, fontWeight: '900', fontSize: 22 },
