@@ -9,18 +9,22 @@ import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
 import type { CompanionReaction } from '@/lib/companion-contract';
 
-const variants: { id: CompanionVariant; title: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'male', title: 'Male', subtitle: 'Collector companion', icon: 'person' },
-  { id: 'female', title: 'Female', subtitle: 'Collector companion', icon: 'person' },
-  { id: 'droid', title: 'Droid', subtitle: 'Signal familiar', icon: 'hardware-chip' },
+const variants: {
+  id: CompanionVariant;
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { id: 'male', title: 'KAEL', subtitle: 'Collector identity · K-01', icon: 'person' },
+  { id: 'female', title: 'NYRA', subtitle: 'Collector identity · N-02', icon: 'person' },
 ];
 
 const reactions: { id: CompanionReaction; label: string }[] = [
   { id: 'idle', label: 'Idle' },
+  { id: 'watching', label: 'Notice' },
   { id: 'echo', label: 'Echo' },
   { id: 'manifested', label: 'Manifested' },
-  { id: 'vanished', label: 'Vanished' },
-  { id: 'fatematch', label: 'FateMatch' },
+  { id: 'major', label: 'Celebrate' },
 ];
 
 export default function CompanionScreen() {
@@ -32,33 +36,61 @@ export default function CompanionScreen() {
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.back}><Ionicons name="chevron-back" size={22} color={FateDropColors.text} /></Pressable>
-          <View style={styles.headerCopy}><Text style={styles.eyebrow}>FATEDROP COMPANION</Text><Text style={styles.title}>Your signal has a face.</Text></View>
-          <View style={styles.live}><View style={styles.dot} /><Text style={styles.liveText}>3D LIVE</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={styles.back}>
+            <Ionicons name="chevron-back" size={22} color={FateDropColors.text} />
+          </Pressable>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>FATEDROP COMPANION</Text>
+            <Text style={styles.title}>Your signal has a face.</Text>
+          </View>
+          <View style={styles.live}>
+            <View style={styles.dot} />
+            <Text style={styles.liveText}>3D LIVE</Text>
+          </View>
         </View>
 
         <CompanionStage variant={variant} reaction={reaction} />
 
-        <Text style={styles.sectionLabel}>CHOOSE COMPANION</Text>
+        <Text style={styles.sectionLabel}>CHOOSE IDENTITY</Text>
         <View style={styles.variantRow}>
           {variants.map((item) => {
             const active = item.id === variant;
-            return <Pressable key={item.id} onPress={() => setVariant(item.id)} style={[styles.variant, active && styles.variantActive]}>
-              <Ionicons name={item.icon} size={18} color={active ? FateDropColors.cyan : FateDropColors.secondary} />
-              <Text style={[styles.variantTitle, active && styles.activeText]}>{item.title}</Text>
-              <Text style={styles.variantSub}>{item.subtitle}</Text>
-            </Pressable>;
+            return (
+              <Pressable key={item.id} onPress={() => setVariant(item.id)} style={[styles.variant, active && styles.variantActive]}>
+                <Ionicons name={item.icon} size={18} color={active ? FateDropColors.cyan : FateDropColors.secondary} />
+                <Text style={[styles.variantTitle, active && styles.activeText]}>{item.title}</Text>
+                <Text style={styles.variantSub}>{item.subtitle}</Text>
+              </Pressable>
+            );
           })}
+        </View>
+
+        <View style={styles.voxCard}>
+          <View style={styles.voxIcon}>
+            <Ionicons name="hardware-chip" size={18} color={FateDropColors.violetLight} />
+          </View>
+          <View style={styles.voxCopy}>
+            <Text style={styles.voxTitle}>VØX · Familiar</Text>
+            <Text style={styles.voxText}>Production familiar asset is temporarily disabled until the wrapped source is converted to a standards-compliant GLB. KAEL and NYRA stay fully live.</Text>
+          </View>
+          <Text style={styles.voxStatus}>ASSET HOLD</Text>
         </View>
 
         <Text style={styles.sectionLabel}>TEST SIGNAL REACTION</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reactionRow}>
-          {reactions.map((item) => <Pressable key={item.id} onPress={() => setReaction(item.id)} style={[styles.reaction, reaction === item.id && styles.reactionActive]}><Text style={[styles.reactionText, reaction === item.id && styles.activeText]}>{item.label}</Text></Pressable>)}
+          {reactions.map((item) => (
+            <Pressable key={item.id} onPress={() => setReaction(item.id)} style={[styles.reaction, reaction === item.id && styles.reactionActive]}>
+              <Text style={[styles.reactionText, reaction === item.id && styles.activeText]}>{item.label}</Text>
+            </Pressable>
+          ))}
         </ScrollView>
 
         <View style={styles.infoCard}>
           <View style={styles.infoIcon}><Ionicons name="flash" size={18} color={FateDropColors.violetLight} /></View>
-          <View style={styles.infoCopy}><Text style={styles.infoTitle}>Not just decoration</Text><Text style={styles.infoText}>The Companion contract already understands Echo, Manifested, Vanished, FateMatch and major signal states. This preview gives those states a real 3D surface without making the renderer critical to the rest of the app.</Text></View>
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoTitle}>Production animation contract</Text>
+            <Text style={styles.infoText}>Idle, Echo, Notice, Manifested and Celebrate now drive the real rig clips. Walk and Run remain available for future navigation and scene behaviour.</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -83,6 +115,12 @@ const styles = StyleSheet.create({
   variantTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 7 },
   variantSub: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 },
   activeText: { color: FateDropColors.cyan },
+  voxCard: { marginTop: 10, flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: 16, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
+  voxIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.violet}18` },
+  voxCopy: { flex: 1 },
+  voxTitle: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
+  voxText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  voxStatus: { color: '#F8B66D', fontSize: 6, fontWeight: '900', letterSpacing: 1 },
   reactionRow: { gap: 8, paddingRight: 12 },
   reaction: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 999, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
   reactionActive: { backgroundColor: `${FateDropColors.violet}1F`, borderColor: `${FateDropColors.violetLight}88` },
