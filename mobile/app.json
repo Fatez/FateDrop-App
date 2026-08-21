@@ -1,18 +1,20 @@
 {
   "expo": {
     "name": "FateDrop",
-    "slug": "mobile",
+    "slug": "fatedrop",
     "version": "1.0.0",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "fatedrop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "uk.co.fatedrop"
     },
     "android": {
+      "package": "uk.co.fatedrop",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
