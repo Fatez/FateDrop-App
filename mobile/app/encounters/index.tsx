@@ -94,7 +94,7 @@ export default function EncountersScreen() {
     await saveEventIds(AsyncStorage, next);
   };
 
-  const useDeviceLocation = async () => {
+  const locateDevice = async () => {
     setLocationError('');
     setLocating(true);
     try {
@@ -129,7 +129,7 @@ export default function EncountersScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const applyPostcode = async () => {
     setLocationError('');
     try {
       setArea(await locationAdapter.fromPostcode(postcode));
@@ -288,7 +288,7 @@ export default function EncountersScreen() {
               <Text style={styles.radarText}>Location is optional and requested only when you choose to use it. A UK postcode works too.</Text>
             </View>
           </View>
-          <Pressable disabled={locating} onPress={() => void useDeviceLocation()} style={styles.locationButton}>
+          <Pressable disabled={locating} onPress={() => void locateDevice()} style={styles.locationButton}>
             <Ionicons name="locate" size={17} color={FateDropColors.text} />
             <Text style={styles.locationButtonText}>{locating ? 'Locating…' : 'Use my location'}</Text>
           </Pressable>
@@ -301,7 +301,7 @@ export default function EncountersScreen() {
               placeholderTextColor={FateDropColors.muted}
               style={styles.postcodeInput}
             />
-            <Pressable onPress={() => void usePostcode()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Set</Text></Pressable>
+            <Pressable onPress={() => void applyPostcode()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Set</Text></Pressable>
           </View>
           {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
           {area ? (
