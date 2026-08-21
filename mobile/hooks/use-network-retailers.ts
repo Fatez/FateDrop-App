@@ -42,10 +42,8 @@ export function useNetworkRetailers() {
     return () => { cancelled = true; };
   }, []);
 
-  return useMemo(() => {
-    const merged = new Map<string, NetworkRetailerOption>();
-    for (const retailer of fallbackRetailers) merged.set(retailer.id, retailer);
-    for (const retailer of liveRetailers) merged.set(retailer.id, retailer);
-    return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [liveRetailers]);
+  return useMemo(
+    () => [...(liveRetailers.length ? liveRetailers : fallbackRetailers)].sort((a, b) => a.name.localeCompare(b.name)),
+    [liveRetailers],
+  );
 }
