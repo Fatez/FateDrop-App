@@ -11,6 +11,7 @@ const identity = source('../services/fatedrop-id.ts');
 const alerts = source('../screens/alerts-screen-v2.tsx');
 const alertsService = source('../services/alerts.ts');
 const truePrice = source('../app/true-price.tsx');
+const home = source('../app/(tabs)/index.tsx');
 
 test('mobile preserves Whisper, Echo, Manifested and Vanished as distinct stages', () => {
   assert.match(presentation, /'WHISPER' \| 'ECHO' \| 'MANIFESTED' \| 'VANISHED'/);
@@ -19,6 +20,17 @@ test('mobile preserves Whisper, Echo, Manifested and Vanished as distinct stages
   assert.match(presentation, /stage === 'ECHO'/);
   assert.match(presentation, /label: 'Echo'/);
   assert.doesNotMatch(presentation, /stage === 'WHISPER' \|\| stage === 'ECHO'/);
+});
+
+test('mobile Home consumes the public Cloud signal contract without lifecycle translation', () => {
+  assert.match(home, /\/api\/signals\?limit=5/);
+  assert.doesNotMatch(home, /\/api\/events\?limit=5/);
+  assert.match(home, /value === 'whisper'\) return 'WHISPER'/);
+  assert.match(home, /value === 'echo'\) return 'ECHO'/);
+  assert.match(home, /value === 'manifested'\) return 'MANIFESTED'/);
+  assert.match(home, /value === 'vanished'\) return 'VANISHED'/);
+  assert.doesNotMatch(home, /value === 'whisper'\) return 'ECHO'/);
+  assert.doesNotMatch(home, /value === 'manifested' \|\| value === 'echo'\) return 'MANIFESTED'/);
 });
 
 test('Companion uses anticipation for Whisper and readiness for Echo', () => {
