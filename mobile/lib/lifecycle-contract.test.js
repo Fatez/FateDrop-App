@@ -9,6 +9,7 @@ const companion = source('./companion-contract.ts');
 const notifications = source('./notifications.ts');
 const identity = source('../services/fatedrop-id.ts');
 const alerts = source('../screens/alerts-screen-v2.tsx');
+const alertsService = source('../services/alerts.ts');
 const truePrice = source('../app/true-price.tsx');
 
 test('mobile preserves Whisper, Echo, Manifested and Vanished as distinct stages', () => {
@@ -40,4 +41,12 @@ test('beta True Price retains the RRP-first main-branch improvement', () => {
   assert.match(truePrice, /useState<SortMode>\('item'\)/);
   assert.match(truePrice, /Authoritative RRP unavailable · no markup percentage shown/);
   assert.match(truePrice, /Below RRP/);
+});
+
+test('beta reconciliation keeps the authenticated canonical alert inbox instead of the superseded raw signal client', () => {
+  assert.match(alerts, /loadCanonicalAlertInbox/);
+  assert.doesNotMatch(alerts, /fetchNetworkSignals/);
+  assert.match(alertsService, /\/api\/mobile\/alerts/);
+  assert.match(alertsService, /authorization: `Bearer \$\{token\}`/);
+  assert.match(alertsService, /\?id=\$\{encodeURIComponent\(alertId\)\}/);
 });
