@@ -1,7 +1,7 @@
 import type { MarketEvent } from '@/lib/signal-presentation';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
-const DEFAULT_WEB_URL = 'https://fate-drop.com';
+const DEFAULT_WEB_URL = 'https://fatedrop-web.fatedrop-web.workers.dev';
 
 function baseUrl() {
   return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/, '');
