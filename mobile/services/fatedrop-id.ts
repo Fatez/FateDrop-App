@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'fatedrop:id:session:v1';
 const SNAPSHOT_KEY = 'fatedrop:id:snapshot:v1';
-const DEFAULT_WEB_URL = 'https://fate-drop.com';
+const DEFAULT_WEB_URL = 'https://fatedrop-web.fatedrop-web.workers.dev';
 
 export type FateCapability = 'browse_network'|'selected_signals'|'retailer_discovery'|'true_price'|'advanced_fate_match'|'priority_alerts'|'advanced_filters'|'premium_discord'|'fate_lock_eligibility';
 export type FateDropIdentity = { id:string; fateId:string; email:string; handle:string|null; displayName:string|null; createdAt:number };
@@ -18,18 +18,16 @@ type LoginResponse = Partial<FateDropSyncSnapshot> & { sessionToken:string; expi
 function baseUrl(){ return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/,''); }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
 const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:false,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
-
-function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences>|undefined):CrossPlatformNotificationPreferences{
-  return {...defaultPreferences,...(input||{}),whisper:typeof input?.whisper==='boolean'?input.whisper:true};
-}
-function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
-  return {...snapshot,fateMatches:snapshot.fateMatches||[],notificationPreferences:normalizePreferences(snapshot.notificationPreferences)};
-}
+function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences>|null|undefined):CrossPlatformNotificationPreferences{return{...defaultPreferences,...(input||{})};}
+function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{return{...snapshot,fateMatches:snapshot.fateMatches||[],notificationPreferences:normalizePreferences(snapshot.notificationPreferences)};}
 
 async function storeSessionToken(token:string){ await SecureStore.setItemAsync(TOKEN_KEY,token); }
 export async function getStoredSessionToken(){
   const secureToken=await SecureStore.getItemAsync(TOKEN_KEY);
   if(secureToken)return secureToken;
+  // One-time migration for development installs that previously stored the opaque
+  // bearer token in AsyncStorage. The legacy value is deleted immediately after
+  // it has been copied into the OS-protected credential store.
   const legacyToken=await AsyncStorage.getItem(TOKEN_KEY);
   if(!legacyToken)return null;
   await storeSessionToken(legacyToken);

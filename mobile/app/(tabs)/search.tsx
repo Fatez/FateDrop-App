@@ -5,9 +5,9 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader, FilterChip, StatusBadge } from '@/components/fatedrop-ui';
-import { retailers } from '@/constants/retailers';
 import { FateDropColors } from '@/constants/theme';
 import { useCatalogue } from '@/hooks/use-catalogue';
+import { useNetworkRetailers } from '@/hooks/use-network-retailers';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import { LocalWishlistRepository } from '@/services/wishlist';
 import type { ProductCategory, ProductOffer } from '@/types/domain';
@@ -59,7 +59,8 @@ export default function SearchScreen() {
     void wishlist.list().then((items) => setSavedProducts(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId)));
   }, []));
 
-  const retailerOptions = retailers.filter((item) => !item.isDemo);
+  const retailerOptions = useNetworkRetailers();
+  const retailerNames = useMemo(() => new Map(retailerOptions.map((item) => [item.id, item.name])), [retailerOptions]);
   const catalogue = useCatalogue({ query, category, retailerId, inStockOnly: inStock, limit: 50 });
   const groups = useMemo(() => groupOffers(catalogue.offers), [catalogue.offers]);
 
@@ -106,13 +107,13 @@ export default function SearchScreen() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={catalogue.loadingMore ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : null}
         ListEmptyComponent={catalogue.loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{catalogue.error || 'No products match these filters.'}</Text>}
-        renderItem={({ item }) => <ProductGroupCard group={item} saved={savedProducts.includes(item.id)} onToggle={() => void toggleProduct(item)} />}
+        renderItem={({ item }) => <ProductGroupCard group={item} retailerNames={retailerNames} saved={savedProducts.includes(item.id)} onToggle={() => void toggleProduct(item)} />}
       />
     </SafeAreaView>
   );
 }
 
-function ProductGroupCard({ group, saved, onToggle }: { group: ProductGroup; saved: boolean; onToggle: () => void }) {
+function ProductGroupCard({ group, retailerNames, saved, onToggle }: { group: ProductGroup; retailerNames: ReadonlyMap<string, string>; saved: boolean; onToggle: () => void }) {
   const retailerCount = new Set(group.offers.map((offer) => offer.retailerId)).size;
   const itemPrices = group.offers.map((offer) => offer.priceGbp).filter((value): value is number => value !== undefined);
   const delivered = group.offers.map(deliveredFor).filter((value): value is number => value !== undefined);
@@ -139,17 +140,17 @@ function ProductGroupCard({ group, saved, onToggle }: { group: ProductGroup; sav
 
       <View style={styles.offerList}>
         {group.offers.map((offer) => {
-          const retailer = retailers.find((item) => item.id === offer.retailerId);
+          const retailerName = retailerNames.get(offer.retailerId) || offer.retailerId;
           const delivery = deliveryFor(offer);
           const truePrice = deliveredFor(offer);
           return (
             <View key={offer.id} style={styles.offer}>
               <View style={styles.offerCopy}>
-                <Text style={styles.retailer}>{retailer?.name || offer.retailerId}</Text>
+                <Text style={styles.retailer}>{retailerName}</Text>
                 <Text style={styles.offerPrice}>{offer.priceGbp === undefined ? 'Item price unavailable' : `£${offer.priceGbp.toFixed(2)} item`} · {delivery === undefined ? 'delivery unknown' : `£${delivery.toFixed(2)} delivery`}</Text>
                 <Text style={styles.offerTotal}>{truePrice === undefined ? 'True Price unavailable' : `True Price £${truePrice.toFixed(2)}`}</Text>
               </View>
-              {offer.productUrl ? <Pressable accessibilityLabel={`Buy at ${retailer?.name || offer.retailerId}`} onPress={() => void openTrackedRetailerLink({ destinationUrl: offer.productUrl!, retailerId: offer.retailerId, offerId: offer.id, placement: 'retail-search' })} style={styles.buy}><Ionicons name="open-outline" size={15} color={FateDropColors.text} /></Pressable> : null}
+              {offer.productUrl ? <Pressable accessibilityLabel={`Buy at ${retailerName}`} onPress={() => void openTrackedRetailerLink({ destinationUrl: offer.productUrl!, retailerId: offer.retailerId, offerId: offer.id, placement: 'retail-search' })} style={styles.buy}><Ionicons name="open-outline" size={15} color={FateDropColors.text} /></Pressable> : null}
             </View>
           );
         })}

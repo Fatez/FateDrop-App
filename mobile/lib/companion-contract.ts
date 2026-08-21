@@ -64,9 +64,10 @@ export const DEFAULT_COMPANION_ASSET_MANIFEST: CompanionAssetManifest = {
 };
 
 /**
- * Maps engine observations to the same public Companion reactions used by Web.
- * Legacy internal restock `echo` is only treated as Manifested when the event
- * is explicitly known to be a confirmed restock; early Echo remains Echo.
+ * Maps evidence states to Companion reactions without changing the public
+ * lifecycle meaning. Whisper uses anticipation/watching, Echo uses readiness,
+ * Manifested gets the confirmed-stock reaction, and the strongest celebration
+ * remains reserved for explicit major/high-value confirmed signals.
  */
 export function companionReactionFromSignal(input: {
   kind?: string | null;
@@ -80,7 +81,8 @@ export function companionReactionFromSignal(input: {
   const kind = String(input.kind ?? input.state ?? '').toLowerCase();
   if (kind === 'vanished') return 'vanished';
   if (kind === 'manifested' || input.confirmedRestock) return 'manifested';
-  if (['queue', 'security', 'traffic', 'drop_pulse', 'whisper', 'echo'].includes(kind)) return 'echo';
+  if (['echo', 'queue', 'security', 'traffic', 'access_readiness'].includes(kind)) return 'echo';
+  if (['whisper', 'drop_pulse'].includes(kind)) return 'watching';
   return kind ? 'watching' : 'idle';
 }
 

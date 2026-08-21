@@ -12,10 +12,10 @@ import {
   IconButton,
   SectionHeader,
   StatCard,
-  type StatusTone,
 } from '@/components/fatedrop-ui';
-import { API_BASE_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
+import { SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
+import { signalPresentation, type MarketEvent } from '@/lib/signal-presentation';
 
 interface CloudRetailerState {
   id: string;
@@ -37,15 +37,13 @@ interface SignalStatus {
   state?: { retailers?: CloudRetailerState[] };
 }
 
-interface MarketEvent {
+interface CloudSignal {
   id: string;
-  type?: string;
-  fateStage?: string;
+  state?: string;
   title?: string;
-  message?: string;
-  retailer?: string;
-  detectedAt?: string;
-  product?: { title?: string };
+  reason?: string;
+  retailerName?: string;
+  detectedAt?: number | string;
 }
 
 const ago = (value?: string) => {
@@ -54,19 +52,35 @@ const ago = (value?: string) => {
   return minutes < 1 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago` : `${Math.floor(minutes / 1440)}d ago`;
 };
 
-function publicSignal(event: MarketEvent) {
-  const type = String(event.type || '').toUpperCase();
-  const stage = String(event.fateStage || '').toUpperCase();
-  if (stage === 'VANISHED' || /SOLD_OUT|VANISH|REMOVED/.test(type)) {
-    return { label: 'Vanished', tone: 'red' as StatusTone, icon: 'close-circle' as const };
+function publicStageForCloudState(state?: string): MarketEvent['fateStage'] {
+  const value = String(state || '').toLowerCase();
+  if (value === 'whisper') return 'WHISPER';
+  if (value === 'echo') return 'ECHO';
+  if (value === 'manifested') return 'MANIFESTED';
+  if (value === 'vanished') return 'VANISHED';
+  return 'NETWORK';
+}
+
+function detectedAtIso(value?: number | string) {
+  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value * 1000).toISOString();
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
   }
-  if (stage === 'MANIFESTED' || (stage === 'ECHO' && /RESTOCK/.test(type)) || /RESTOCK|IN_STOCK|NEW_PRODUCT/.test(type)) {
-    return { label: 'Manifested', tone: 'mint' as StatusTone, icon: 'sparkles' as const };
-  }
-  if (stage === 'WHISPER' || stage === 'ECHO' || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
-    return { label: 'Echo', tone: 'violet' as StatusTone, icon: 'flash' as const };
-  }
-  return { label: type ? type.replaceAll('_', ' ') : 'Network activity', tone: 'blue' as StatusTone, icon: 'radio' as const };
+  return undefined;
+}
+
+function adaptCloudSignal(signal: CloudSignal): MarketEvent {
+  return {
+    id: signal.id,
+    type: String(signal.state || '').toUpperCase(),
+    fateStage: publicStageForCloudState(signal.state),
+    title: signal.title,
+    message: signal.reason,
+    retailer: signal.retailerName,
+    detectedAt: detectedAtIso(signal.detectedAt),
+    product: { title: signal.title },
+  };
 }
 
 export default function HomeScreen() {
@@ -84,13 +98,14 @@ export default function HomeScreen() {
         setStatus(null);
       }
 
-      // Transitional activity source until public event/signal history moves into
-      // the canonical Cloud API. Failure here must not fabricate activity.
       try {
-        const eventsResponse = await fetch(`${API_BASE_URL}/api/events`);
-        if (!eventsResponse.ok) return;
-        const eventsData = await eventsResponse.json();
-        setRecentEvents(Array.isArray(eventsData.events) ? eventsData.events.slice(0, 5) : []);
+        const signalsResponse = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=5`);
+        if (!signalsResponse.ok) {
+          setRecentEvents([]);
+          return;
+        }
+        const signalsData = await signalsResponse.json() as { signals?: CloudSignal[] };
+        setRecentEvents(Array.isArray(signalsData.signals) ? signalsData.signals.slice(0, 5).map(adaptCloudSignal) : []);
       } catch {
         setRecentEvents([]);
       }
@@ -159,10 +174,71 @@ export default function HomeScreen() {
           <StatCard icon="flash-outline" value={networkMeasured ? inStockCount.toLocaleString() : '—'} label="Available" color={FateDropColors.mint} />
         </View>
 
+        <SectionHeader title="FateDrop companions" action="Signal identities" />
+        <View style={styles.companionPanel}>
+          <View style={styles.companionIntro}>
+            <View style={styles.companionSignalIcon}>
+              <Ionicons name="sparkles" size={18} color={FateDropColors.cyan} />
+            </View>
+            <View style={styles.companionIntroCopy}>
+              <Text style={styles.companionEyebrow}>YOUR SIGNAL, GIVEN FORM</Text>
+              <Text style={styles.companionIntroText}>Meet the reactive identities that turn Echo, Manifested and major FateDrop moments into character.</Text>
+            </View>
+          </View>
+
+          <View style={styles.companionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open KAEL companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'male' } })}
+              style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
+            >
+              <View style={styles.companionCardGlow} />
+              <View style={styles.companionAvatar}>
+                <Ionicons name="person" size={28} color={FateDropColors.violetLight} />
+              </View>
+              <Text style={styles.companionCode}>K-01</Text>
+              <Text style={styles.companionName}>KAEL</Text>
+              <Text style={styles.companionRole}>Signal collector</Text>
+              <View style={styles.companionState}>
+                <View style={styles.companionStateDot} />
+                <Text style={styles.companionStateText}>READY</Text>
+              </View>
+              <View style={styles.companionOpenRow}>
+                <Text style={styles.companionOpenText}>VIEW COMPANION</Text>
+                <Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} />
+              </View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open NYRA companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'female' } })}
+              style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
+            >
+              <View style={[styles.companionCardGlow, styles.companionCardGlowCyan]} />
+              <View style={[styles.companionAvatar, styles.companionAvatarCyan]}>
+                <Ionicons name="person" size={28} color={FateDropColors.cyan} />
+              </View>
+              <Text style={styles.companionCode}>N-02</Text>
+              <Text style={styles.companionName}>NYRA</Text>
+              <Text style={styles.companionRole}>Signal collector</Text>
+              <View style={styles.companionState}>
+                <View style={styles.companionStateDot} />
+                <Text style={styles.companionStateText}>READY</Text>
+              </View>
+              <View style={styles.companionOpenRow}>
+                <Text style={styles.companionOpenText}>VIEW COMPANION</Text>
+                <Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} />
+              </View>
+            </Pressable>
+          </View>
+        </View>
+
         <SectionHeader title="Network activity" action={recentEvents.length ? 'Observed' : undefined} />
         <View style={styles.activityList}>
           {recentEvents.length ? recentEvents.map((event, index) => {
-            const presentation = publicSignal(event);
+            const presentation = signalPresentation(event);
             return (
               <ActivityItem
                 key={event.id}
@@ -269,6 +345,26 @@ const styles = StyleSheet.create({
   monitorLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 4 },
   verticalDivider: { width: 1, height: 42, backgroundColor: FateDropColors.border },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 20, zIndex: 2 },
+  companionPanel: { marginBottom: 22, zIndex: 2 },
+  companionIntro: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 },
+  companionSignalIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.cyan}12`, borderWidth: 1, borderColor: `${FateDropColors.cyan}35` },
+  companionIntroCopy: { flex: 1 },
+  companionEyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
+  companionIntroText: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
+  companionRow: { flexDirection: 'row', gap: 10 },
+  companionCard: { flex: 1, minHeight: 184, overflow: 'hidden', borderRadius: 22, padding: 14, backgroundColor: 'rgba(17, 17, 28, 0.96)', borderWidth: 1, borderColor: `${FateDropColors.violetLight}48`, position: 'relative' },
+  companionCardGlow: { position: 'absolute', width: 120, height: 120, borderRadius: 60, right: -38, top: -40, backgroundColor: `${FateDropColors.violetLight}18` },
+  companionCardGlowCyan: { backgroundColor: `${FateDropColors.cyan}12` },
+  companionAvatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.violet}20`, borderWidth: 1, borderColor: `${FateDropColors.violetLight}50`, marginBottom: 12 },
+  companionAvatarCyan: { backgroundColor: `${FateDropColors.cyan}12`, borderColor: `${FateDropColors.cyan}40` },
+  companionCode: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1.4 },
+  companionName: { color: FateDropColors.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.35, marginTop: 2 },
+  companionRole: { color: FateDropColors.secondary, fontSize: 9, marginTop: 2 },
+  companionState: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12 },
+  companionStateDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: FateDropColors.mint },
+  companionStateText: { color: FateDropColors.mint, fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
+  companionOpenRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: FateDropColors.border },
+  companionOpenText: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 0.9 },
   activityList: { marginBottom: 20, zIndex: 2 },
   emptyActivity: { padding: 18, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   emptyTitle: { color: FateDropColors.text, fontSize: 13, fontWeight: '900' },

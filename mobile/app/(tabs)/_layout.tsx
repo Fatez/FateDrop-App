@@ -74,16 +74,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={22} color={color} />
           ),
-          tabBarBadge: 3,
-          tabBarBadgeStyle: {
-            minWidth: 18,
-            height: 18,
-            borderRadius: 9,
-            backgroundColor: FateDropColors.violetLight,
-            color: FateDropColors.text,
-            fontSize: 10,
-            fontWeight: '700',
-          },
         }}
       />
 
