@@ -12,10 +12,10 @@ import {
   IconButton,
   SectionHeader,
   StatCard,
-  type StatusTone,
 } from '@/components/fatedrop-ui';
-import { API_BASE_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
+import { SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
+import { signalPresentation, type MarketEvent } from '@/lib/signal-presentation';
 
 interface CloudRetailerState {
   id: string;
@@ -37,15 +37,13 @@ interface SignalStatus {
   state?: { retailers?: CloudRetailerState[] };
 }
 
-interface MarketEvent {
+interface CloudSignal {
   id: string;
-  type?: string;
-  fateStage?: string;
+  state?: string;
   title?: string;
-  message?: string;
-  retailer?: string;
-  detectedAt?: string;
-  product?: { title?: string };
+  reason?: string;
+  retailerName?: string;
+  detectedAt?: number;
 }
 
 const ago = (value?: string) => {
@@ -54,19 +52,28 @@ const ago = (value?: string) => {
   return minutes < 1 ? 'Just now' : minutes < 60 ? `${minutes}m ago` : minutes < 1440 ? `${Math.floor(minutes / 60)}h ago` : `${Math.floor(minutes / 1440)}d ago`;
 };
 
-function publicSignal(event: MarketEvent) {
-  const type = String(event.type || '').toUpperCase();
-  const stage = String(event.fateStage || '').toUpperCase();
-  if (stage === 'VANISHED' || /SOLD_OUT|VANISH|REMOVED/.test(type)) {
-    return { label: 'Vanished', tone: 'red' as StatusTone, icon: 'close-circle' as const };
-  }
-  if (stage === 'MANIFESTED' || (stage === 'ECHO' && /RESTOCK/.test(type)) || /RESTOCK|IN_STOCK|NEW_PRODUCT/.test(type)) {
-    return { label: 'Manifested', tone: 'mint' as StatusTone, icon: 'sparkles' as const };
-  }
-  if (stage === 'WHISPER' || stage === 'ECHO' || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
-    return { label: 'Echo', tone: 'violet' as StatusTone, icon: 'flash' as const };
-  }
-  return { label: type ? type.replaceAll('_', ' ') : 'Network activity', tone: 'blue' as StatusTone, icon: 'radio' as const };
+function publicStageForCloudState(state?: string): MarketEvent['fateStage'] {
+  const value = String(state || '').toLowerCase();
+  if (value === 'whisper') return 'ECHO';
+  if (value === 'manifested' || value === 'echo') return 'MANIFESTED';
+  if (value === 'vanished') return 'VANISHED';
+  return 'NETWORK';
+}
+
+function adaptCloudSignal(signal: CloudSignal): MarketEvent {
+  const detectedAt = Number.isFinite(signal.detectedAt)
+    ? new Date(Number(signal.detectedAt) * 1000).toISOString()
+    : undefined;
+  return {
+    id: signal.id,
+    type: String(signal.state || '').toUpperCase(),
+    fateStage: publicStageForCloudState(signal.state),
+    title: signal.title,
+    message: signal.reason,
+    retailer: signal.retailerName,
+    detectedAt,
+    product: { title: signal.title },
+  };
 }
 
 export default function HomeScreen() {
@@ -84,13 +91,24 @@ export default function HomeScreen() {
         setStatus(null);
       }
 
-      // Transitional activity source until public event/signal history moves into
-      // the canonical Cloud API. Failure here must not fabricate activity.
+      // Prefer the public app-facing event route when Cloud exposes it. Until
+      // that migration lands everywhere, fall back to the existing signal
+      // history and adapt its internal state names to the public lifecycle.
       try {
-        const eventsResponse = await fetch(`${API_BASE_URL}/api/events`);
-        if (!eventsResponse.ok) return;
-        const eventsData = await eventsResponse.json();
-        setRecentEvents(Array.isArray(eventsData.events) ? eventsData.events.slice(0, 5) : []);
+        const eventsResponse = await fetch(`${SIGNAL_ENGINE_URL}/api/events?limit=5`);
+        if (eventsResponse.ok) {
+          const eventsData = await eventsResponse.json() as { events?: MarketEvent[] };
+          setRecentEvents(Array.isArray(eventsData.events) ? eventsData.events.slice(0, 5) : []);
+          return;
+        }
+
+        const signalsResponse = await fetch(`${SIGNAL_ENGINE_URL}/v1/signals?limit=5`);
+        if (!signalsResponse.ok) {
+          setRecentEvents([]);
+          return;
+        }
+        const signalsData = await signalsResponse.json() as { signals?: CloudSignal[] };
+        setRecentEvents(Array.isArray(signalsData.signals) ? signalsData.signals.slice(0, 5).map(adaptCloudSignal) : []);
       } catch {
         setRecentEvents([]);
       }
@@ -223,7 +241,7 @@ export default function HomeScreen() {
         <SectionHeader title="Network activity" action={recentEvents.length ? 'Observed' : undefined} />
         <View style={styles.activityList}>
           {recentEvents.length ? recentEvents.map((event, index) => {
-            const presentation = publicSignal(event);
+            const presentation = signalPresentation(event);
             return (
               <ActivityItem
                 key={event.id}
