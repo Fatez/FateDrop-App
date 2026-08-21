@@ -84,12 +84,22 @@ function signalVerdict(event: MarketEvent): VerdictLine {
     };
   }
 
+  if (stage === 'WHISPER') {
+    const knownRetailer = intelligence?.lowestKnown?.retailer;
+    return {
+      text: knownRetailer
+        ? `WHISPER · Product movement · stock not confirmed · ${knownRetailer} already in network`
+        : 'WHISPER · Product / catalogue movement · stock not confirmed',
+      color: FateDropColors.cyan,
+    };
+  }
+
   if (stage === 'ECHO') {
     const knownRetailer = intelligence?.lowestKnown?.retailer;
     return {
       text: knownRetailer
-        ? `LINKS PREPARED · Stock not confirmed · ${knownRetailer} already in network`
-        : 'LINKS PREPARED · Stock not confirmed',
+        ? `ECHO · Get ready · stock not confirmed · ${knownRetailer} already in network`
+        : 'ECHO · Queue / traffic / security readiness · stock not confirmed',
       color: FateDropColors.violetLight,
     };
   }
@@ -123,14 +133,28 @@ function signalVerdict(event: MarketEvent): VerdictLine {
   };
 }
 
+function developmentReaction(signal: DevelopmentSignalNotification): CompanionReaction {
+  return signal === 'whisper' ? 'watching' : signal;
+}
+
 function developmentAlert(signal: DevelopmentSignalNotification) {
   switch (signal) {
+    case 'whisper':
+      return {
+        label: 'Whisper',
+        color: FateDropColors.cyan,
+        title: 'Development Whisper signal',
+        detail: 'Product or catalogue movement detected. Something may be coming.',
+        meta: 'FateDrop test network · Just now',
+        price: null as string | null,
+        verdict: null as VerdictLine,
+      };
     case 'echo':
       return {
         label: 'Echo',
         color: FateDropColors.violetLight,
         title: 'Development Echo signal',
-        detail: 'Early movement detected. This is not confirmed stock.',
+        detail: 'Queue, traffic or security readiness changed. Get ready; stock is not confirmed.',
         meta: 'FateDrop test network · Just now',
         price: null as string | null,
         verdict: null as VerdictLine,
@@ -235,7 +259,11 @@ export default function AlertsScreenV2() {
   const selectedFateMatch = fateMatches.find((match) => match.id === selectedFateMatchId) ?? null;
   const selectedPresentation = selectedEvent ? signalPresentation(selectedEvent) : null;
 
-  const activeReaction: CompanionReaction = developmentSignal ?? (selectedFateMatch ? 'fatematch' : selectedPresentation?.reaction ?? 'idle');
+  const activeReaction: CompanionReaction = developmentSignal
+    ? developmentReaction(developmentSignal)
+    : selectedFateMatch
+      ? 'fatematch'
+      : selectedPresentation?.reaction ?? 'idle';
   const companionName = selectedCompanion === 'male' ? 'KAEL' : 'NYRA';
   const companionCode = selectedCompanion === 'male' ? 'K-01' : 'N-02';
 
@@ -266,7 +294,7 @@ export default function AlertsScreenV2() {
     return null;
   }, [developmentSignal, selectedEvent, selectedFateMatch, selectedPresentation]);
 
-  const toggle = async (key: 'echo' | 'manifested' | 'vanished' | 'priceChange' | 'fateMatch' | 'web' | 'discord') => {
+  const toggle = async (key: 'whisper' | 'echo' | 'manifested' | 'vanished' | 'priceChange' | 'fateMatch' | 'web' | 'discord') => {
     if (!preferences) return;
     setMessage(null);
     try {
@@ -308,7 +336,7 @@ export default function AlertsScreenV2() {
         <AbstractHero
           eyebrow="Signal inbox"
           title="See the signal. Read the movement."
-          subtitle="Your Companion reacts to the alert you are viewing. Echo stays early intelligence; Manifested means confirmed availability."
+          subtitle="Whisper means product movement. Echo means get ready. Manifested means confirmed live stock. Vanished means the availability is gone."
           icon="notifications"
         />
 
@@ -435,11 +463,11 @@ export default function AlertsScreenV2() {
 
           <Header eyebrow="DELIVERY" title="Notification channels" />
           <View style={styles.preference}>
-            <View style={styles.copy}><Text style={styles.cardTitle}>Push on this device</Text><Text style={styles.cardDetail}>Requires explicit device permission and a signed-in FateDrop ID.</Text></View>
+            <View style={styles.copy}><Text style={styles.cardTitle}>Push on this device</Text><Text style={styles.cardDetail}>Requires explicit device permission, a signed-in FateDrop ID and a configured EAS project.</Text></View>
             <Pressable disabled={pushWorking} onPress={() => void togglePush()}><StatusBadge label={preferences?.push ? 'On' : 'Off'} color={preferences?.push ? FateDropColors.mint : FateDropColors.muted} /></Pressable>
           </View>
           <View style={styles.prefs}>
-            {(['fateMatch', 'priceChange', 'echo', 'manifested', 'vanished', 'web', 'discord'] as const).map((key) => (
+            {(['fateMatch', 'priceChange', 'whisper', 'echo', 'manifested', 'vanished', 'web', 'discord'] as const).map((key) => (
               <Pressable key={key} onPress={() => void toggle(key)} style={styles.pref}>
                 <Text style={styles.prefName}>{key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}</Text>
                 <Text style={preferences?.[key] ? styles.on : styles.off}>{preferences?.[key] ? 'ON' : 'OFF'}</Text>
