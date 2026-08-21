@@ -9,6 +9,7 @@ import {
 } from '@/lib/notifications';
 
 const SIGNALS: { signal: DevelopmentSignalNotification; label: string }[] = [
+  { signal: 'whisper', label: 'Whisper' },
   { signal: 'echo', label: 'Echo' },
   { signal: 'manifested', label: 'Manifested' },
   { signal: 'vanished', label: 'Vanished' },
@@ -21,7 +22,7 @@ export function DevelopmentAlertTester({
 }: {
   onPreview: (signal: DevelopmentSignalNotification) => void;
 }) {
-  const [selected, setSelected] = useState<DevelopmentSignalNotification>('echo');
+  const [selected, setSelected] = useState<DevelopmentSignalNotification>('whisper');
   const [status, setStatus] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
 
@@ -59,7 +60,7 @@ export function DevelopmentAlertTester({
         <View style={styles.headingCopy}>
           <Text style={styles.eyebrow}>DEVELOPMENT ONLY</Text>
           <Text style={styles.title}>Test Companion + notification</Text>
-          <Text style={styles.copy}>Preview a signal immediately, then schedule the same iPhone notification five seconds later.</Text>
+          <Text style={styles.copy}>Preview each canonical signal immediately, then schedule the same iPhone notification five seconds later.</Text>
         </View>
       </View>
 
