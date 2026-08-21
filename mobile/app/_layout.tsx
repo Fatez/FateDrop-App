@@ -33,18 +33,42 @@ export default function RootLayout() {
     void import('expo-notifications')
       .then((Notifications) => {
         if (!active) return;
-        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const handledNotificationIds = new Set<string>();
+
+        const redirectFromResponse = (response: {
+          notification: {
+            request: {
+              identifier: string;
+              content: { data: Record<string, unknown> };
+            };
+          };
+        }) => {
+          const notificationId = response.notification.request.identifier;
+          if (handledNotificationIds.has(notificationId)) return;
+          handledNotificationIds.add(notificationId);
+
           const data = response.notification.request.content.data;
           if (data?.route === 'alerts') {
             const alertId = typeof data.alertId === 'string' ? data.alertId : null;
             if (alertId) router.push({ pathname: '/alerts', params: { alertId } });
             else router.push('/alerts');
-            return;
+          } else {
+            const productUrl = data?.productUrl;
+            if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
           }
 
-          const productUrl = data?.productUrl;
-          if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
+          void Notifications.clearLastNotificationResponseAsync().catch(() => null);
+        };
+
+        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          redirectFromResponse(response);
         });
+
+        // Expo recommends checking the initial response as well as listening for
+        // future taps so a notification opened from a terminated app still lands
+        // on the exact canonical alert.
+        const initialResponse = Notifications.getLastNotificationResponse();
+        if (initialResponse) redirectFromResponse(initialResponse);
       })
       .catch(() => {
         // Expo Go does not provide full remote-push support on every platform.
