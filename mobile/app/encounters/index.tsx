@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,45 +22,31 @@ import {
   PageNavigation,
   StatusBadge,
 } from '@/components/fatedrop-ui';
-import { API_BASE_URL } from '@/constants/api';
-import { retailers } from '@/constants/retailers';
 import { FateDropColors } from '@/constants/theme';
-import { formatEventDate, loadSavedEventIds, saveEventIds } from '@/lib/encounters';
-import {
-  distanceMiles,
-  ExpoLocationAdapter,
-  geocodeEventLocation,
-  type UserArea,
-} from '@/services/location';
-import type { CalendarEvent } from '@/types/encounter';
+import { formatEventDate, isSafeExternalUrl, loadSavedEventIds, saveEventIds } from '@/lib/encounters';
+import { loadEncounters, loadLocalRadar } from '@/services/encounters';
+import { ExpoLocationAdapter, type UserArea } from '@/services/location';
+import type { CalendarEvent, LocalRadarShop } from '@/types/encounter';
 
-const filters = ['All', 'Nearby', 'Shops', 'Events', 'This Month', 'Pokémon', 'Free Entry', 'Saved'] as const;
+const filters = ['UK Calendar', 'Nearby', 'Shops', 'Events', 'This Month', 'Pokémon', 'Free Entry', 'Saved'] as const;
 type Filter = (typeof filters)[number];
-
-type NearbyEvent = CalendarEvent & { distanceMiles?: number };
-type NearbyShop = {
-  id: string;
-  retailerId: string;
-  name: string;
-  venueName?: string;
-  townCity?: string;
-  postcode?: string;
-  latitude?: number;
-  longitude?: number;
-  distanceMiles?: number;
-  verificationStatus: string;
-  catalogueConnected: boolean;
-};
 
 const locationAdapter = new ExpoLocationAdapter();
 const outward = (postcode?: string | null) => postcode?.replace(/\s+/g, '').slice(0, -3).toUpperCase();
+const supportsPokemon = (event: CalendarEvent) => (event.supportedTcgs || []).some((value) => {
+  const clean = value.toLowerCase();
+  return clean === 'pokemon' || clean === 'pokémon' || clean === 'all' || clean === 'all tcg';
+});
 
 export default function EncountersScreen() {
-  const [events, setEvents] = useState<NearbyEvent[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [nearbyEvents, setNearbyEvents] = useState<CalendarEvent[]>([]);
+  const [shops, setShops] = useState<LocalRadarShop[]>([]);
   const [saved, setSaved] = useState<string[]>([]);
-  const [active, setActive] = useState<Filter>('All');
+  const [active, setActive] = useState<Filter>('UK Calendar');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [radarNote, setRadarNote] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [area, setArea] = useState<UserArea>();
   const [postcode, setPostcode] = useState('');
@@ -67,26 +54,47 @@ export default function EncountersScreen() {
   const [locating, setLocating] = useState(false);
   const [radius, setRadius] = useState(25);
 
-  const load = useCallback(async () => {
+  const loadCalendar = useCallback(async () => {
     try {
       setError('');
-      const response = await fetch(`${API_BASE_URL}/api/calendar-events`);
-      if (!response.ok) throw new Error('Request failed');
-      const data = await response.json();
-      setEvents(Array.isArray(data.events) ? data.events : []);
+      setCalendarEvents(await loadEncounters());
     } catch {
-      setEvents([]);
-      setError('Upcoming event data is not connected to the hosted FateDrop feed yet. Nearby shops can still be explored.');
+      setCalendarEvents([]);
+      setError('The hosted UK event calendar could not be loaded. FateDrop will not invent event data while the feed is unavailable.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  const refreshRadar = useCallback(async (current: UserArea, requestedRadius = radius) => {
+    try {
+      setRadarNote('');
+      const data = await loadLocalRadar({
+        latitude: current.latitude,
+        longitude: current.longitude,
+        postcode: current.postcode,
+        radiusMiles: requestedRadius,
+        types: ['shops', 'events'],
+      });
+      setShops(data.shops);
+      setNearbyEvents(data.events);
+      if (data.providers?.shops?.status === 'unconfigured') {
+        setRadarNote('Nearby shop discovery is not configured on the hosted FateDrop service yet. The event calendar remains available.');
+      } else if (data.providers?.shops?.status === 'unavailable') {
+        setRadarNote('Nearby shop discovery is temporarily unavailable. Event data remains separate and usable.');
+      }
+    } catch {
+      setShops([]);
+      setNearbyEvents([]);
+      setRadarNote('Nearby discovery could not be loaded. Your location was not turned into stock evidence or saved by this screen.');
+    }
+  }, [radius]);
+
   useEffect(() => {
-    void load();
+    void loadCalendar();
     void loadSavedEventIds(AsyncStorage).then(setSaved);
-  }, [load]);
+  }, [loadCalendar]);
 
   const toggle = async (id: string) => {
     const next = saved.includes(id) ? saved.filter((value) => value !== id) : [...saved, id];
@@ -100,23 +108,7 @@ export default function EncountersScreen() {
     try {
       const current = await locationAdapter.requestCurrentArea();
       setArea(current);
-      const enriched = await Promise.all(events.map(async (event) => {
-        if (!event.postcode) return event;
-        try {
-          const coordinates = await geocodeEventLocation(event.postcode);
-          if (!coordinates || current.latitude === undefined || current.longitude === undefined) return event;
-          return {
-            ...event,
-            distanceMiles: distanceMiles(
-              { latitude: current.latitude, longitude: current.longitude },
-              coordinates,
-            ),
-          };
-        } catch {
-          return event;
-        }
-      }));
-      setEvents(enriched);
+      await refreshRadar(current);
       setActive('Nearby');
     } catch (cause) {
       setLocationError(
@@ -131,74 +123,46 @@ export default function EncountersScreen() {
 
   const applyPostcode = async () => {
     setLocationError('');
+    setLocating(true);
     try {
-      setArea(await locationAdapter.fromPostcode(postcode));
+      const current = await locationAdapter.fromPostcode(postcode);
+      setArea(current);
+      await refreshRadar(current);
       setActive('Nearby');
     } catch {
       setLocationError('Enter a valid UK postcode.');
+    } finally {
+      setLocating(false);
     }
   };
 
-  const shops = useMemo<NearbyShop[]>(() => retailers.flatMap((retailer) => {
-    if (retailer.isDemo || retailer.id === 'pokemon-center-uk') return [];
-    return retailer.locations.map((location) => ({
-      id: `shop:${location.id}`,
-      retailerId: retailer.id,
-      name: retailer.name,
-      venueName: location.name,
-      townCity: location.townCity,
-      postcode: location.postcode,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      verificationStatus: retailer.verification.status,
-      catalogueConnected: true,
-      distanceMiles:
-        area?.source === 'DEVICE'
-        && area.latitude !== undefined
-        && area.longitude !== undefined
-        && location.latitude !== undefined
-        && location.longitude !== undefined
-          ? distanceMiles(
-              { latitude: area.latitude, longitude: area.longitude },
-              { latitude: location.latitude, longitude: location.longitude },
-            )
-          : undefined,
-    }));
-  }), [area]);
+  const changeRadius = async (value: number) => {
+    setRadius(value);
+    if (area) await refreshRadar(area, value);
+  };
 
-  const filteredEvents = useMemo(() => events.filter((event) => {
+  const sourceEvents = active === 'Nearby' ? nearbyEvents : calendarEvents;
+  const filteredEvents = useMemo(() => sourceEvents.filter((event) => {
     if (active === 'Shops') return false;
     if (active === 'Saved') return saved.includes(event.id);
     if (active === 'This Month') {
       const now = new Date();
       return event.startDateTime.slice(0, 7) === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
-    if (active === 'Pokémon') return event.supportedTcgs?.includes('Pokémon') ?? false;
+    if (active === 'Pokémon') return supportsPokemon(event);
     if (active === 'Free Entry') return /free/i.test(event.ticketPriceText || '');
-    if (active === 'Nearby' && area?.source === 'DEVICE') {
-      return event.distanceMiles !== undefined && event.distanceMiles <= radius;
-    }
-    if (active === 'Nearby' && area?.source === 'POSTCODE') {
-      return outward(event.postcode) === outward(area.postcode);
-    }
     return true;
-  }), [active, area, events, radius, saved]);
+  }), [active, saved, sourceEvents]);
 
-  const filteredShops = useMemo(() => shops.filter((shop) => {
-    if (['Events', 'This Month', 'Pokémon', 'Free Entry', 'Saved'].includes(active)) return false;
-    if (active === 'Nearby' && area?.source === 'DEVICE') {
-      return shop.distanceMiles !== undefined && shop.distanceMiles <= radius;
-    }
-    if (active === 'Nearby' && area?.source === 'POSTCODE') {
-      return outward(shop.postcode) === outward(area.postcode);
-    }
-    return true;
-  }).sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity)), [active, area, radius, shops]);
+  const filteredShops = useMemo(() => {
+    if (!['Nearby', 'Shops'].includes(active)) return [];
+    return [...shops].sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
+  }, [active, shops]);
 
   const featured = filteredEvents.find((event) => event.featured);
-  const nearbyCount = filteredEvents.length + filteredShops.length;
+  const nearbyCount = nearbyEvents.length + shops.length;
 
-  const eventCard = (event: NearbyEvent, hero = false) => (
+  const eventCard = (event: CalendarEvent, hero = false) => (
     <Pressable
       key={event.id}
       accessibilityRole="button"
@@ -220,43 +184,67 @@ export default function EncountersScreen() {
           <Ionicons name={saved.includes(event.id) ? 'bookmark' : 'bookmark-outline'} size={21} color={FateDropColors.violetLight} />
         </Pressable>
       </View>
-      <Text style={styles.date}>{formatEventDate(event.startDateTime, event.endDateTime)}</Text>
+      <Text style={styles.date}>{formatEventDate(event.startDateTime, event.endDateTime || event.startDateTime)}</Text>
       <Text style={styles.place}>{event.venueName || event.townCity || 'Venue to be confirmed'}</Text>
       <Text style={styles.price}>{event.ticketPriceText || 'Price to be confirmed'}</Text>
-      {event.distanceMiles !== undefined ? <Text style={styles.distance}>{event.distanceMiles.toFixed(1)} miles away</Text> : null}
+      {event.distanceMiles != null ? <Text style={styles.distance}>{event.distanceMiles.toFixed(1)} miles away</Text> : null}
       <View style={styles.tags}>
         {event.featured ? <StatusBadge label="Featured" color={FateDropColors.amber} /> : null}
-        {event.verificationStatus === 'verified' ? <StatusBadge label="Verified" color={FateDropColors.mint} /> : null}
+        {event.verificationStatus === 'fatedrop_verified' ? <StatusBadge label="FateDrop verified" color={FateDropColors.mint} /> : null}
+        {event.verificationStatus === 'source_verified' ? <StatusBadge label="Source verified" color={FateDropColors.cyan} /> : null}
         {event.vendorApplicationsStatus === 'open' ? <StatusBadge label="Vendor spaces" color={FateDropColors.blue} /> : null}
       </View>
     </Pressable>
   );
 
-  const shopCard = (shop: NearbyShop) => (
-    <Pressable
-      key={shop.id}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${shop.name}`}
-      onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: shop.retailerId } })}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
-      <View style={styles.cardTop}>
-        <View style={[styles.typeIcon, styles.shopIcon]}><Ionicons name="storefront" size={18} color={FateDropColors.cyan} /></View>
-        <View style={styles.cardCopy}>
-          <Text style={[styles.typeLabel, styles.shopLabel]}>LOCAL SHOP</Text>
-          <Text style={styles.cardTitle}>{shop.name}</Text>
+  const openShop = (shop: LocalRadarShop) => {
+    if (shop.retailerId) {
+      router.push({ pathname: '/retailers/[id]', params: { id: shop.retailerId } });
+      return;
+    }
+    if (shop.websiteUrl && isSafeExternalUrl(shop.websiteUrl)) void Linking.openURL(shop.websiteUrl);
+  };
+
+  const shopCard = (shop: LocalRadarShop) => {
+    const connected = shop.networkStatus === 'live_connected';
+    const onlineOffers = shop.onlineCatalogue?.availableOffers ?? 0;
+    return (
+      <Pressable
+        key={shop.id}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${shop.name}`}
+        onPress={() => openShop(shop)}
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      >
+        <View style={styles.cardTop}>
+          <View style={[styles.typeIcon, styles.shopIcon]}><Ionicons name="storefront" size={18} color={FateDropColors.cyan} /></View>
+          <View style={styles.cardCopy}>
+            <Text style={[styles.typeLabel, styles.shopLabel]}>LOCAL SHOP</Text>
+            <Text style={styles.cardTitle}>{shop.name}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={FateDropColors.muted} />
         </View>
-        <Ionicons name="chevron-forward" size={18} color={FateDropColors.muted} />
-      </View>
-      <Text style={styles.place}>{shop.venueName || shop.townCity || 'Independent TCG retailer'}</Text>
-      <Text style={styles.price}>{[shop.townCity, shop.postcode].filter(Boolean).join(' · ') || 'Location details pending'}</Text>
-      {shop.distanceMiles !== undefined ? <Text style={styles.distance}>{shop.distanceMiles.toFixed(1)} miles away</Text> : null}
-      <View style={styles.tags}>
-        <StatusBadge label={shop.catalogueConnected ? 'Live connected' : 'Local indie'} color={FateDropColors.cyan} />
-        {shop.verificationStatus === 'VERIFIED' ? <StatusBadge label="Verified" color={FateDropColors.mint} /> : null}
-      </View>
-    </Pressable>
-  );
+        <Text style={styles.place}>{shop.address || 'Independent TCG retailer'}</Text>
+        {shop.distanceMiles != null ? <Text style={styles.distance}>{shop.distanceMiles.toFixed(1)} miles away</Text> : null}
+        {connected && onlineOffers > 0 ? (
+          <View style={styles.stockContext}>
+            <Ionicons name="pulse" size={15} color={FateDropColors.mint} />
+            <View style={styles.cardCopy}>
+              <Text style={styles.stockTitle}>{onlineOffers} online catalogue offers detected</Text>
+              <Text style={styles.stockText}>Online catalogue evidence only — FateDrop is not claiming those items are stocked at this physical branch.</Text>
+            </View>
+          </View>
+        ) : null}
+        <View style={styles.tags}>
+          <StatusBadge label={connected ? 'Live connected' : 'Local indie'} color={connected ? FateDropColors.violetLight : FateDropColors.cyan} />
+          {shop.verificationStatus === 'fatedrop_verified' ? <StatusBadge label="FateDrop verified" color={FateDropColors.mint} /> : null}
+          {shop.provider === 'google_places' ? <StatusBadge label="Google Places discovery" color={FateDropColors.blue} /> : null}
+        </View>
+      </Pressable>
+    );
+  };
+
+  const noNearbySelection = (active === 'Nearby' || active === 'Shops') && !area;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -266,7 +254,10 @@ export default function EncountersScreen() {
         refreshControl={(
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); void load(); }}
+            onRefresh={() => {
+              setRefreshing(true);
+              void loadCalendar().then(() => area ? refreshRadar(area) : undefined);
+            }}
             tintColor={FateDropColors.violetLight}
           />
         )}
@@ -275,9 +266,9 @@ export default function EncountersScreen() {
         <FateDropHeader title="Fate Encounters" />
 
         <View style={styles.intro}>
-          <Text style={styles.introEyebrow}>LOCAL RADAR + EVENTS</Text>
-          <Text style={styles.introTitle}>Find the TCG scene around you.</Text>
-          <Text style={styles.introText}>Discover independent card shops, trade nights, tournaments, prereleases, card shows and conventions in one place.</Text>
+          <Text style={styles.introEyebrow}>LOCAL RADAR + UK CALENDAR</Text>
+          <Text style={styles.introTitle}>Find the TCG scene around you — and across the UK.</Text>
+          <Text style={styles.introText}>Nearby indie shops, connected retailers, trade nights, tournaments, prereleases, card shows and conventions live in one discovery layer.</Text>
         </View>
 
         <View style={styles.radarPanel}>
@@ -285,7 +276,7 @@ export default function EncountersScreen() {
             <View style={styles.radarIcon}><Ionicons name="navigate" size={19} color={FateDropColors.cyan} /></View>
             <View style={styles.radarCopy}>
               <Text style={styles.radarTitle}>Nearby discovery</Text>
-              <Text style={styles.radarText}>Location is optional and requested only when you choose to use it. A UK postcode works too.</Text>
+              <Text style={styles.radarText}>Location is optional and requested only when you choose it. A UK postcode can be used without turning a discovered shop into stock evidence.</Text>
             </View>
           </View>
           <Pressable disabled={locating} onPress={() => void locateDevice()} style={styles.locationButton}>
@@ -301,19 +292,19 @@ export default function EncountersScreen() {
               placeholderTextColor={FateDropColors.muted}
               style={styles.postcodeInput}
             />
-            <Pressable onPress={() => void applyPostcode()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Set</Text></Pressable>
+            <Pressable disabled={locating} onPress={() => void applyPostcode()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Set</Text></Pressable>
           </View>
           {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
           {area ? (
             <View style={styles.areaRow}>
               <StatusBadge label={area.source === 'DEVICE' ? 'Device distance enabled' : `Postcode ${outward(area.postcode)}`} color={FateDropColors.mint} />
-              <Text style={styles.areaCount}>{nearbyCount} matching places/events</Text>
+              <Text style={styles.areaCount}>{nearbyCount} nearby matches</Text>
             </View>
           ) : null}
-          {area?.source === 'DEVICE' ? (
+          {area ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.radiusFilters}>
               {[10, 25, 50, 100].map((value) => (
-                <FilterChip key={value} label={`${value} miles`} active={radius === value} onPress={() => setRadius(value)} />
+                <FilterChip key={value} label={`${value} miles`} active={radius === value} onPress={() => void changeRadius(value)} />
               ))}
             </ScrollView>
           ) : null}
@@ -325,6 +316,15 @@ export default function EncountersScreen() {
 
         {loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : null}
         {error ? <Text style={styles.feedNote}>{error}</Text> : null}
+        {radarNote && (active === 'Nearby' || active === 'Shops') ? <Text style={styles.feedNote}>{radarNote}</Text> : null}
+        {noNearbySelection ? <Text style={styles.feedNote}>Choose “Use my location” or enter a UK postcode to load nearby shops and events.</Text> : null}
+
+        {active === 'UK Calendar' ? (
+          <View style={styles.sectionHeadingRow}>
+            <Text style={styles.heading}>UK card event calendar</Text>
+            <StatusBadge label={`${filteredEvents.length} upcoming`} color={FateDropColors.amber} />
+          </View>
+        ) : null}
 
         {featured && active !== 'Shops' ? (
           <>
@@ -337,7 +337,7 @@ export default function EncountersScreen() {
           <>
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.heading}>Independent shops</Text>
-              <StatusBadge label={`${filteredShops.length} nearby/listed`} color={FateDropColors.cyan} />
+              <StatusBadge label={`${filteredShops.length} found`} color={FateDropColors.cyan} />
             </View>
             {filteredShops.map(shopCard)}
           </>
@@ -345,19 +345,21 @@ export default function EncountersScreen() {
 
         {filteredEvents.filter((event) => event.id !== featured?.id).length ? (
           <>
-            <View style={styles.sectionHeadingRow}>
-              <Text style={styles.heading}>Upcoming events</Text>
-              <StatusBadge label={`${filteredEvents.length} events`} color={FateDropColors.amber} />
-            </View>
+            {active !== 'UK Calendar' ? (
+              <View style={styles.sectionHeadingRow}>
+                <Text style={styles.heading}>{active === 'Nearby' ? 'Events near you' : 'Upcoming events'}</Text>
+                <StatusBadge label={`${filteredEvents.length} events`} color={FateDropColors.amber} />
+              </View>
+            ) : null}
             {filteredEvents.filter((event) => event.id !== featured?.id).map((event) => eventCard(event))}
           </>
         ) : null}
 
-        {!loading && !filteredShops.length && !filteredEvents.length ? (
+        {!loading && !noNearbySelection && !filteredShops.length && !filteredEvents.length ? (
           <View style={styles.empty}>
             <Ionicons name="map-outline" size={28} color={FateDropColors.violetLight} />
             <Text style={styles.emptyTitle}>Nothing matches this view yet</Text>
-            <Text style={styles.emptyText}>Try a wider radius or another filter. FateDrop will add smaller independent shops and upcoming event sources as the hosted Local Radar feed expands.</Text>
+            <Text style={styles.emptyText}>Try a wider radius or another filter. Empty data stays empty rather than being filled with demo shops or events.</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -404,9 +406,12 @@ const styles = StyleSheet.create({
   place: { color: FateDropColors.secondary, marginTop: 7, lineHeight: 18 },
   price: { color: FateDropColors.text, fontWeight: '800', marginTop: 7 },
   distance: { color: FateDropColors.mint, fontSize: 10, fontWeight: '900', marginTop: 7 },
+  stockContext: { flexDirection: 'row', gap: 9, padding: 10, borderRadius: 12, backgroundColor: `${FateDropColors.mint}08`, borderWidth: 1, borderColor: `${FateDropColors.mint}25`, marginTop: 10 },
+  stockTitle: { color: FateDropColors.mint, fontSize: 10, fontWeight: '900' },
+  stockText: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   state: { marginTop: 35 },
-  feedNote: { color: FateDropColors.amber, fontSize: 10, lineHeight: 16, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: `${FateDropColors.amber}30`, backgroundColor: `${FateDropColors.amber}08`, marginTop: 4 },
+  feedNote: { color: FateDropColors.amber, fontSize: 10, lineHeight: 16, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: `${FateDropColors.amber}30`, backgroundColor: `${FateDropColors.amber}08`, marginTop: 4, marginBottom: 8 },
   empty: { alignItems: 'center', padding: 26, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginTop: 18 },
   emptyTitle: { color: FateDropColors.text, fontSize: 15, fontWeight: '900', marginTop: 10 },
   emptyText: { color: FateDropColors.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 6 },
