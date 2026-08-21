@@ -43,7 +43,7 @@ interface CloudSignal {
   title?: string;
   reason?: string;
   retailerName?: string;
-  detectedAt?: number;
+  detectedAt?: number | string;
 }
 
 const ago = (value?: string) => {
@@ -54,16 +54,23 @@ const ago = (value?: string) => {
 
 function publicStageForCloudState(state?: string): MarketEvent['fateStage'] {
   const value = String(state || '').toLowerCase();
-  if (value === 'whisper') return 'ECHO';
-  if (value === 'manifested' || value === 'echo') return 'MANIFESTED';
+  if (value === 'whisper') return 'WHISPER';
+  if (value === 'echo') return 'ECHO';
+  if (value === 'manifested') return 'MANIFESTED';
   if (value === 'vanished') return 'VANISHED';
   return 'NETWORK';
 }
 
+function detectedAtIso(value?: number | string) {
+  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value * 1000).toISOString();
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
+  }
+  return undefined;
+}
+
 function adaptCloudSignal(signal: CloudSignal): MarketEvent {
-  const detectedAt = Number.isFinite(signal.detectedAt)
-    ? new Date(Number(signal.detectedAt) * 1000).toISOString()
-    : undefined;
   return {
     id: signal.id,
     type: String(signal.state || '').toUpperCase(),
@@ -71,7 +78,7 @@ function adaptCloudSignal(signal: CloudSignal): MarketEvent {
     title: signal.title,
     message: signal.reason,
     retailer: signal.retailerName,
-    detectedAt,
+    detectedAt: detectedAtIso(signal.detectedAt),
     product: { title: signal.title },
   };
 }
@@ -91,18 +98,8 @@ export default function HomeScreen() {
         setStatus(null);
       }
 
-      // Prefer the public app-facing event route when Cloud exposes it. Until
-      // that migration lands everywhere, fall back to the existing signal
-      // history and adapt its internal state names to the public lifecycle.
       try {
-        const eventsResponse = await fetch(`${SIGNAL_ENGINE_URL}/api/events?limit=5`);
-        if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json() as { events?: MarketEvent[] };
-          setRecentEvents(Array.isArray(eventsData.events) ? eventsData.events.slice(0, 5) : []);
-          return;
-        }
-
-        const signalsResponse = await fetch(`${SIGNAL_ENGINE_URL}/v1/signals?limit=5`);
+        const signalsResponse = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=5`);
         if (!signalsResponse.ok) {
           setRecentEvents([]);
           return;
