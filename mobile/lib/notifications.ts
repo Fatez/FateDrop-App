@@ -13,12 +13,16 @@ Notifications.setNotificationHandler({
 
 const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fatedrop-web.fatedrop-web.workers.dev').replace(/\/$/, '');
 
-export type DevelopmentSignalNotification = 'echo' | 'manifested' | 'vanished' | 'fatematch' | 'major';
+export type DevelopmentSignalNotification = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fatematch' | 'major';
 
 const developmentNotificationCopy: Record<DevelopmentSignalNotification, { title: string; body: string }> = {
+  whisper: {
+    title: 'FateDrop · Whisper detected',
+    body: 'Product or catalogue movement detected. Something may be coming.',
+  },
   echo: {
     title: 'FateDrop · Echo detected',
-    body: 'Early movement detected. KAEL / NYRA is watching the signal.',
+    body: 'Queue, traffic or security readiness changed. Get ready; stock is not confirmed.',
   },
   manifested: {
     title: 'FateDrop · Manifested',
