@@ -2,7 +2,7 @@ import { companionReactionFromSignal, type CompanionReaction } from '@/lib/compa
 
 export type SignalTone = 'mint' | 'red' | 'amber' | 'blue' | 'violet' | 'neutral';
 export type FatePriceVerdict = 'LOWEST_KNOWN' | 'BETTER_OFFER_FOUND' | 'NO_FAIR_COMPARISON';
-export type CanonicalSignalStage = 'ECHO' | 'MANIFESTED' | 'VANISHED' | 'NETWORK';
+export type CanonicalSignalStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED' | 'NETWORK';
 
 export type CanonicalOfferLink = {
   offerId: string;
@@ -90,9 +90,9 @@ export interface MarketEvent {
 }
 
 export type SignalPresentation = {
-  label: 'Echo' | 'Manifested' | 'Vanished' | 'Major' | 'Network activity';
+  label: 'Whisper' | 'Echo' | 'Manifested' | 'Vanished' | 'Major' | 'Network activity';
   tone: SignalTone;
-  icon: 'flash' | 'sparkles' | 'close-circle' | 'trophy' | 'radio';
+  icon: 'eye' | 'flash' | 'sparkles' | 'close-circle' | 'trophy' | 'radio';
   reaction: CompanionReaction;
 };
 
@@ -122,8 +122,16 @@ export function signalPresentation(event: MarketEvent): SignalPresentation {
     };
   }
 
-  const explicitlyEarly = stage === 'WHISPER' || stage === 'ECHO';
-  if (explicitlyEarly || /QUEUE|SECURITY|TRAFFIC|PRECURSOR/.test(type)) {
+  if (stage === 'WHISPER' || /WHISPER|CATALOGUE|METADATA/.test(type)) {
+    return {
+      label: 'Whisper',
+      tone: 'blue',
+      icon: 'eye',
+      reaction: companionReactionFromSignal({ state: 'whisper' }),
+    };
+  }
+
+  if (stage === 'ECHO' || /QUEUE|SECURITY|TRAFFIC|ACCESS_READINESS|PRECURSOR/.test(type)) {
     return {
       label: 'Echo',
       tone: 'violet',
@@ -157,8 +165,10 @@ export function signalPresentation(event: MarketEvent): SignalPresentation {
 
 export function companionLineForSignal(presentation: SignalPresentation) {
   switch (presentation.label) {
+    case 'Whisper':
+      return 'Product movement detected. Something may be coming.';
     case 'Echo':
-      return 'Early movement detected. Watching for confirmation.';
+      return 'Access conditions changed. Get ready; stock is not confirmed.';
     case 'Manifested':
       return 'Confirmed. Stock is live.';
     case 'Vanished':
