@@ -6,9 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AbstractHero, FateDropBackground, FateDropHeader, FilterChip, ProductCard, StatusBadge } from '@/components/fatedrop-ui';
 import { RetailerCard } from '@/components/retailer-card';
+import { nationalRetailerKeys } from '@/constants/retailer-groups';
 import { retailers } from '@/constants/retailers';
 import { FateDropColors } from '@/constants/theme';
 import { useCatalogue } from '@/hooks/use-catalogue';
+import { useNetworkRetailers } from '@/hooks/use-network-retailers';
 import { loadWatchlist, toggleWatchlist } from '@/lib/watchlist';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import type { ProductCategory } from '@/types/domain';
@@ -41,8 +43,11 @@ export default function IndiesScreen() {
     void loadWatchlist().then(setWatched);
   }, []));
 
-  const networkRetailers = useMemo(() => retailers.filter((item) => item.id !== 'pokemon-center-uk' && !item.isDemo), []);
-  const directoryRetailers = useMemo(() => networkRetailers.filter((item) => {
+  const liveRetailers = useNetworkRetailers();
+  const directoryNetworkRetailers = useMemo(() => retailers.filter((item) => item.id !== 'pokemon-center-uk' && !item.isDemo), []);
+  const connectedRetailers = useMemo(() => liveRetailers.filter((item) => !nationalRetailerKeys.has(item.id)), [liveRetailers]);
+  const connectedRetailerNames = useMemo(() => new Map(connectedRetailers.map((item) => [item.id, item.name])), [connectedRetailers]);
+  const directoryRetailers = useMemo(() => directoryNetworkRetailers.filter((item) => {
     const term = directoryQuery.trim().toLowerCase();
     const location = item.locations.map((value) => `${value.townCity || ''} ${value.postcode || ''}`).join(' ').toLowerCase();
     if (term && !item.name.toLowerCase().includes(term) && !location.includes(term)) return false;
@@ -51,7 +56,7 @@ export default function IndiesScreen() {
     if (directoryFilter === 'verified') return item.verification.status === 'VERIFIED';
     if (directoryFilter === 'collection') return item.locations.some((value) => value.collectionAvailable);
     return true;
-  }), [directoryFilter, directoryQuery, networkRetailers]);
+  }), [directoryFilter, directoryNetworkRetailers, directoryQuery]);
 
   const catalogue = useCatalogue({
     query,
@@ -60,12 +65,13 @@ export default function IndiesScreen() {
     maximumPriceGbp: maximumPrice ? Number(maximumPrice) : undefined,
     sort,
     retailerId,
+    excludedRetailerIds: [...nationalRetailerKeys],
     inStockOnly: true,
     limit: 50,
   });
 
   const commonHeader = <>
-    <FateDropHeader title="Indies" rightAction={<StatusBadge label={`${networkRetailers.length} listed`} color={FateDropColors.cyan} />} />
+    <FateDropHeader title="Indies" rightAction={<StatusBadge label={mode === 'directory' ? `${directoryNetworkRetailers.length} listed` : `${connectedRetailers.length} connected`} color={FateDropColors.cyan} />} />
     <AbstractHero eyebrow="Independent network" title="Find the shop behind the stock." subtitle="Discover independent TCG retailers, browse connected offers and continue directly to the retailer to buy." icon="storefront" />
     <View style={styles.mode}>
       <FilterChip label="Retailers" active={mode === 'directory'} onPress={() => setMode('directory')} />
@@ -99,7 +105,7 @@ export default function IndiesScreen() {
     {commonHeader}
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search connected indie offers" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <FlatList horizontal data={categories} keyExtractor={(item) => item.label} renderItem={({ item }) => <FilterChip label={item.label} active={category === item.value} onPress={() => setCategory(item.value)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />
-    <FlatList horizontal data={[{ id: undefined, name: 'All retailers' }, ...networkRetailers]} keyExtractor={(item) => item.id || 'all'} renderItem={({ item }) => <FilterChip label={item.name} active={retailerId === item.id} onPress={() => setRetailerId(item.id)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />
+    <FlatList horizontal data={[{ id: undefined, name: 'All retailers' }, ...connectedRetailers]} keyExtractor={(item) => item.id || 'all'} renderItem={({ item }) => <FilterChip label={item.name} active={retailerId === item.id} onPress={() => setRetailerId(item.id)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />
     <Text style={styles.filterLabel}>Price</Text>
     <View style={styles.range}>
       <TextInput value={minimumPrice} onChangeText={setMinimumPrice} keyboardType="decimal-pad" placeholder="Min £" placeholderTextColor={FateDropColors.muted} style={styles.rangeInput} />
@@ -110,7 +116,7 @@ export default function IndiesScreen() {
       <FilterChip label="Title" active={sort === 'title'} onPress={() => setSort('title')} />
       <FilterChip label="Item price" active={sort === 'price'} onPress={() => setSort('price')} />
     </View>
-    <Text style={styles.cloudNote}>Catalogue filters shown here are limited to fields the canonical Signal Engine can currently honour. True delivered-price comparison remains in True Price.</Text>
+    <Text style={styles.cloudNote}>Connected offers are sourced from the live Signal Engine. National-chain retailers are kept in Search so the Indies view stays focused on specialist and independent stock.</Text>
     <View style={styles.summary}><Text style={styles.resultCount}>{catalogue.total.toLocaleString()} matching offers</Text><Text style={styles.note}>In-stock only</Text></View>
   </>;
 
@@ -129,9 +135,10 @@ export default function IndiesScreen() {
         ListEmptyComponent={catalogue.loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{catalogue.error || 'No matching connected indie offers.'}</Text>}
         renderItem={({ item }) => {
           const store = retailers.find((value) => value.id === item.retailerId);
+          const retailerName = connectedRetailerNames.get(item.retailerId) || store?.name || item.retailerId;
           const shipping = item.shippingOptions.find((option) => !option.collection)?.priceGbp;
           const details = [item.condition.replaceAll('_', ' '), shipping === undefined ? 'Delivery unknown' : `Delivery £${shipping.toFixed(2)}`].filter(Boolean).join(' · ');
-          return <ProductCard title={item.title} retailer={store?.name || item.retailerId} details={details} price={item.priceGbp === undefined ? 'Price unavailable' : `£${item.priceGbp.toFixed(2)}`} stockLabel={item.preorder ? 'Preorder' : 'In stock'} stockTone="mint" fateLabel={item.pulseLabels?.[0]?.replaceAll('_', ' ')} fateTone={item.pulseLabels?.includes('PRICE_DROPPED') ? 'mint' : 'violet'} imageSource={item.imageUrl ? { uri: item.imageUrl } : undefined} productUrl={item.productUrl} onOpenProduct={item.productUrl ? () => void openTrackedRetailerLink({ destinationUrl: item.productUrl!, retailerId: item.retailerId, offerId: item.id, placement: 'indies-catalogue' }) : undefined} inWatchlist={watched.includes(item.id)} onToggleWatchlist={() => void toggleWatchlist(item.id, watched).then(setWatched)} />;
+          return <ProductCard title={item.title} retailer={retailerName} details={details} price={item.priceGbp === undefined ? 'Price unavailable' : `£${item.priceGbp.toFixed(2)}`} stockLabel={item.preorder ? 'Preorder' : 'In stock'} stockTone="mint" fateLabel={item.pulseLabels?.[0]?.replaceAll('_', ' ')} fateTone={item.pulseLabels?.includes('PRICE_DROPPED') ? 'mint' : 'violet'} imageSource={item.imageUrl ? { uri: item.imageUrl } : undefined} productUrl={item.productUrl} onOpenProduct={item.productUrl ? () => void openTrackedRetailerLink({ destinationUrl: item.productUrl!, retailerId: item.retailerId, offerId: item.id, placement: 'indies-catalogue' }) : undefined} inWatchlist={watched.includes(item.id)} onToggleWatchlist={() => void toggleWatchlist(item.id, watched).then(setWatched)} />;
         }}
       />
     </SafeAreaView>
