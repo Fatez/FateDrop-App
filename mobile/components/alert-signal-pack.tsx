@@ -10,13 +10,15 @@ import { openTrackedRetailerLink } from '@/services/outbound-links';
 const pounds = (pence?: number | null) => pence == null ? null : `£${(pence / 100).toFixed(2)}`;
 
 function stageColor(stage?: string) {
+  if (stage === 'WHISPER') return FateDropColors.cyan;
+  if (stage === 'ECHO') return FateDropColors.violetLight;
   if (stage === 'MANIFESTED') return FateDropColors.mint;
   if (stage === 'VANISHED') return FateDropColors.coral;
-  if (stage === 'ECHO') return FateDropColors.violetLight;
-  return FateDropColors.cyan;
+  return FateDropColors.muted;
 }
 
 function stageLabel(entry: CanonicalSignalThreadEntry) {
+  if (entry.fateStage === 'WHISPER') return 'Whisper';
   if (entry.fateStage === 'ECHO') return 'Echo';
   if (entry.fateStage === 'MANIFESTED') return 'Manifested';
   if (entry.fateStage === 'VANISHED') return 'Vanished';
@@ -70,11 +72,13 @@ export function AlertSignalPack({ event }: { event: MarketEvent }) {
       </View>
 
       <Text style={styles.explainer}>
-        {event.fateStage === 'ECHO'
-          ? 'Early intelligence only. FateDrop has prepared the product and comparison routes while it watches for confirmation.'
-          : event.fateStage === 'VANISHED'
-            ? 'This observed availability has gone. Prepared alternatives remain available below when the network still sees them live.'
-            : 'Confirmed availability. Open the retailer, compare True Price, or inspect another live offer.'}
+        {event.fateStage === 'WHISPER'
+          ? 'Product or catalogue movement has been detected. FateDrop has prepared the product and comparison routes, but stock is not confirmed.'
+          : event.fateStage === 'ECHO'
+            ? 'Queue, traffic, security or access readiness has changed. Get ready; stock is still not confirmed.'
+            : event.fateStage === 'VANISHED'
+              ? 'This observed availability has gone. Prepared alternatives remain available below when the network still sees them live.'
+              : 'Confirmed availability. Open the retailer, compare True Price, or inspect another live offer.'}
       </Text>
 
       <View style={styles.primaryActions}>
