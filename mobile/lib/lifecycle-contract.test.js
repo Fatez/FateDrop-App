@@ -21,10 +21,9 @@ test('mobile preserves Whisper, Echo, Manifested and Vanished as distinct stages
 });
 
 test('Companion uses anticipation for Whisper and readiness for Echo', () => {
-  assert.match(companion, /if \(kind === 'whisper'\) return 'watching'/);
-  assert.match(companion, /\['queue', 'security', 'traffic', 'drop_pulse', 'echo'\]\.includes\(kind\)/);
-  assert.match(companion, /return 'echo'/);
-  assert.doesNotMatch(companion, /'whisper', 'echo'/);
+  assert.match(companion, /\['whisper', 'drop_pulse'\]\.includes\(kind\)\) return 'watching'/);
+  assert.match(companion, /\['echo', 'queue', 'security', 'traffic', 'access_readiness'\]\.includes\(kind\)\) return 'echo'/);
+  assert.doesNotMatch(companion, /\[[^\]]*'whisper'[^\]]*\]\.includes\(kind\)\) return 'echo'/);
 });
 
 test('mobile account and development notification contracts expose Whisper independently', () => {
@@ -33,7 +32,7 @@ test('mobile account and development notification contracts expose Whisper indep
   assert.match(notifications, /DevelopmentSignalNotification = 'whisper' \| 'echo'/);
   assert.match(notifications, /FateDrop · Whisper detected/);
   assert.match(alerts, /'whisper' \| 'echo' \| 'manifested'/);
-  assert.match(alerts, /\['whisper', 'echo', 'manifested', 'vanished'/);
+  assert.match(alerts, /'whisper', 'echo', 'manifested', 'vanished'/);
 });
 
 test('beta True Price retains the RRP-first main-branch improvement', () => {
