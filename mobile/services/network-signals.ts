@@ -1,6 +1,6 @@
 import { SIGNAL_ENGINE_URL } from '@/constants/api';
 
-export type NetworkSignalState = 'echo' | 'manifested' | 'vanished';
+export type NetworkSignalState = 'whisper' | 'echo' | 'manifested' | 'vanished';
 
 export interface NetworkSignal {
   id: string;
@@ -37,11 +37,13 @@ interface NetworkSignalResponse {
   signals?: NetworkSignal[];
 }
 
+const CANONICAL_SIGNAL_STATES: NetworkSignalState[] = ['whisper', 'echo', 'manifested', 'vanished'];
+
 export async function fetchNetworkSignals(limit = 50): Promise<NetworkSignal[]> {
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
   const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=${safeLimit}`);
   if (!response.ok) throw new Error(`Signal feed HTTP ${response.status}`);
   const data = await response.json() as NetworkSignalResponse;
   if (!data.success || !Array.isArray(data.signals)) return [];
-  return data.signals.filter((signal): signal is NetworkSignal => Boolean(signal?.id && signal?.title && ['echo', 'manifested', 'vanished'].includes(signal.state)));
+  return data.signals.filter((signal): signal is NetworkSignal => Boolean(signal?.id && signal?.title && CANONICAL_SIGNAL_STATES.includes(signal.state)));
 }
