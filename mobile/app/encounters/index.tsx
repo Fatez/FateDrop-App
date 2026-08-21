@@ -52,7 +52,7 @@ type NearbyShop = {
 };
 
 const locationAdapter = new ExpoLocationAdapter();
-const outward = (postcode?: string) => postcode?.replace(/\s+/g, '').slice(0, -3).toUpperCase();
+const outward = (postcode?: string | null) => postcode?.replace(/\s+/g, '').slice(0, -3).toUpperCase();
 
 export default function EncountersScreen() {
   const [events, setEvents] = useState<NearbyEvent[]>([]);
