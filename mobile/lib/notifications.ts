@@ -11,7 +11,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
 });
 
-const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fate-drop.com').replace(/\/$/, '');
+const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fatedrop-web.fatedrop-web.workers.dev').replace(/\/$/, '');
 
 export type DevelopmentSignalNotification = 'echo' | 'manifested' | 'vanished' | 'fatematch' | 'major';
 
