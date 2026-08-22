@@ -1,5 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
+// One-shot deterministic migration: this helper is removed after the Alerts
+// change lands so the feature branch stays clean.
 const path = 'mobile/screens/alerts-screen-v2.tsx';
 let source = readFileSync(path, 'utf8');
 
