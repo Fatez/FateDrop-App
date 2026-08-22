@@ -174,63 +174,81 @@ export default function HomeScreen() {
           <StatCard icon="flash-outline" value={networkMeasured ? inStockCount.toLocaleString() : '—'} label="Available" color={FateDropColors.mint} />
         </View>
 
-        <SectionHeader title="FateDrop companions" action="Signal identities" />
+        <SectionHeader title="Oru & Friends" action="Signal guides" />
         <View style={styles.companionPanel}>
           <View style={styles.companionIntro}>
             <View style={styles.companionSignalIcon}>
               <Ionicons name="sparkles" size={18} color={FateDropColors.cyan} />
             </View>
             <View style={styles.companionIntroCopy}>
-              <Text style={styles.companionEyebrow}>YOUR SIGNAL, GIVEN FORM</Text>
-              <Text style={styles.companionIntroText}>Meet the reactive identities that turn Echo, Manifested and major FateDrop moments into character.</Text>
+              <Text style={styles.companionEyebrow}>ORU LEADS THE SIGNAL</Text>
+              <Text style={styles.companionIntroText}>Meet Oru, Nyxen, Solix and Aeris. They react to FateDrop’s evidence without changing what Whisper, Echo, Manifested or Vanished actually mean.</Text>
             </View>
           </View>
 
           <View style={styles.companionRow}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open KAEL companion"
-              onPress={() => router.push({ pathname: '/companion', params: { variant: 'male' } })}
+              accessibilityLabel="Open Oru companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'oru' } })}
               style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
             >
               <View style={styles.companionCardGlow} />
               <View style={styles.companionAvatar}>
-                <Ionicons name="person" size={28} color={FateDropColors.violetLight} />
+                <Ionicons name="sparkles" size={28} color={FateDropColors.violetLight} />
               </View>
-              <Text style={styles.companionCode}>K-01</Text>
-              <Text style={styles.companionName}>KAEL</Text>
-              <Text style={styles.companionRole}>Signal collector</Text>
-              <View style={styles.companionState}>
-                <View style={styles.companionStateDot} />
-                <Text style={styles.companionStateText}>READY</Text>
-              </View>
-              <View style={styles.companionOpenRow}>
-                <Text style={styles.companionOpenText}>VIEW COMPANION</Text>
-                <Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} />
-              </View>
+              <Text style={styles.companionCode}>MASCOT</Text>
+              <Text style={styles.companionName}>ORU</Text>
+              <Text style={styles.companionRole}>FateDrop guide</Text>
+              <View style={styles.companionState}><View style={styles.companionStateDot} /><Text style={styles.companionStateText}>READY</Text></View>
+              <View style={styles.companionOpenRow}><Text style={styles.companionOpenText}>MEET ORU</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} /></View>
             </Pressable>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Open NYRA companion"
-              onPress={() => router.push({ pathname: '/companion', params: { variant: 'female' } })}
+              accessibilityLabel="Open Nyxen companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'nyxen' } })}
               style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
             >
               <View style={[styles.companionCardGlow, styles.companionCardGlowCyan]} />
-              <View style={[styles.companionAvatar, styles.companionAvatarCyan]}>
-                <Ionicons name="person" size={28} color={FateDropColors.cyan} />
-              </View>
-              <Text style={styles.companionCode}>N-02</Text>
-              <Text style={styles.companionName}>NYRA</Text>
-              <Text style={styles.companionRole}>Signal collector</Text>
-              <View style={styles.companionState}>
-                <View style={styles.companionStateDot} />
-                <Text style={styles.companionStateText}>READY</Text>
-              </View>
-              <View style={styles.companionOpenRow}>
-                <Text style={styles.companionOpenText}>VIEW COMPANION</Text>
-                <Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} />
-              </View>
+              <View style={[styles.companionAvatar, styles.companionAvatarCyan]}><Ionicons name="eye-outline" size={28} color={FateDropColors.cyan} /></View>
+              <Text style={styles.companionCode}>K-13</Text>
+              <Text style={styles.companionName}>NYXEN</Text>
+              <Text style={styles.companionRole}>Whisper watcher</Text>
+              <View style={styles.companionState}><View style={styles.companionStateDot} /><Text style={styles.companionStateText}>READY</Text></View>
+              <View style={styles.companionOpenRow}><Text style={styles.companionOpenText}>VIEW FRIEND</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} /></View>
+            </Pressable>
+          </View>
+
+          <View style={[styles.companionRow, { marginTop: 10 }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open Solix companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'solix' } })}
+              style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
+            >
+              <View style={styles.companionCardGlow} />
+              <View style={styles.companionAvatar}><Ionicons name="flash-outline" size={28} color={FateDropColors.violetLight} /></View>
+              <Text style={styles.companionCode}>K-12</Text>
+              <Text style={styles.companionName}>SOLIX</Text>
+              <Text style={styles.companionRole}>Manifested spark</Text>
+              <View style={styles.companionState}><View style={styles.companionStateDot} /><Text style={styles.companionStateText}>READY</Text></View>
+              <View style={styles.companionOpenRow}><Text style={styles.companionOpenText}>VIEW FRIEND</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} /></View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open Aeris companion"
+              onPress={() => router.push({ pathname: '/companion', params: { variant: 'aeris' } })}
+              style={({ pressed }) => [styles.companionCard, pressed && styles.pressed]}
+            >
+              <View style={[styles.companionCardGlow, styles.companionCardGlowCyan]} />
+              <View style={[styles.companionAvatar, styles.companionAvatarCyan]}><Ionicons name="radio-outline" size={28} color={FateDropColors.cyan} /></View>
+              <Text style={styles.companionCode}>K-14</Text>
+              <Text style={styles.companionName}>AERIS</Text>
+              <Text style={styles.companionRole}>Signal scout</Text>
+              <View style={styles.companionState}><View style={styles.companionStateDot} /><Text style={styles.companionStateText}>READY</Text></View>
+              <View style={styles.companionOpenRow}><Text style={styles.companionOpenText}>VIEW FRIEND</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.cyan} /></View>
             </Pressable>
           </View>
         </View>
