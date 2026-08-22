@@ -1,0 +1,34 @@
+name: Apply Oru & Friends Home integration
+
+on:
+  push:
+    branches:
+      - agent/koru-friends-3d-integration-2026-08-22
+    paths:
+      - mobile/scripts/patch-oru-friends-home.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  patch-home:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/koru-friends-3d-integration-2026-08-22
+      - name: Apply deterministic Home companion patch
+        run: node mobile/scripts/patch-oru-friends-home.mjs
+      - name: Commit generated Home patch
+        shell: bash
+        run: |
+          if git diff --quiet -- mobile/app/'(tabs)'/index.tsx; then
+            echo "Home already uses Oru & Friends."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/app/'(tabs)'/index.tsx
+          git commit -m "Replace legacy Home companions with Oru & Friends"
+          git push
