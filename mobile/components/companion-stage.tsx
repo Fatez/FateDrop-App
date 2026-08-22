@@ -17,7 +17,9 @@ export type CompanionVariant = CompanionId;
 export const REQUIRED_COMPANION_CLIPS = ['Idle', 'Whisper', 'Echo', 'Manifested', 'Vanished', 'FateMatch'] as const;
 export type CompanionClipName = (typeof REQUIRED_COMPANION_CLIPS)[number];
 
-const REMOTE_ASSET_BASE = String(process.env.EXPO_PUBLIC_COMPANION_ASSET_BASE_URL ?? '').replace(/\/$/, '');
+const DEFAULT_FATEDROP_WEB_URL = 'https://fatedrop-web.fatedrop-web.workers.dev';
+const FATEDROP_WEB_URL = String(process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_FATEDROP_WEB_URL).replace(/\/$/, '');
+const REMOTE_ASSET_BASE = String(process.env.EXPO_PUBLIC_COMPANION_ASSET_BASE_URL || `${FATEDROP_WEB_URL}/assets/companions`).replace(/\/$/, '');
 
 const MODEL_PATHS: Record<CompanionVariant, { model: string; texture: string }> = {
   oru: { model: 'oru/oru.glb', texture: 'oru/oru-texture.jpg' },
@@ -67,9 +69,6 @@ function ensureThreeNativeNavigatorCompatibility() {
 }
 
 function remoteAssetUrl(path: string) {
-  if (!REMOTE_ASSET_BASE) {
-    throw new Error('Oru & Friends asset host is not configured for this build.');
-  }
   return `${REMOTE_ASSET_BASE}/${path}`;
 }
 
@@ -372,7 +371,7 @@ export function CompanionStage({
         <View style={styles.loader}>
           <ActivityIndicator color={FateDropColors.violetLight} />
           <Text style={styles.loaderTitle}>{model.name === 'Oru' ? 'ORU IS TRACING THE SIGNAL' : `CALLING ${model.name.toUpperCase()}`}</Text>
-          <Text style={styles.loaderText}>Preparing the Koru & Friends stage…</Text>
+          <Text style={styles.loaderText}>Preparing the Oru & Friends stage…</Text>
         </View>
       ) : null}
       {error ? (
