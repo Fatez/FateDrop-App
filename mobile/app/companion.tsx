@@ -4,54 +4,42 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  CompanionStage,
-  type CompanionClipName,
-  type CompanionVariant,
-} from '@/components/companion-stage';
+import { CompanionStage, type CompanionClipName, type CompanionVariant } from '@/components/companion-stage';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
-import type { CompanionReaction } from '@/lib/companion-contract';
+import {
+  ACTIVE_COMPANION_ROSTER,
+  LEGACY_COMPANION_ARCHIVE,
+  normalizeCompanionId,
+  type CompanionReaction,
+} from '@/lib/companion-contract';
 
-const variants: {
-  id: CompanionVariant;
-  title: string;
-  subtitle: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  { id: 'male', title: 'KAEL', subtitle: 'Collector identity · K-01', icon: 'person' },
-  { id: 'female', title: 'NYRA', subtitle: 'Collector identity · N-02', icon: 'person' },
+const reactions: { id: CompanionReaction; label: string; clip: CompanionClipName; detail: string }[] = [
+  { id: 'idle', label: 'Idle', clip: 'Idle', detail: 'Quiet network state' },
+  { id: 'watching', label: 'Whisper', clip: 'Whisper', detail: 'Catalogue movement · not confirmed stock' },
+  { id: 'echo', label: 'Echo', clip: 'Echo', detail: 'Queue / access readiness' },
+  { id: 'manifested', label: 'Manifested', clip: 'Manifested', detail: 'Confirmed purchasable stock' },
+  { id: 'vanished', label: 'Vanished', clip: 'Vanished', detail: 'Availability lost' },
+  { id: 'fatematch', label: 'FateMatch', clip: 'FateMatch', detail: 'Special FateDrop moment' },
 ];
 
-const reactions: { id: CompanionReaction; label: string; clip: CompanionClipName }[] = [
-  { id: 'idle', label: 'Idle', clip: 'Idle' },
-  { id: 'watching', label: 'Notice', clip: 'Notice' },
-  { id: 'echo', label: 'Echo', clip: 'Echo' },
-  { id: 'manifested', label: 'Manifested', clip: 'Manifested' },
-  { id: 'major', label: 'Celebrate', clip: 'Celebrate' },
-];
-
-const movementClips: CompanionClipName[] = ['Walk', 'Run'];
+const iconByCompanion: Record<CompanionVariant, keyof typeof Ionicons.glyphMap> = {
+  oru: 'sparkles',
+  nyxen: 'eye-outline',
+  solix: 'flash-outline',
+  aeris: 'radio-outline',
+};
 
 export default function CompanionScreen() {
   const params = useLocalSearchParams<{ variant?: string }>();
-  const routeVariant: CompanionVariant = params.variant === 'female' ? 'female' : 'male';
+  const routeVariant = normalizeCompanionId(params.variant);
   const [variant, setVariant] = useState<CompanionVariant>(routeVariant);
   const [reaction, setReaction] = useState<CompanionReaction>('idle');
-  const [previewClip, setPreviewClip] = useState<CompanionClipName | null>(null);
 
-  // Expo Router can reuse this route. Keep the selected identity anchored to
-  // the Home card that opened it rather than only reading params on first mount.
   useEffect(() => {
     setVariant(routeVariant);
     setReaction('idle');
-    setPreviewClip(null);
   }, [routeVariant]);
-
-  const selectReaction = (nextReaction: CompanionReaction) => {
-    setReaction(nextReaction);
-    setPreviewClip(null);
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -62,8 +50,8 @@ export default function CompanionScreen() {
             <Ionicons name="chevron-back" size={22} color={FateDropColors.text} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>FATEDROP COMPANION</Text>
-            <Text style={styles.title}>Your signal has a face.</Text>
+            <Text style={styles.eyebrow}>ORU & FRIENDS</Text>
+            <Text style={styles.title}>The signal has a little soul now.</Text>
           </View>
           <View style={styles.live}>
             <View style={styles.dot} />
@@ -71,83 +59,84 @@ export default function CompanionScreen() {
           </View>
         </View>
 
-        <CompanionStage variant={variant} reaction={reaction} previewClip={previewClip} />
+        <Text style={styles.intro}>Oru is FateDrop’s guide. Nyxen, Solix and Aeris share the same reaction contract, so the character can change without ever changing what a Whisper, Echo, Manifested or Vanished signal means.</Text>
+
+        <CompanionStage variant={variant} reaction={reaction} />
 
         <View style={styles.contractStrip}>
-          <View style={styles.contractMetric}>
-            <Text style={styles.contractValue}>7</Text>
-            <Text style={styles.contractLabel}>RIG CLIPS</Text>
-          </View>
+          <View style={styles.contractMetric}><Text style={styles.contractValue}>4</Text><Text style={styles.contractLabel}>ACTIVE FRIENDS</Text></View>
           <View style={styles.contractDivider} />
-          <View style={styles.contractMetric}>
-            <Text style={styles.contractValue}>LOCAL</Text>
-            <Text style={styles.contractLabel}>ASSET SOURCE</Text>
-          </View>
+          <View style={styles.contractMetric}><Text style={styles.contractValue}>6</Text><Text style={styles.contractLabel}>RIG STATES</Text></View>
           <View style={styles.contractDivider} />
-          <View style={styles.contractMetric}>
-            <Text style={styles.contractValue}>GLB</Text>
-            <Text style={styles.contractLabel}>NATIVE RENDER</Text>
-          </View>
+          <View style={styles.contractMetric}><Text style={styles.contractValue}>GLB</Text><Text style={styles.contractLabel}>NATIVE RENDER</Text></View>
         </View>
 
-        <Text style={styles.sectionLabel}>CHOOSE IDENTITY</Text>
-        <View style={styles.variantRow}>
-          {variants.map((item) => {
+        <Text style={styles.sectionLabel}>CHOOSE YOUR GUIDE</Text>
+        <View style={styles.variantGrid}>
+          {ACTIVE_COMPANION_ROSTER.map((item) => {
             const active = item.id === variant;
             return (
-              <Pressable key={item.id} onPress={() => setVariant(item.id)} style={[styles.variant, active && styles.variantActive]}>
-                <Ionicons name={item.icon} size={18} color={active ? FateDropColors.cyan : FateDropColors.secondary} />
-                <Text style={[styles.variantTitle, active && styles.activeText]}>{item.title}</Text>
-                <Text style={styles.variantSub}>{item.subtitle}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.voxCard}>
-          <View style={styles.voxIcon}>
-            <Ionicons name="hardware-chip" size={18} color={FateDropColors.violetLight} />
-          </View>
-          <View style={styles.voxCopy}>
-            <Text style={styles.voxTitle}>VØX · Familiar</Text>
-            <Text style={styles.voxText}>Still deliberately disabled until a standards-compliant production GLB is available. KAEL and NYRA do not fall back to a fake substitute.</Text>
-          </View>
-          <Text style={styles.voxStatus}>ASSET HOLD</Text>
-        </View>
-
-        <Text style={styles.sectionLabel}>TEST SIGNAL REACTION</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reactionRow}>
-          {reactions.map((item) => {
-            const active = previewClip === null && reaction === item.id;
-            return (
-              <Pressable key={item.id} onPress={() => selectReaction(item.id)} style={[styles.reaction, active && styles.reactionActive]}>
-                <Text style={[styles.reactionText, active && styles.activeText]}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        <Text style={styles.sectionLabel}>TEST MOVEMENT CLIPS</Text>
-        <View style={styles.movementRow}>
-          {movementClips.map((clip) => {
-            const active = previewClip === clip;
-            return (
-              <Pressable key={clip} onPress={() => setPreviewClip(clip)} style={[styles.movement, active && styles.movementActive]}>
-                <Ionicons name={clip === 'Walk' ? 'walk' : 'speedometer-outline'} size={17} color={active ? FateDropColors.cyan : FateDropColors.violetLight} />
-                <View style={styles.movementCopy}>
-                  <Text style={[styles.movementTitle, active && styles.activeText]}>{clip}</Text>
-                  <Text style={styles.movementSub}>Rig locomotion test</Text>
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Choose ${item.name}`}
+                onPress={() => {
+                  setVariant(item.id);
+                  setReaction('idle');
+                }}
+                style={[styles.variant, active && styles.variantActive]}
+              >
+                <View style={[styles.variantIcon, active && styles.variantIconActive]}>
+                  <Ionicons name={iconByCompanion[item.id]} size={18} color={active ? FateDropColors.cyan : FateDropColors.violetLight} />
+                </View>
+                <View style={styles.variantCopy}>
+                  <View style={styles.variantNameRow}>
+                    <Text style={[styles.variantTitle, active && styles.activeText]}>{item.name.toUpperCase()}</Text>
+                    {item.isMascot ? <Text style={styles.mascotPill}>MASCOT</Text> : null}
+                  </View>
+                  <Text style={styles.variantSub}>{item.code} · {item.role}</Text>
                 </View>
               </Pressable>
             );
           })}
         </View>
 
-        <View style={styles.infoCard}>
-          <View style={styles.infoIcon}><Ionicons name="flash" size={18} color={FateDropColors.violetLight} /></View>
-          <View style={styles.infoCopy}>
-            <Text style={styles.infoTitle}>Production animation contract</Text>
-            <Text style={styles.infoText}>Idle, Echo, Notice, Manifested, Celebrate, Walk and Run are bundled into each production rig. Celebrate stays reserved for major/high-value confirmed alert moments; earlier states use anticipation and signal-check behaviour.</Text>
+        <Text style={styles.sectionLabel}>TEST FATEDROP REACTIONS</Text>
+        <View style={styles.reactionGrid}>
+          {reactions.map((item) => {
+            const active = reaction === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setReaction(item.id)}
+                style={[styles.reaction, active && styles.reactionActive]}
+              >
+                <Text style={[styles.reactionText, active && styles.activeText]}>{item.label}</Text>
+                <Text style={styles.reactionDetail}>{item.detail}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.lifecycleCard}>
+          <View style={styles.lifecycleIcon}><Ionicons name="pulse-outline" size={19} color={FateDropColors.violetLight} /></View>
+          <View style={styles.lifecycleCopy}>
+            <Text style={styles.lifecycleTitle}>Characters react. FateDrop evidence stays authoritative.</Text>
+            <Text style={styles.lifecycleText}>Whisper is anticipation, Echo is readiness, Manifested is confirmed purchasable stock and Vanished is availability lost. FateMatch is the extra celebration layer — it never rewrites the four core signal stages.</Text>
+          </View>
+        </View>
+
+        <View style={styles.legacyCard}>
+          <View style={styles.legacyTop}>
+            <View style={styles.legacyIcon}><Ionicons name="archive-outline" size={18} color="#C9A66B" /></View>
+            <View style={styles.legacyCopy}>
+              <Text style={styles.legacyEyebrow}>FATEDROP LEGACY</Text>
+              <Text style={styles.legacyTitle}>Kael & Nyra are in the vault.</Text>
+            </View>
+          </View>
+          <Text style={styles.legacyText}>They are no longer active Companions, but their original identities are preserved for future cameos, anniversary moments or deliberate Legacy appearances.</Text>
+          <View style={styles.legacyNames}>
+            {LEGACY_COMPANION_ARCHIVE.map((item) => <Text key={item.id} style={styles.legacyName}>{item.name.toUpperCase()} · {item.code}</Text>)}
           </View>
         </View>
       </ScrollView>
@@ -161,42 +150,46 @@ const styles = StyleSheet.create({
   header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12 },
   back: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
   headerCopy: { flex: 1 },
-  eyebrow: { color: FateDropColors.violetLight, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
-  title: { color: FateDropColors.text, fontSize: 21, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
+  eyebrow: { color: '#BDA6BF', fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  title: { color: FateDropColors.text, fontSize: 20, fontWeight: '900', marginTop: 3, letterSpacing: -0.4 },
   live: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999, backgroundColor: `${FateDropColors.mint}12`, borderWidth: 1, borderColor: `${FateDropColors.mint}40` },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: FateDropColors.mint },
   liveText: { color: FateDropColors.mint, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  intro: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginBottom: 14 },
   contractStrip: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 11, borderRadius: 16, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
   contractMetric: { flex: 1, alignItems: 'center' },
   contractValue: { color: FateDropColors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   contractLabel: { color: FateDropColors.muted, fontSize: 6, fontWeight: '900', letterSpacing: 0.9, marginTop: 2 },
   contractDivider: { width: 1, height: 25, backgroundColor: FateDropColors.border },
   sectionLabel: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '900', letterSpacing: 1.4, marginTop: 20, marginBottom: 9 },
-  variantRow: { flexDirection: 'row', gap: 8 },
-  variant: { flex: 1, minHeight: 82, padding: 11, borderRadius: 17, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
-  variantActive: { borderColor: `${FateDropColors.violetLight}99`, backgroundColor: `${FateDropColors.violet}18` },
-  variantTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 7 },
-  variantSub: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 },
+  variantGrid: { gap: 8 },
+  variant: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, borderRadius: 17, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
+  variantActive: { borderColor: 'rgba(190, 160, 194, 0.66)', backgroundColor: 'rgba(119, 83, 132, 0.13)' },
+  variantIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(141, 109, 151, 0.10)' },
+  variantIconActive: { backgroundColor: 'rgba(125, 191, 181, 0.10)' },
+  variantCopy: { flex: 1 },
+  variantNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  variantTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
+  variantSub: { color: FateDropColors.muted, fontSize: 8, marginTop: 3 },
+  mascotPill: { color: '#CDB8C9', fontSize: 6, fontWeight: '900', letterSpacing: 1, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(184, 149, 186, 0.10)', overflow: 'hidden' },
   activeText: { color: FateDropColors.cyan },
-  voxCard: { marginTop: 10, flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: 16, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
-  voxIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.violet}18` },
-  voxCopy: { flex: 1 },
-  voxTitle: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
-  voxText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 3 },
-  voxStatus: { color: '#F8B66D', fontSize: 6, fontWeight: '900', letterSpacing: 1 },
-  reactionRow: { gap: 8, paddingRight: 12 },
-  reaction: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 999, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
-  reactionActive: { backgroundColor: `${FateDropColors.violet}1F`, borderColor: `${FateDropColors.violetLight}88` },
-  reactionText: { color: FateDropColors.secondary, fontSize: 10, fontWeight: '800' },
-  movementRow: { flexDirection: 'row', gap: 8 },
-  movement: { flex: 1, minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, borderRadius: 16, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
-  movementActive: { borderColor: `${FateDropColors.cyan}70`, backgroundColor: `${FateDropColors.cyan}0D` },
-  movementCopy: { flex: 1 },
-  movementTitle: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
-  movementSub: { color: FateDropColors.muted, fontSize: 7, marginTop: 2 },
-  infoCard: { marginTop: 20, flexDirection: 'row', gap: 12, padding: 15, borderRadius: 18, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
-  infoIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.violet}18` },
-  infoCopy: { flex: 1 },
-  infoTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
-  infoText: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 4 },
+  reactionGrid: { gap: 8 },
+  reaction: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 16, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
+  reactionActive: { backgroundColor: 'rgba(120, 85, 132, 0.13)', borderColor: 'rgba(190, 160, 194, 0.55)' },
+  reactionText: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
+  reactionDetail: { color: FateDropColors.muted, fontSize: 8, marginTop: 3 },
+  lifecycleCard: { marginTop: 20, flexDirection: 'row', gap: 12, padding: 15, borderRadius: 18, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border },
+  lifecycleIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139, 105, 150, 0.12)' },
+  lifecycleCopy: { flex: 1 },
+  lifecycleTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
+  lifecycleText: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 4 },
+  legacyCard: { marginTop: 12, padding: 15, borderRadius: 18, backgroundColor: 'rgba(117, 93, 60, 0.06)', borderWidth: 1, borderColor: 'rgba(201, 166, 107, 0.17)' },
+  legacyTop: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  legacyIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(201, 166, 107, 0.09)' },
+  legacyCopy: { flex: 1 },
+  legacyEyebrow: { color: '#B49362', fontSize: 7, fontWeight: '900', letterSpacing: 1.2 },
+  legacyTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 3 },
+  legacyText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 15, marginTop: 10 },
+  legacyNames: { flexDirection: 'row', gap: 12, marginTop: 10 },
+  legacyName: { color: '#B49362', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
 });
