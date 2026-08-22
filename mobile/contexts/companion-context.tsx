@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type CompanionVariant = 'male' | 'female';
+import { normalizeCompanionId, type CompanionId } from '@/lib/companion-contract';
+
+export type CompanionVariant = CompanionId;
 
 const STORAGE_KEY = '@fatedrop/selected-companion';
-const DEFAULT_COMPANION: CompanionVariant = 'male';
+const DEFAULT_COMPANION: CompanionVariant = 'oru';
 
 type CompanionContextValue = {
   selectedCompanion: CompanionVariant;
@@ -23,8 +25,12 @@ export function CompanionProvider({ children }: { children: ReactNode }) {
 
     void AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
-        if (!active) return;
-        if (stored === 'male' || stored === 'female') setSelectedCompanion(stored);
+        if (!active || !stored) return;
+        // Old beta values (`male` / `female`) migrate safely into the new
+        // roster instead of leaving a stale KAEL/NYRA selection behind.
+        const migrated = normalizeCompanionId(stored);
+        setSelectedCompanion(migrated);
+        if (stored !== migrated) void AsyncStorage.setItem(STORAGE_KEY, migrated).catch(() => undefined);
       })
       .catch(() => undefined)
       .finally(() => {

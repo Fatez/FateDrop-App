@@ -1,5 +1,4 @@
 import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image as RNImage, StyleSheet, Text, View } from 'react-native';
@@ -7,36 +6,29 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { FateDropColors } from '@/constants/theme';
-import type { CompanionReaction } from '@/lib/companion-contract';
+import {
+  COMPANION_CLIP_BY_REACTION,
+  companionDefinition,
+  type CompanionId,
+  type CompanionReaction,
+} from '@/lib/companion-contract';
 
-export type CompanionVariant = 'male' | 'female';
-export const REQUIRED_COMPANION_CLIPS = ['Idle', 'Echo', 'Notice', 'Manifested', 'Celebrate', 'Walk', 'Run'] as const;
+export type CompanionVariant = CompanionId;
+export const REQUIRED_COMPANION_CLIPS = ['Idle', 'Whisper', 'Echo', 'Manifested', 'Vanished', 'FateMatch'] as const;
 export type CompanionClipName = (typeof REQUIRED_COMPANION_CLIPS)[number];
 
-const MODELS: Record<CompanionVariant, { assetModule: number; textureModule: number; label: string; code: string }> = {
-  male: {
-    assetModule: require('../assets/companions/fatedrop-male-textured-mobile.glb'),
-    textureModule: require('../assets/companions/fatedrop-male-texture.jpg'),
-    label: 'KAEL',
-    code: 'K-01',
-  },
-  female: {
-    assetModule: require('../assets/companions/fatedrop-female-textured-mobile.glb'),
-    textureModule: require('../assets/companions/fatedrop-female-texture.jpg'),
-    label: 'NYRA',
-    code: 'N-02',
-  },
+const DEFAULT_FATEDROP_WEB_URL = 'https://fatedrop-web.fatedrop-web.workers.dev';
+const FATEDROP_WEB_URL = String(process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_FATEDROP_WEB_URL).replace(/\/$/, '');
+const REMOTE_ASSET_BASE = String(process.env.EXPO_PUBLIC_COMPANION_ASSET_BASE_URL || `${FATEDROP_WEB_URL}/assets/companions`).replace(/\/$/, '');
+
+const MODEL_PATHS: Record<CompanionVariant, { model: string; texture: string }> = {
+  oru: { model: 'oru/oru.glb', texture: 'oru/oru-texture.jpg' },
+  nyxen: { model: 'nyxen/nyxen.glb', texture: 'nyxen/nyxen-texture.jpg' },
+  solix: { model: 'solix/solix.glb', texture: 'solix/solix-texture.jpg' },
+  aeris: { model: 'aeris/aeris.glb', texture: 'aeris/aeris-texture.jpg' },
 };
 
-const CLIP_BY_REACTION: Record<CompanionReaction, CompanionClipName> = {
-  idle: 'Idle',
-  watching: 'Notice',
-  echo: 'Echo',
-  manifested: 'Manifested',
-  vanished: 'Notice',
-  fatematch: 'Notice',
-  major: 'Celebrate',
-};
+const ONE_SHOT_CLIPS = new Set<CompanionClipName>(['Manifested', 'Vanished', 'FateMatch']);
 
 type CanvasShim = HTMLCanvasElement & {
   width: number;
@@ -66,37 +58,29 @@ function createRenderer(gl: ExpoWebGLRenderingContext) {
   return renderer;
 }
 
-/**
- * Three r166's GLTFLoader checks navigator.userAgent when constructing its
- * parser. React Native/Hermes can expose navigator without a userAgent string.
- */
+/** Three r166 can see a React Native navigator without userAgent. */
 function ensureThreeNativeNavigatorCompatibility() {
   if (typeof navigator === 'undefined' || typeof navigator.userAgent === 'string') return;
-
   try {
-    Object.defineProperty(navigator, 'userAgent', {
-      configurable: true,
-      value: 'ReactNative',
-    });
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'ReactNative' });
   } catch {
     (navigator as unknown as { userAgent?: string }).userAgent = 'ReactNative';
   }
 }
 
-async function readBundledAsset(assetModule: number, label: string) {
-  const asset = Asset.fromModule(assetModule);
-  await asset.downloadAsync();
-  if (!asset.localUri) throw new Error(`${label} did not resolve to a local file.`);
-  return new File(asset.localUri).arrayBuffer();
+function remoteAssetUrl(path: string) {
+  return `${REMOTE_ASSET_BASE}/${path}`;
 }
 
-async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
-  const buffer = await readBundledAsset(assetModule, 'Companion GLB');
-  if (buffer.byteLength < 20) throw new Error('Companion GLB was empty or invalid.');
+async function loadCompanionGltf(url: string): Promise<GLTF> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Character model HTTP ${response.status}.`);
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength < 20) throw new Error('Character GLB was empty or invalid.');
 
   const view = new DataView(buffer);
   if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
-    throw new Error('Companion asset is not a valid GLB v2 file.');
+    throw new Error('Character asset is not a valid GLB v2 file.');
   }
 
   ensureThreeNativeNavigatorCompatibility();
@@ -106,17 +90,16 @@ async function loadCompanionGltf(assetModule: number): Promise<GLTF> {
       buffer,
       '',
       resolve,
-      (cause) => reject(cause instanceof Error ? cause : new Error('Companion GLB could not be parsed.')),
+      (cause) => reject(cause instanceof Error ? cause : new Error('Character GLB could not be parsed.')),
     );
   });
 }
 
-async function loadCompanionTexture(textureModule: number) {
-  const asset = Asset.fromModule(textureModule);
+async function loadCompanionTexture(url: string) {
+  const asset = Asset.fromURI(url);
   await asset.downloadAsync();
-
   const uri = asset.localUri ?? asset.uri;
-  if (!uri) throw new Error('Companion texture did not resolve to a local asset.');
+  if (!uri) throw new Error('Character texture did not resolve to a local asset.');
 
   let width = asset.width ?? 0;
   let height = asset.height ?? 0;
@@ -131,12 +114,10 @@ async function loadCompanionTexture(textureModule: number) {
     width = dimensions.width;
     height = dimensions.height;
   }
+  if (!width || !height) throw new Error('Character texture dimensions could not be resolved.');
 
-  if (!width || !height) throw new Error('Companion texture dimensions could not be resolved.');
-
-  // Expo GL's native texImage2D bridge understands Expo Asset objects directly.
-  // Marking this as a DataTexture forces Three down the non-DOM upload path,
-  // without decoding the JPEG into RGBA bytes on the JavaScript thread.
+  // Expo GL understands Expo Asset objects directly. This keeps image decoding
+  // off the JS thread and lets the four-character pack stay light on mobile.
   const texture = new THREE.Texture() as THREE.Texture & { isDataTexture: boolean };
   texture.isDataTexture = true;
   texture.image = { data: asset, width, height } as unknown as TexImageSource;
@@ -154,7 +135,7 @@ async function loadCompanionTexture(textureModule: number) {
 function applyProductionTexture(model: THREE.Object3D, texture: THREE.Texture) {
   const material = new THREE.MeshStandardMaterial({
     map: texture,
-    roughness: 0.41,
+    roughness: 0.46,
     metalness: 0,
     side: THREE.DoubleSide,
   });
@@ -171,14 +152,14 @@ function applyProductionTexture(model: THREE.Object3D, texture: THREE.Texture) {
   if (!meshCount) {
     material.dispose();
     texture.dispose();
-    throw new Error('Companion GLB has no textured mesh.');
+    throw new Error('Character GLB has no textured mesh.');
   }
 }
 
 function fitModel(model: THREE.Object3D) {
   model.updateMatrixWorld(true);
   let box = new THREE.Box3().setFromObject(model);
-  if (box.isEmpty()) throw new Error('Companion GLB has no visible geometry.');
+  if (box.isEmpty()) throw new Error('Character GLB has no visible geometry.');
 
   const size = box.getSize(new THREE.Vector3());
   const height = Math.max(size.y, 0.0001);
@@ -188,7 +169,7 @@ function fitModel(model: THREE.Object3D) {
   box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   model.position.x -= center.x;
-  model.position.y -= center.y + 0.05;
+  model.position.y -= center.y + 0.06;
   model.position.z -= center.z;
   model.updateMatrixWorld(true);
 }
@@ -222,35 +203,32 @@ async function createScene(
   previewClip: () => CompanionClipName | null,
   disposed: () => boolean,
 ) {
+  const definition = companionDefinition(variant);
   const renderer = createRenderer(gl);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(
-    27,
-    gl.drawingBufferWidth / Math.max(1, gl.drawingBufferHeight),
-    0.01,
-    100,
-  );
+  const camera = new THREE.PerspectiveCamera(27, gl.drawingBufferWidth / Math.max(1, gl.drawingBufferHeight), 0.01, 100);
   camera.position.set(0, 0.03, 4.05);
   camera.lookAt(0, 0, 0);
 
-  scene.add(new THREE.HemisphereLight(0xe9f1ff, 0x100a19, 1.55));
-  const key = new THREE.DirectionalLight(0xffffff, 2.15);
-  key.position.set(3.4, 5, 4.2);
+  scene.add(new THREE.HemisphereLight(0xf2eee6, 0x16111d, 1.65));
+  const key = new THREE.DirectionalLight(0xfff8ed, 2.05);
+  key.position.set(3.2, 4.8, 4.2);
   scene.add(key);
-  const violet = new THREE.DirectionalLight(0x9d6dff, 1.05);
-  violet.position.set(-4, 2.7, 2.2);
+  const violet = new THREE.DirectionalLight(0xb799c7, 0.9);
+  violet.position.set(-4, 2.4, 2.2);
   scene.add(violet);
-  const cyan = new THREE.DirectionalLight(0x6ee7ff, 0.55);
-  cyan.position.set(3, -0.8, 1.6);
-  scene.add(cyan);
+  const soft = new THREE.DirectionalLight(0x9bc9c1, 0.38);
+  soft.position.set(3, -0.8, 1.6);
+  scene.add(soft);
 
   let texture: THREE.Texture | null = null;
   let model: THREE.Object3D | null = null;
 
   try {
+    const paths = MODEL_PATHS[variant];
     const [loaded, loadedTexture] = await Promise.all([
-      loadCompanionGltf(MODELS[variant].assetModule),
-      loadCompanionTexture(MODELS[variant].textureModule),
+      loadCompanionGltf(remoteAssetUrl(paths.model)),
+      loadCompanionTexture(remoteAssetUrl(paths.texture)),
     ]);
     texture = loadedTexture;
 
@@ -261,7 +239,7 @@ async function createScene(
     }
 
     model = loaded.scene ?? loaded.scenes?.[0] ?? null;
-    if (!model) throw new Error(`${MODELS[variant].label} GLB did not contain a scene.`);
+    if (!model) throw new Error(`${definition.name} GLB did not contain a scene.`);
 
     applyProductionTexture(model, texture);
     fitModel(model);
@@ -270,36 +248,53 @@ async function createScene(
     const clips = loaded.animations ?? [];
     const clipNames = new Set(clips.map((clip) => clip.name));
     const missing = REQUIRED_COMPANION_CLIPS.filter((name) => !clipNames.has(name));
-    if (missing.length) {
-      throw new Error(`${MODELS[variant].label} is missing clips: ${missing.join(', ')}`);
-    }
+    if (missing.length) throw new Error(`${definition.name} is missing clips: ${missing.join(', ')}`);
 
     const mixer = new THREE.AnimationMixer(model);
-    const actions = new Map<string, THREE.AnimationAction>();
-    for (const clip of clips) actions.set(clip.name, mixer.clipAction(clip));
+    const actions = new Map<CompanionClipName, THREE.AnimationAction>();
+    for (const clip of clips) {
+      if ((REQUIRED_COMPANION_CLIPS as readonly string[]).includes(clip.name)) {
+        actions.set(clip.name as CompanionClipName, mixer.clipAction(clip));
+      }
+    }
 
     let activeAction: THREE.AnimationAction | null = null;
-    let activeClipName = '';
+    let activeDesiredClip: CompanionClipName | '' = '';
+    let oneShotSettled = false;
 
-    function syncAction() {
-      const clipName = previewClip() ?? CLIP_BY_REACTION[reaction()];
-      if (clipName === activeClipName) return;
-
+    function playDesired(clipName: CompanionClipName) {
       const nextAction = actions.get(clipName) ?? actions.get('Idle');
       if (!nextAction) return;
-
       nextAction.enabled = true;
       nextAction.reset();
       nextAction.setEffectiveWeight(1);
       nextAction.setEffectiveTimeScale(1);
-      nextAction.setLoop(THREE.LoopRepeat, Infinity);
+      nextAction.clampWhenFinished = ONE_SHOT_CLIPS.has(clipName);
+      nextAction.setLoop(ONE_SHOT_CLIPS.has(clipName) ? THREE.LoopOnce : THREE.LoopRepeat, ONE_SHOT_CLIPS.has(clipName) ? 1 : Infinity);
       nextAction.play();
-
-      if (activeAction && activeAction !== nextAction) {
-        activeAction.crossFadeTo(nextAction, 0.22, false);
-      }
+      if (activeAction && activeAction !== nextAction) activeAction.crossFadeTo(nextAction, 0.22, false);
       activeAction = nextAction;
-      activeClipName = clipName;
+      activeDesiredClip = clipName;
+      oneShotSettled = false;
+    }
+
+    function syncAction() {
+      const desired = previewClip() ?? COMPANION_CLIP_BY_REACTION[reaction()];
+      if (desired === activeDesiredClip) return;
+      playDesired(desired);
+    }
+
+    function settleOneShotToIdle() {
+      if (!activeAction || !activeDesiredClip || !ONE_SHOT_CLIPS.has(activeDesiredClip) || oneShotSettled) return;
+      const duration = activeAction.getClip().duration;
+      if (activeAction.time < Math.max(0, duration - 0.06)) return;
+      const idle = actions.get('Idle');
+      if (!idle) return;
+      idle.enabled = true;
+      idle.reset().setLoop(THREE.LoopRepeat, Infinity).play();
+      activeAction.crossFadeTo(idle, 0.24, false);
+      activeAction = idle;
+      oneShotSettled = true;
     }
 
     syncAction();
@@ -310,6 +305,7 @@ async function createScene(
       frameId = requestAnimationFrame(frame);
       syncAction();
       mixer.update(Math.min(clock.getDelta(), 0.05));
+      settleOneShotToIdle();
       renderer.render(scene, camera);
       gl.endFrameEXP();
     };
@@ -356,7 +352,6 @@ export function CompanionStage({
     cleanupRef.current = null;
     setError(null);
     setReady(false);
-
     return () => {
       generation.current += 1;
       cleanupRef.current?.();
@@ -364,22 +359,25 @@ export function CompanionStage({
     };
   }, [variant]);
 
-  const model = MODELS[variant];
-  const activeClip = previewClip ?? CLIP_BY_REACTION[reaction];
+  const model = companionDefinition(variant);
+  const activeClip = previewClip ?? COMPANION_CLIP_BY_REACTION[reaction];
 
   return (
-    <View style={styles.frame} accessibilityLabel={`${model.label} 3D Companion preview`}>
-      <View pointerEvents="none" style={styles.backGlow} />
+    <View style={styles.frame} accessibilityLabel={`${model.name} 3D FateDrop companion preview`}>
+      <View pointerEvents="none" style={styles.paperGlow} />
+      <View pointerEvents="none" style={styles.signalMoon} />
+      <View pointerEvents="none" style={styles.signalHill} />
       {!ready && !error ? (
         <View style={styles.loader}>
           <ActivityIndicator color={FateDropColors.violetLight} />
-          <Text style={styles.loaderText}>INITIALISING {model.label}</Text>
+          <Text style={styles.loaderTitle}>{model.name === 'Oru' ? 'ORU IS TRACING THE SIGNAL' : `CALLING ${model.name.toUpperCase()}`}</Text>
+          <Text style={styles.loaderText}>Preparing the Oru & Friends stage…</Text>
         </View>
       ) : null}
       {error ? (
         <View style={styles.fallback}>
-          <Text style={styles.fallbackMark}>FD</Text>
-          <Text style={styles.fallbackTitle}>{model.label} unavailable</Text>
+          <View style={styles.fallbackMark}><Text style={styles.fallbackMarkText}>{model.name.slice(0, 1)}</Text></View>
+          <Text style={styles.fallbackTitle}>{model.name} is off exploring</Text>
           <Text style={styles.fallbackText}>{error}</Text>
         </View>
       ) : null}
@@ -404,14 +402,17 @@ export function CompanionStage({
             setReady(true);
           } catch (cause) {
             if (generation.current !== mine) return;
-            setError(cause instanceof Error ? cause.message : `${model.label} renderer failed.`);
+            setError(cause instanceof Error ? cause.message : `${model.name} renderer failed.`);
           }
         }}
       />
       <View pointerEvents="none" style={styles.floorGlow} />
       <View pointerEvents="none" style={styles.identityChip}>
         <Text style={styles.identityCode}>{model.code}</Text>
-        <Text style={styles.identityName}>{model.label}</Text>
+        <View>
+          <Text style={styles.identityName}>{model.name}</Text>
+          <Text style={styles.identityRole}>{model.role}</Text>
+        </View>
       </View>
       <View pointerEvents="none" style={styles.clipChip}>
         <View style={[styles.clipDot, !ready && styles.clipDotPending]} />
@@ -422,22 +423,75 @@ export function CompanionStage({
 }
 
 const styles = StyleSheet.create({
-  frame: { height: 430, overflow: 'hidden', borderRadius: 28, backgroundColor: '#090B13', borderWidth: 1, borderColor: `${FateDropColors.violet}58`, position: 'relative' },
-  gl: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
+  frame: {
+    height: 430,
+    overflow: 'hidden',
+    borderRadius: 28,
+    backgroundColor: '#0B0D12',
+    borderWidth: 1,
+    borderColor: 'rgba(202, 181, 201, 0.20)',
+    position: 'relative',
+  },
+  gl: { ...StyleSheet.absoluteFillObject, zIndex: 3 },
   hidden: { opacity: 0 },
-  backGlow: { position: 'absolute', zIndex: 0, width: 300, height: 300, borderRadius: 150, top: 30, alignSelf: 'center', backgroundColor: `${FateDropColors.violet}10` },
-  loader: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 1 },
-  loaderText: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
-  fallback: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34, zIndex: 4 },
-  fallbackMark: { color: FateDropColors.violetLight, fontSize: 34, fontWeight: '900' },
-  fallbackTitle: { color: FateDropColors.text, fontSize: 16, fontWeight: '900', marginTop: 10 },
-  fallbackText: { color: FateDropColors.secondary, textAlign: 'center', fontSize: 11, lineHeight: 17, marginTop: 7 },
-  floorGlow: { position: 'absolute', zIndex: 1, width: '64%', height: 44, borderRadius: 999, bottom: 27, alignSelf: 'center', backgroundColor: `${FateDropColors.violet}2A`, transform: [{ scaleX: 1.5 }] },
-  identityChip: { position: 'absolute', zIndex: 5, right: 14, top: 14, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.cyan}35`, backgroundColor: '#070910DD', paddingHorizontal: 10, paddingVertical: 7 },
-  identityCode: { color: FateDropColors.muted, fontSize: 6, fontWeight: '900', letterSpacing: 1.1 },
-  identityName: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', marginTop: 1, letterSpacing: 0.7 },
-  clipChip: { position: 'absolute', zIndex: 5, left: 14, bottom: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: '#070910DD', paddingHorizontal: 10, paddingVertical: 7 },
+  paperGlow: {
+    position: 'absolute',
+    width: 330,
+    height: 330,
+    borderRadius: 165,
+    left: -95,
+    top: -110,
+    backgroundColor: 'rgba(155, 121, 165, 0.11)',
+  },
+  signalMoon: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    right: -22,
+    top: 54,
+    borderWidth: 1,
+    borderColor: 'rgba(215, 201, 193, 0.14)',
+    backgroundColor: 'rgba(228, 216, 202, 0.025)',
+  },
+  signalHill: {
+    position: 'absolute',
+    width: 470,
+    height: 190,
+    borderRadius: 240,
+    left: -60,
+    bottom: -145,
+    borderWidth: 1,
+    borderColor: 'rgba(125, 158, 150, 0.12)',
+    backgroundColor: 'rgba(89, 119, 109, 0.035)',
+    transform: [{ rotate: '-4deg' }],
+  },
+  floorGlow: {
+    position: 'absolute',
+    zIndex: 2,
+    width: 190,
+    height: 28,
+    borderRadius: 95,
+    left: '50%',
+    marginLeft: -95,
+    bottom: 53,
+    backgroundColor: 'rgba(169, 135, 179, 0.08)',
+    transform: [{ scaleY: 0.5 }],
+  },
+  loader: { ...StyleSheet.absoluteFillObject, zIndex: 4, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  loaderTitle: { color: FateDropColors.text, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, marginTop: 4 },
+  loaderText: { color: FateDropColors.muted, fontSize: 9 },
+  fallback: { ...StyleSheet.absoluteFillObject, zIndex: 5, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36 },
+  fallbackMark: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(166, 130, 176, 0.12)', borderWidth: 1, borderColor: 'rgba(196, 166, 201, 0.22)' },
+  fallbackMarkText: { color: '#DED0D6', fontSize: 28, fontWeight: '700' },
+  fallbackTitle: { color: FateDropColors.text, fontSize: 16, fontWeight: '900', marginTop: 12 },
+  fallbackText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 5 },
+  identityChip: { position: 'absolute', zIndex: 6, left: 13, bottom: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(9, 10, 15, 0.78)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  identityCode: { color: FateDropColors.violetLight, fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
+  identityName: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
+  identityRole: { color: FateDropColors.muted, fontSize: 7, marginTop: 1 },
+  clipChip: { position: 'absolute', zIndex: 6, right: 13, bottom: 13, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 999, backgroundColor: 'rgba(9, 10, 15, 0.78)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   clipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: FateDropColors.mint },
   clipDotPending: { backgroundColor: FateDropColors.muted },
-  clipLabel: { color: FateDropColors.secondary, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  clipLabel: { color: FateDropColors.secondary, fontSize: 7, fontWeight: '900', letterSpacing: 0.9 },
 });
