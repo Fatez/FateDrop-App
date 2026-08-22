@@ -11,7 +11,7 @@ import { AbstractHero, FateDropBackground, FateDropHeader, StatusBadge, statusCo
 import { FateDropColors } from '@/constants/theme';
 import { useCompanion } from '@/contexts/companion-context';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import type { CompanionReaction } from '@/lib/companion-contract';
+import { ACTIVE_COMPANION_ROSTER, companionDefinition, type CompanionReaction } from '@/lib/companion-contract';
 import {
   registerForStockAlerts,
   unregisterStockAlerts,
@@ -264,8 +264,9 @@ export default function AlertsScreenV2() {
     : selectedFateMatch
       ? 'fatematch'
       : selectedPresentation?.reaction ?? 'idle';
-  const companionName = selectedCompanion === 'male' ? 'KAEL' : 'NYRA';
-  const companionCode = selectedCompanion === 'male' ? 'K-01' : 'N-02';
+  const activeCompanion = companionDefinition(selectedCompanion);
+  const companionName = activeCompanion.name.toUpperCase();
+  const companionCode = activeCompanion.code;
 
   const selectedAlert = useMemo(() => {
     if (developmentSignal) return developmentAlert(developmentSignal);
@@ -341,18 +342,20 @@ export default function AlertsScreenV2() {
         />
 
         <Header eyebrow="YOUR COMPANION" title={`${companionName} · ${companionCode}`} />
-        <View style={styles.companionChooser}>
-          <Pressable onPress={() => selectCompanion('male')} style={[styles.companionChoice, selectedCompanion === 'male' && styles.companionChoiceActive]}>
-            <Text style={[styles.companionChoiceText, selectedCompanion === 'male' && styles.companionChoiceTextActive]}>KAEL</Text>
-          </Pressable>
-          <Pressable onPress={() => selectCompanion('female')} style={[styles.companionChoice, selectedCompanion === 'female' && styles.companionChoiceActive]}>
-            <Text style={[styles.companionChoiceText, selectedCompanion === 'female' && styles.companionChoiceTextActive]}>NYRA</Text>
-          </Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.companionChooser}>
+          {ACTIVE_COMPANION_ROSTER.map((companion) => {
+            const active = selectedCompanion === companion.id;
+            return (
+              <Pressable key={companion.id} onPress={() => selectCompanion(companion.id)} style={[styles.companionChoice, active && styles.companionChoiceActive]}>
+                <Text style={[styles.companionChoiceText, active && styles.companionChoiceTextActive]}>{companion.name.toUpperCase()}</Text>
+              </Pressable>
+            );
+          })}
           <Pressable onPress={() => router.push({ pathname: '/companion', params: { variant: selectedCompanion } })} style={styles.companionManage}>
-            <Text style={styles.companionManageText}>OPEN COMPANION</Text>
+            <Text style={styles.companionManageText}>OPEN GUIDE</Text>
             <Ionicons name="arrow-forward" size={12} color={FateDropColors.cyan} />
           </Pressable>
-        </View>
+        </ScrollView>
 
         <CompanionStage variant={selectedCompanion} reaction={activeReaction} />
 
@@ -494,12 +497,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 20, paddingBottom: 120 },
   headerAction: { padding: 9, borderRadius: 12, backgroundColor: FateDropColors.glass },
-  companionChooser: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 10 },
+  companionChooser: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingRight: 14, marginBottom: 10 },
   companionChoice: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   companionChoiceActive: { borderColor: FateDropColors.violetLight, backgroundColor: `${FateDropColors.violet}22` },
   companionChoiceText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   companionChoiceTextActive: { color: FateDropColors.violetLight },
-  companionManage: { marginLeft: 'auto', flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: 9 },
+  companionManage: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingHorizontal: 10, paddingVertical: 9 },
   companionManageText: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
   selectedAlertCard: { marginTop: 10, marginBottom: 18, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   selectedAlertTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 7 },
