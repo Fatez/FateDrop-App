@@ -1,30 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AbstractHero, FateDropBackground, FilterChip, StatusBadge } from '@/components/fatedrop-ui';
 import { SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
+import { compareValueGroups, rrpBasisLabel } from '@/lib/value-compare';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import { LocalWishlistRepository } from '@/services/wishlist';
 import type { TruePriceGroup, TruePriceOffer, TruePriceResponse } from '@/types/true-price';
 
 type SortMode = 'item' | 'delivered';
 const wishlist = new LocalWishlistRepository();
-const money = (value?: number) => value === undefined ? 'Unknown' : `£${value.toFixed(2)}`;
+const money = (value?: number | null) => value == null ? 'Unknown' : `£${value.toFixed(2)}`;
 const sortedOffers = (offers: TruePriceOffer[], sort: SortMode) => [...offers].sort((a, b) => sort === 'item' ? (a.priceGbp ?? Infinity) - (b.priceGbp ?? Infinity) : (a.totalDeliveredGbp ?? Infinity) - (b.totalDeliveredGbp ?? Infinity));
 const firstParam = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 function percentDelta(value: number, rrp: number) { return ((value - rrp) / rrp) * 100; }
+function percentLabel(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+  return `${sign}${Math.abs(value).toFixed(1)}%`;
+}
 function deltaLabel(value: number | undefined, rrp: number | undefined) {
   if (value === undefined || rrp === undefined || rrp <= 0) return undefined;
   const difference = value - rrp;
   const percent = percentDelta(value, rrp);
   const sign = difference > 0 ? '+' : difference < 0 ? '−' : '';
   const percentSign = percent > 0 ? '+' : percent < 0 ? '−' : '';
-  return `${sign}£${Math.abs(difference).toFixed(2)} · ${percentSign}${Math.abs(percent).toFixed(1)}% vs RRP`;
+  return `${sign}£${Math.abs(difference).toFixed(2)} · ${percentSign}${Math.abs(percent).toFixed(1)}% vs RRP/reference`;
+}
+function valueVerdict(result: ReturnType<typeof compareValueGroups>, winner?: TruePriceGroup, winnerPosition?: ReturnType<typeof compareValueGroups>['left']) {
+  if (!winner || !winnerPosition) return result.reason;
+  if (result.basis === 'rrp') {
+    return `${winner.title} is the better value at ${percentLabel(winnerPosition.rrpPercent)} vs RRP/reference${result.gap != null ? ` · ${result.gap.toFixed(1)} percentage points better` : ''}.`;
+  }
+  if (result.basis === 'unit') {
+    const unit = winner.unitKind === 'booster_pack' ? 'pack' : 'unit';
+    return `${winner.title} has the lower observed cost per ${unit} at ${money(winnerPosition.unitCost)}${winnerPosition.provisional ? ' before delivery is confirmed' : ' delivered'}.`;
+  }
+  return result.reason;
 }
 
 export default function TruePriceScreen() {
@@ -36,6 +53,8 @@ export default function TruePriceScreen() {
   const [error, setError] = useState('');
   const [sort, setSort] = useState<SortMode>('item');
   const [saved, setSaved] = useState<string[]>([]);
+  const [compareLeftId, setCompareLeftId] = useState('');
+  const [compareRightId, setCompareRightId] = useState('');
 
   useEffect(() => { if (incomingQuery) setQuery(incomingQuery); }, [incomingQuery]);
   useFocusEffect(useCallback(() => { void wishlist.list().then((items) => setSaved(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId))); }, []));
@@ -55,6 +74,17 @@ export default function TruePriceScreen() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    const options = groups.filter((group) => group.offers.length > 0);
+    if (options.length < 2) {
+      setCompareLeftId(options[0]?.id ?? '');
+      setCompareRightId('');
+      return;
+    }
+    setCompareLeftId((current) => options.some((group) => group.id === current) ? current : options[0].id);
+    setCompareRightId((current) => options.some((group) => group.id === current) && current !== options[0].id ? current : options[1].id);
+  }, [groups]);
+
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const toggleProduct = async (group: TruePriceGroup) => {
     const id = `product:${group.id}`;
@@ -64,14 +94,57 @@ export default function TruePriceScreen() {
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text} /><Text style={styles.backText}>Back</Text></Pressable>
-    <AbstractHero eyebrow="True Price" title="Know the markup before you buy." subtitle="FateDrop compares the current item price with an authoritative RRP when one is available. Delivery-aware True Price is shown as an enhancement when postage is known." icon="pricetag" />
+    <AbstractHero eyebrow="True Price" title="Know the value before you buy." subtitle="FateDrop separates verified RRP/reference value from checkout cost. Item-vs-reference percentage stays independent from delivery; True Price adds known mandatory delivery." icon="pricetag" />
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="Delivered price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
-    <Text style={styles.disclaimer}>RRP percentages are only calculated when FateDrop Cloud has an observed authoritative reference for the canonical product. Unknown delivery never blocks item-vs-RRP comparison and is never treated as free.</Text>
+    <Text style={styles.disclaimer}>RRP/reference percentages are calculated from item price only when FateDrop Cloud has verified evidence. Unknown delivery never becomes £0. Component references are clearly labelled and only appear when composition is provable.</Text>
+    <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} />
   </>;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground /><FlatList data={displayed} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} ListHeaderComponent={header} ListEmptyComponent={loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{error || 'Enter at least two characters to find comparable offers.'}</Text>} renderItem={({ item }) => <ComparisonGroup group={item} saved={saved.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
+}
+
+function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight }: { groups: TruePriceGroup[]; leftId: string; rightId: string; onLeft: (id: string) => void; onRight: (id: string) => void }) {
+  const options = groups.filter((group) => group.offers.length > 0);
+  if (options.length < 2) return null;
+  const leftGroup = options.find((group) => group.id === leftId) ?? options[0];
+  const rightGroup = options.find((group) => group.id === rightId) ?? options[1];
+  const result = compareValueGroups(leftGroup, rightGroup);
+  const winner = result.winnerId ? options.find((group) => group.id === result.winnerId) : undefined;
+  const winnerPosition = result.winnerId === result.left?.group.id ? result.left : result.winnerId === result.right?.group.id ? result.right : null;
+
+  return <View style={styles.comparePanel}>
+    <View style={styles.compareHead}><View style={{ flex: 1 }}><Text style={styles.compareEyebrow}>FATE VALUE COMPARE</Text><Text style={styles.compareTitle}>Compare 2 items</Text><Text style={styles.compareCopy}>RRP/reference position decides value first. True Price and per-pack/unit cost remain separate checkout evidence.</Text></View>{winner ? <StatusBadge label="Best value" color={FateDropColors.mint} /> : null}</View>
+    <CompareSelector label="ITEM A" groups={options} selectedId={leftGroup.id} onSelect={onLeft} />
+    <CompareSelector label="ITEM B" groups={options} selectedId={rightGroup.id} onSelect={onRight} />
+    <View style={styles.compareCards}>
+      <ValueCard position={result.left} winnerId={result.winnerId} />
+      <ValueCard position={result.right} winnerId={result.winnerId} />
+    </View>
+    <View style={winner ? styles.verdictWinner : styles.verdict}>
+      <Text style={styles.verdictEyebrow}>{winner ? 'FATEDROP VALUE VERDICT' : 'FATEDROP NEEDS MORE EVIDENCE'}</Text>
+      <Text style={styles.verdictText}>{valueVerdict(result, winner, winnerPosition)}</Text>
+      <Text style={styles.verdictNote}>{result.left?.provisional || result.right?.provisional ? 'RRP value remains valid from item price, but at least one final delivered cost is still provisional.' : 'Both selected offers have known delivery, so True Price can be compared alongside the RRP value verdict.'}</Text>
+    </View>
+  </View>;
+}
+
+function CompareSelector({ label, groups, selectedId, onSelect }: { label: string; groups: TruePriceGroup[]; selectedId: string; onSelect: (id: string) => void }) {
+  return <View style={styles.selector}><Text style={styles.selectorLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>{groups.map((group) => <Pressable key={`${label}-${group.id}`} onPress={() => onSelect(group.id)} style={group.id === selectedId ? styles.selectorChipActive : styles.selectorChip}><Text numberOfLines={1} style={group.id === selectedId ? styles.selectorChipTextActive : styles.selectorChipText}>{group.title}</Text></Pressable>)}</ScrollView></View>;
+}
+
+function ValueCard({ position, winnerId }: { position: ReturnType<typeof compareValueGroups>['left']; winnerId: string | null }) {
+  if (!position) return null;
+  const group = position.group;
+  return <View style={winnerId === group.id ? styles.valueCardWinner : styles.valueCard}>
+    <Text style={styles.valueBasis}>{rrpBasisLabel(group).toUpperCase()}</Text>
+    <Text style={styles.valueTitle} numberOfLines={2}>{group.title}</Text>
+    <View style={styles.valueMetric}><Text style={styles.valueMetricLabel}>ITEM</Text><Text style={styles.valueMetricValue}>{money(position.itemPrice)}</Text></View>
+    <View style={styles.valueMetric}><Text style={styles.valueMetricLabel}>VS RRP / REFERENCE</Text><Text style={styles.valueMetricValue}>{percentLabel(position.rrpPercent)}</Text></View>
+    <View style={styles.valueMetric}><Text style={styles.valueMetricLabel}>TRUE PRICE / UNIT</Text><Text style={styles.valueMetricValue}>{money(position.unitCost)}</Text><Text style={styles.valueMetricNote}>{group.unitCount ? `${group.unitCount} ${group.unitKind === 'booster_pack' ? 'packs' : 'units'} · ${position.provisional ? 'delivery pending' : 'delivered'}` : 'Unit count unavailable'}</Text></View>
+    <Text style={styles.valueReference}>{group.rrpReferenceBasis ?? (group.rrpGbp !== undefined ? `${rrpBasisLabel(group)} · ${money(group.rrpGbp)}` : 'Verified reference unavailable')}</Text>
+  </View>;
 }
 
 function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; saved: boolean; onToggle: () => void }) {
@@ -80,17 +153,16 @@ function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; sa
       <View style={{ flex: 1 }}>
         <Text style={styles.title}>{group.title}</Text>
         <Text style={styles.meta}>{group.retailerCount} retailer{group.retailerCount === 1 ? '' : 's'} · {Math.round(group.matchingConfidence * 100)}% conservative match</Text>
-        {group.rrpGbp !== undefined ? <View style={styles.rrpRow}><Text style={styles.rrp}>Official RRP {money(group.rrpGbp)}</Text>{group.rrpSource ? <Text style={styles.rrpSource}>{group.rrpSource}{group.rrpObservedAt ? ` · observed ${new Date(group.rrpObservedAt).toLocaleDateString()}` : ''}</Text> : null}</View> : <Text style={styles.rrpUnknown}>Authoritative RRP unavailable · no markup percentage shown</Text>}
+        {group.rrpGbp !== undefined ? <View style={styles.rrpRow}><Text style={styles.rrp}>{rrpBasisLabel(group)} {money(group.rrpGbp)}</Text>{group.rrpReferenceBasis ? <Text style={styles.rrpBasis}>{group.rrpReferenceBasis}</Text> : null}{group.unitCount && group.unitRrpGbp !== undefined ? <Text style={styles.rrpBasis}>{group.unitCount} × {money(group.unitRrpGbp)} per {group.unitKind === 'booster_pack' ? 'pack' : 'unit'}</Text> : null}{group.rrpSource ? <Text style={styles.rrpSource}>{group.rrpSource}{group.rrpObservedAt ? ` · observed ${new Date(group.rrpObservedAt).toLocaleDateString()}` : ''}</Text> : null}</View> : <Text style={styles.rrpUnknown}>Verified RRP/reference unavailable · no markup percentage shown</Text>}
       </View>
       <StatusBadge label={group.category} color={FateDropColors.cyan} />
       <Pressable accessibilityLabel={saved ? 'Remove canonical product from wishlist' : 'Save canonical product to wishlist'} onPress={onToggle} style={styles.bookmark}><Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? FateDropColors.violetLight : FateDropColors.text} /></Pressable>
     </View>
     {group.offers.map((offer) => {
       const itemDelta = deltaLabel(offer.priceGbp, group.rrpGbp);
-      const deliveredDelta = offer.deliveryKnown ? deltaLabel(offer.totalDeliveredGbp, group.rrpGbp) : undefined;
       const belowRrp = offer.priceGbp !== undefined && group.rrpGbp !== undefined && offer.priceGbp < group.rrpGbp;
       return <View key={offer.id} style={styles.offer}>
-        <View style={{ flex: 1 }}><Text style={styles.retailer}>{offer.retailerName}</Text><Text style={styles.itemPrice}>Current price {money(offer.priceGbp)}</Text>{itemDelta ? <Text style={belowRrp ? styles.deltaGood : styles.delta}>{itemDelta}</Text> : <Text style={styles.noDelta}>No authoritative RRP comparison</Text>}<Text style={styles.delivery}>{offer.deliveryKnown ? `Delivered True Price ${money(offer.totalDeliveredGbp)} · delivery ${money(offer.shippingGbp)}` : 'Delivery not yet verified · item comparison remains valid'}</Text>{deliveredDelta ? <Text style={styles.deliveredDelta}>{deliveredDelta} delivered</Text> : null}{offer.freeShippingThresholdGbp !== undefined ? <Text style={styles.collection}>Free delivery from {money(offer.freeShippingThresholdGbp)}</Text> : null}{offer.collectionAvailable ? <Text style={styles.collection}>Collection available</Text> : null}</View>
+        <View style={{ flex: 1 }}><Text style={styles.retailer}>{offer.retailerName}</Text><Text style={styles.itemPrice}>Current item price {money(offer.priceGbp)}</Text>{itemDelta ? <Text style={belowRrp ? styles.deltaGood : styles.delta}>{itemDelta}</Text> : <Text style={styles.noDelta}>No verified RRP/reference comparison</Text>}<Text style={styles.delivery}>{offer.deliveryKnown ? `True Price ${money(offer.totalDeliveredGbp)} · delivery ${money(offer.shippingGbp)}` : 'Delivery not yet verified · item-vs-reference comparison remains valid'}</Text>{offer.freeShippingThresholdGbp !== undefined ? <Text style={styles.collection}>Free delivery from {money(offer.freeShippingThresholdGbp)}</Text> : null}{offer.collectionAvailable ? <Text style={styles.collection}>Collection available</Text> : null}</View>
         {belowRrp ? <StatusBadge label="Below RRP" color={FateDropColors.mint} /> : offer.isLowestKnownDelivered ? <StatusBadge label="Lowest delivered" color={FateDropColors.mint} /> : null}
         {offer.productUrl ? <Pressable accessibilityLabel={`Buy at ${offer.retailerName}`} onPress={() => void openTrackedRetailerLink({ destinationUrl: offer.productUrl!, retailerId: offer.retailerId, offerId: offer.id, placement: 'true-price' })} style={styles.buy}><Ionicons name="open-outline" size={16} color={FateDropColors.text} /></Pressable> : null}
       </View>;
@@ -102,7 +174,8 @@ function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; sa
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingHorizontal: 20, paddingBottom: 80 }, back: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 12 }, backText: { color: FateDropColors.text, fontWeight: '800' },
   search: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: 18, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, input: { flex: 1, color: FateDropColors.text }, label: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' }, sorts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginVertical: 10 }, disclaimer: { color: FateDropColors.muted, fontSize: 11, lineHeight: 17, marginBottom: 14 }, state: { color: FateDropColors.muted, textAlign: 'center', margin: 40 },
-  group: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, groupTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 }, title: { color: FateDropColors.text, fontSize: 16, fontWeight: '900' }, meta: { color: FateDropColors.muted, fontSize: 10, marginTop: 5 }, rrpRow: { marginTop: 8 }, rrp: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' }, rrpSource: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 }, rrpUnknown: { color: FateDropColors.muted, fontSize: 9, marginTop: 7 }, bookmark: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.cardElevated },
-  offer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, borderTopWidth: 1, borderTopColor: FateDropColors.border }, retailer: { color: FateDropColors.text, fontWeight: '800' }, itemPrice: { color: FateDropColors.text, fontSize: 11, fontWeight: '800', marginTop: 4 }, delta: { color: FateDropColors.amber, fontSize: 10, fontWeight: '900', marginTop: 3 }, deltaGood: { color: FateDropColors.mint, fontSize: 10, fontWeight: '900', marginTop: 3 }, noDelta: { color: FateDropColors.muted, fontSize: 9, marginTop: 3 }, delivery: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '700', marginTop: 6 }, deliveredDelta: { color: FateDropColors.secondary, fontSize: 9, marginTop: 2 }, collection: { color: FateDropColors.mint, fontSize: 9, marginTop: 3 }, buy: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.violet },
+  comparePanel: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: `${FateDropColors.violetLight}33`, marginBottom: 14 }, compareHead: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' }, compareEyebrow: { color: FateDropColors.violetLight, fontSize: 8, fontWeight: '900', letterSpacing: 1 }, compareTitle: { color: FateDropColors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }, compareCopy: { color: FateDropColors.muted, fontSize: 10, lineHeight: 15, marginTop: 4 }, selector: { marginTop: 12 }, selectorLabel: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', marginBottom: 6 }, selectorRow: { gap: 7, paddingRight: 8 }, selectorChip: { maxWidth: 220, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated }, selectorChipActive: { maxWidth: 220, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: `${FateDropColors.violetLight}88`, backgroundColor: `${FateDropColors.violet}55` }, selectorChipText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '700' }, selectorChipTextActive: { color: FateDropColors.text, fontSize: 9, fontWeight: '900' }, compareCards: { gap: 8, marginTop: 12 }, valueCard: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated }, valueCardWinner: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: `${FateDropColors.mint}66`, backgroundColor: `${FateDropColors.mint}0A` }, valueBasis: { color: FateDropColors.violetLight, fontSize: 7, fontWeight: '900', letterSpacing: .8 }, valueTitle: { color: FateDropColors.text, fontSize: 13, fontWeight: '900', marginTop: 4, marginBottom: 8 }, valueMetric: { marginTop: 6 }, valueMetricLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, valueMetricValue: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 2 }, valueMetricNote: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 }, valueReference: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 9 }, verdict: { marginTop: 10, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.border }, verdictWinner: { marginTop: 10, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.mint}55` }, verdictEyebrow: { color: FateDropColors.mint, fontSize: 7, fontWeight: '900', letterSpacing: .8 }, verdictText: { color: FateDropColors.text, fontSize: 11, fontWeight: '900', lineHeight: 16, marginTop: 4 }, verdictNote: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 5 },
+  group: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, groupTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 }, title: { color: FateDropColors.text, fontSize: 16, fontWeight: '900' }, meta: { color: FateDropColors.muted, fontSize: 10, marginTop: 5 }, rrpRow: { marginTop: 8 }, rrp: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' }, rrpBasis: { color: FateDropColors.cyan, fontSize: 9, marginTop: 3 }, rrpSource: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 }, rrpUnknown: { color: FateDropColors.muted, fontSize: 9, marginTop: 7 }, bookmark: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.cardElevated },
+  offer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, borderTopWidth: 1, borderTopColor: FateDropColors.border }, retailer: { color: FateDropColors.text, fontWeight: '800' }, itemPrice: { color: FateDropColors.text, fontSize: 11, fontWeight: '800', marginTop: 4 }, delta: { color: FateDropColors.amber, fontSize: 10, fontWeight: '900', marginTop: 3 }, deltaGood: { color: FateDropColors.mint, fontSize: 10, fontWeight: '900', marginTop: 3 }, noDelta: { color: FateDropColors.muted, fontSize: 9, marginTop: 3 }, delivery: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '700', marginTop: 6 }, collection: { color: FateDropColors.mint, fontSize: 9, marginTop: 3 }, buy: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.violet },
   fateFindButton: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.violetLight}44`, marginTop: 8 }, fateFindText: { color: FateDropColors.violetLight, fontSize: 10, fontWeight: '900' },
 });
