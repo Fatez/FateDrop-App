@@ -24,7 +24,12 @@ export interface TruePriceGroup {
   retailerCount: number;
   rrpGbp?: number;
   rrpSource?: string;
+  rrpKind?: 'official' | 'component_reference' | 'pack_reference';
   rrpObservedAt?: string;
+  rrpReferenceBasis?: string;
+  unitCount?: number;
+  unitKind?: string;
+  unitRrpGbp?: number;
   offers: TruePriceOffer[];
 }
 
