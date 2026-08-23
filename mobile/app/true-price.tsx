@@ -32,6 +32,17 @@ function deltaLabel(value: number | undefined, rrp: number | undefined) {
   const percentSign = percent > 0 ? '+' : percent < 0 ? '−' : '';
   return `${sign}£${Math.abs(difference).toFixed(2)} · ${percentSign}${Math.abs(percent).toFixed(1)}% vs RRP/reference`;
 }
+function valueVerdict(result: ReturnType<typeof compareValueGroups>, winner?: TruePriceGroup, winnerPosition?: ReturnType<typeof compareValueGroups>['left']) {
+  if (!winner || !winnerPosition) return result.reason;
+  if (result.basis === 'rrp') {
+    return `${winner.title} is the better value at ${percentLabel(winnerPosition.rrpPercent)} vs RRP/reference${result.gap != null ? ` · ${result.gap.toFixed(1)} percentage points better` : ''}.`;
+  }
+  if (result.basis === 'unit') {
+    const unit = winner.unitKind === 'booster_pack' ? 'pack' : 'unit';
+    return `${winner.title} has the lower observed cost per ${unit} at ${money(winnerPosition.unitCost)}${winnerPosition.provisional ? ' before delivery is confirmed' : ' delivered'}.`;
+  }
+  return result.reason;
+}
 
 export default function TruePriceScreen() {
   const params = useLocalSearchParams<{ query?: string | string[] }>();
@@ -100,7 +111,7 @@ function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight }: { grou
   const leftGroup = options.find((group) => group.id === leftId) ?? options[0];
   const rightGroup = options.find((group) => group.id === rightId) ?? options[1];
   const result = compareValueGroups(leftGroup, rightGroup);
-  const winner = result.winnerId ? options.find((group) => group.id === result.winnerId) : null;
+  const winner = result.winnerId ? options.find((group) => group.id === result.winnerId) : undefined;
   const winnerPosition = result.winnerId === result.left?.group.id ? result.left : result.winnerId === result.right?.group.id ? result.right : null;
 
   return <View style={styles.comparePanel}>
@@ -113,7 +124,7 @@ function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight }: { grou
     </View>
     <View style={winner ? styles.verdictWinner : styles.verdict}>
       <Text style={styles.verdictEyebrow}>{winner ? 'FATEDROP VALUE VERDICT' : 'FATEDROP NEEDS MORE EVIDENCE'}</Text>
-      <Text style={styles.verdictText}>{winner && winnerPosition ? `${winner.title} is the better value at ${percentLabel(winnerPosition.rrpPercent)} vs RRP/reference${result.gap != null && result.basis === 'rrp' ? ` · ${result.gap.toFixed(1)} percentage points better` : ''}.` : result.reason}</Text>
+      <Text style={styles.verdictText}>{valueVerdict(result, winner, winnerPosition)}</Text>
       <Text style={styles.verdictNote}>{result.left?.provisional || result.right?.provisional ? 'RRP value remains valid from item price, but at least one final delivered cost is still provisional.' : 'Both selected offers have known delivery, so True Price can be compared alongside the RRP value verdict.'}</Text>
     </View>
   </View>;
