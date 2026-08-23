@@ -1,9 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import { FateDropColors } from '@/constants/theme';
+import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { fetchCanonicalAlerts } from '@/services/canonical-alerts';
 
 export default function TabLayout() {
+  const { signedIn } = useFateDropId();
+  const [alertCount, setAlertCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    if (!signedIn) {
+      setAlertCount(0);
+      return () => { active = false; };
+    }
+    void fetchCanonicalAlerts(100)
+      .then((alerts) => { if (active) setAlertCount(alerts.length); })
+      .catch(() => { if (active) setAlertCount(0); });
+    return () => { active = false; };
+  }, [signedIn]);
+
   return (
     <Tabs
       screenOptions={{
@@ -74,7 +92,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={22} color={color} />
           ),
-          tabBarBadge: 3,
+          tabBarBadge: alertCount > 0 ? (alertCount > 99 ? '99+' : alertCount) : undefined,
           tabBarBadgeStyle: {
             minWidth: 18,
             height: 18,

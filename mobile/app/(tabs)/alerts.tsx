@@ -1,1 +1,1 @@
-export { default } from '@/screens/alerts-screen-v2';
+export { default } from '@/screens/alerts-screen-v3';
