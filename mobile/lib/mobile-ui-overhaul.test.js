@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const tabLayout = fs.readFileSync(path.join(__dirname, '../app/(tabs)/_layout.tsx'), 'utf8');
 const homeRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/index.tsx'), 'utf8');
 const alertsRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/alerts.tsx'), 'utf8');
 const home = fs.readFileSync(path.join(__dirname, '../screens/home-screen-v2.tsx'), 'utf8');
@@ -24,4 +25,10 @@ test('Alerts leads with canonical alert and Discord delivery truth', () => {
   assert.match(alerts, /DISCORD SENT/);
   assert.match(alerts, /DELIVERY ISSUES/);
   assert.doesNotMatch(alerts, /fetchNetworkSignals/);
+});
+
+test('Alerts tab badge is live canonical history and never a hard-coded demo count', () => {
+  assert.match(tabLayout, /fetchCanonicalAlerts\(100\)/);
+  assert.match(tabLayout, /tabBarBadge: alertCount > 0/);
+  assert.doesNotMatch(tabLayout, /tabBarBadge:\s*3/);
 });
