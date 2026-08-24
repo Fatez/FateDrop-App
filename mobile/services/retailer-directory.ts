@@ -10,6 +10,8 @@ export type NetworkRetailer = {
   verification: string;
   tcgs: string[];
   online: boolean;
+  physicalStores: boolean | null;
+  physicalLocations: number | null;
   monitoring: {
     configured: boolean;
     healthy: boolean;
