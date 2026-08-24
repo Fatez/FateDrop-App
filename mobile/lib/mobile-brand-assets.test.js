@@ -11,6 +11,7 @@ const brandHeader = read('components/fatedrop-wordmark-header.tsx');
 const brandOverride = read('components/fatedrop-ui-brand.tsx');
 const tsconfig = read('tsconfig.json');
 const home = read('screens/home-screen-v2.tsx');
+const profile = read('screens/profile-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
@@ -52,6 +53,14 @@ test('all primary bottom navigation icons and labels use one FateDrop gold', () 
   assert.match(tabs, /const NAV_GOLD = FateDropColors\.goldBright/);
   assert.match(tabs, /tabBarActiveTintColor: NAV_GOLD/);
   assert.match(tabs, /tabBarInactiveTintColor: NAV_GOLD/);
+});
+
+test('legacy Male Female Droid Companion Lab is fully retired from the app', () => {
+  assert.equal(fs.existsSync(path.join(root, 'app/companion.tsx')), false);
+  assert.equal(fs.existsSync(path.join(root, 'components/companion-stage.tsx')), false);
+  assert.doesNotMatch(profile, /COMPANION LAB/);
+  assert.doesNotMatch(profile, /router\.push\('\/companion'\)/);
+  assert.doesNotMatch(profile, /\bMale\b|\bFemale\b|\bDroid\b/);
 });
 
 function walkTsx(dir) {
