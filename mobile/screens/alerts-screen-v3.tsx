@@ -32,6 +32,30 @@ function ago(value: string) {
   return `${Math.floor(mins / 1440)}d ago`;
 }
 
+function observedDuration(seconds: number | null | undefined) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  const whole = Math.floor(seconds);
+  if (whole < 60) return `${whole}s`;
+  const minutes = Math.floor(whole / 60);
+  const secondsRemainder = whole % 60;
+  if (minutes < 60) return secondsRemainder ? `${minutes}m ${secondsRemainder}s` : `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const minuteRemainder = minutes % 60;
+  if (hours < 24) return minuteRemainder ? `${hours}h ${minuteRemainder}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const hourRemainder = hours % 24;
+  return hourRemainder ? `${days}d ${hourRemainder}h` : `${days}d`;
+}
+
+function categoryLabel(alert: CanonicalMobileAlert) {
+  const category = alert.productIntelligence?.category;
+  if (category === 'SEALED_TCG') return 'SEALED TCG';
+  if (category === 'SINGLE_CARD') return 'SINGLE / PROMO';
+  if (category === 'ACCESSORY') return 'ACCESSORY';
+  if (category === 'MERCHANDISE') return 'MERCH';
+  return 'UNKNOWN';
+}
+
 function priceLine(alert: CanonicalMobileAlert) {
   const item = pounds(alert.product.pricePence);
   const delivered = pounds(alert.product.deliveredPricePence);
@@ -74,8 +98,12 @@ function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
         </View>
       </View>
 
-      <Text style={styles.retailer}>{alert.retailer}</Text>
+      <View style={styles.detailRow}>
+        <Text style={styles.retailer}>{alert.retailer}</Text>
+        <Text style={styles.category}>{categoryLabel(alert)}</Text>
+      </View>
       {price ? <Text style={styles.price}>{price}</Text> : null}
+      {alert.fateStage === 'VANISHED' && observedDuration(alert.observedDurationSeconds) ? <Text style={styles.observed}>OBSERVED LIVE · {observedDuration(alert.observedDurationSeconds)}</Text> : null}
       <Text style={styles.reason} numberOfLines={2}>{alert.message}</Text>
 
       <View style={styles.alertFooter}>
@@ -218,8 +246,11 @@ const styles = StyleSheet.create({
   stageLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   time: { color: FateDropColors.muted, fontSize: 8 },
   alertTitle: { color: FateDropColors.text, fontSize: 14, lineHeight: 18, fontWeight: '900', marginTop: 3 },
-  retailer: { color: FateDropColors.secondary, fontSize: 10, fontWeight: '800', marginTop: 11 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 11 },
+  retailer: { color: FateDropColors.secondary, fontSize: 10, fontWeight: '800', flex: 1 },
+  category: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   price: { color: FateDropColors.text, fontSize: 11, fontWeight: '800', marginTop: 3 },
+  observed: { color: FateDropColors.coral, fontSize: 8, fontWeight: '900', letterSpacing: 0.65, marginTop: 6 },
   reason: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, marginTop: 7 },
   alertFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: FateDropColors.border, marginTop: 13, paddingTop: 11 },
   deliveryPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
