@@ -19,7 +19,7 @@ export default function ProfileScreenV2() {
   const { snapshot, signedIn, syncing } = useFateDropId();
   const displayName = snapshot?.user.displayName || snapshot?.user.handle || 'Seeker';
   const tier = snapshot?.entitlement.effectiveTier?.toUpperCase() || 'FREE';
-  const fateFindCount = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
+  const fateMatchHuntCount = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
   const fateMatchCount = snapshot?.fateMatches?.length ?? 0;
   const wishlistCount = snapshot?.wishlist?.length ?? 0;
 
@@ -30,7 +30,7 @@ export default function ProfileScreenV2() {
         <FateDropHeader title="Profile" subtitle="YOUR FATEDROP ID" />
 
         <View style={styles.hero}>
-          <Image source={require('../assets/images/alert-fenn-hero.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <Image source={require('../assets/images/alert-fenn.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
           <View style={styles.heroShade} />
           <View style={styles.heroContent}>
             <View style={styles.avatar}><Ionicons name={signedIn ? 'person' : 'person-outline'} size={22} color={FateDropColors.goldBright} /></View>
@@ -42,8 +42,8 @@ export default function ProfileScreenV2() {
         </View>
 
         <View style={styles.stats}>
-          <Stat value={signedIn ? String(fateFindCount) : '—'} label="FATEFINDS" />
-          <Stat value={signedIn ? String(fateMatchCount) : '—'} label="FATEMATCHES" />
+          <Stat value={signedIn ? String(fateMatchHuntCount) : '—'} label="HUNTS" />
+          <Stat value={signedIn ? String(fateMatchCount) : '—'} label="MATCHES" />
           <Stat value={signedIn ? String(wishlistCount) : '—'} label="SAVED" />
         </View>
 
