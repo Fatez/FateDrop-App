@@ -73,6 +73,30 @@ function ago(value: string | number) {
   return `${Math.floor(mins / 1440)}d ago`;
 }
 
+function observedDuration(seconds: number | null | undefined) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  const whole = Math.floor(seconds);
+  if (whole < 60) return `${whole}s`;
+  const minutes = Math.floor(whole / 60);
+  const secondsRemainder = whole % 60;
+  if (minutes < 60) return secondsRemainder ? `${minutes}m ${secondsRemainder}s` : `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const minuteRemainder = minutes % 60;
+  if (hours < 24) return minuteRemainder ? `${hours}h ${minuteRemainder}m` : `${hours}h`;
+  const days = Math.floor(hours / 24);
+  const hourRemainder = hours % 24;
+  return hourRemainder ? `${days}d ${hourRemainder}h` : `${days}d`;
+}
+
+function categoryLabel(alert: CanonicalMobileAlert) {
+  const category = alert.productIntelligence?.category;
+  if (category === 'SEALED_TCG') return 'SEALED TCG';
+  if (category === 'SINGLE_CARD') return 'SINGLE / PROMO';
+  if (category === 'ACCESSORY') return 'ACCESSORY';
+  if (category === 'MERCHANDISE') return 'MERCH';
+  return 'UNKNOWN';
+}
+
 function percentText(delta: number | null | undefined) {
   if (delta == null || !Number.isFinite(delta)) return null;
   if (Math.abs(delta) < 0.05) return 'AT RRP';
@@ -371,7 +395,10 @@ function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
             <Text style={styles.time}>{ago(alert.detectedAt)}</Text>
           </View>
           <Text style={styles.alertTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
-          <Text style={styles.retailer}>{alert.retailer}</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.retailer}>{alert.retailer}</Text>
+            <Text style={styles.category}>{categoryLabel(alert)}</Text>
+          </View>
         </View>
       </View>
 
@@ -382,6 +409,7 @@ function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
       </View>
 
       {delta ? <Text style={[styles.deltaText, { color: meta.color }]}>{delta}</Text> : null}
+      {alert.fateStage === 'VANISHED' && observedDuration(alert.observedDurationSeconds) ? <Text style={styles.observed}>OBSERVED LIVE · {observedDuration(alert.observedDurationSeconds)}</Text> : null}
       <Text style={styles.reason}>{alert.message}</Text>
 
       <View style={styles.alertFooter}>
@@ -460,12 +488,15 @@ const styles = StyleSheet.create({
   stageLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 0.75 },
   time: { color: FateDropColors.muted, fontSize: 11 },
   alertTitle: { color: FateDropColors.ivory, fontSize: 16, lineHeight: 20, fontWeight: '900', marginTop: 4 },
-  retailer: { color: FateDropColors.secondary, fontSize: 12, fontWeight: '800', marginTop: 5 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 5 },
+  retailer: { color: FateDropColors.secondary, fontSize: 12, fontWeight: '800', flex: 1 },
+  category: { color: FateDropColors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 0.6 },
   priceGrid: { flexDirection: 'row', gap: 7, marginTop: 13 },
   priceMetric: { flex: 1, minHeight: 58, padding: 9, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
   priceLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.4 },
   priceValue: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 15, fontWeight: '900', marginTop: 4 },
   deltaText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginTop: 9 },
+  observed: { color: FateDropColors.vanished, fontSize: 10, fontWeight: '900', letterSpacing: 0.55, marginTop: 7 },
   reason: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, marginTop: 8 },
   alertFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: FateDropColors.borderSoft, marginTop: 12, paddingTop: 11 },
   inspectText: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '900', letterSpacing: 0.6 },
