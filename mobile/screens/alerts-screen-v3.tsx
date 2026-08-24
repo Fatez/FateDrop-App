@@ -61,22 +61,22 @@ const stageMeta: Record<CanonicalAlertStage, {
 };
 
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
-const pounds = (pence: number | null | undefined) => pence == null ? null : \`£${(pence / 100).toFixed(2)}\`;
+const pounds = (pence: number | null | undefined) => pence == null ? null : `£${(pence / 100).toFixed(2)}`;
 
 function ago(value: string | number) {
   const timestamp = typeof value === 'number' ? value * (value < 10_000_000_000 ? 1000 : 1) : new Date(value).getTime();
   if (!Number.isFinite(timestamp)) return 'Recent';
   const mins = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
   if (mins < 1) return 'Just now';
-  if (mins < 60) return \`${mins}m ago\`;
-  if (mins < 1440) return \`${Math.floor(mins / 60)}h ago\`;
-  return \`${Math.floor(mins / 1440)}d ago\`;
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
 }
 
 function percentText(delta: number | null | undefined) {
   if (delta == null || !Number.isFinite(delta)) return null;
   if (Math.abs(delta) < 0.05) return 'AT RRP';
-  return delta < 0 ? \`${Math.abs(delta).toFixed(1)}% BELOW RRP\` : \`${delta.toFixed(1)}% ABOVE RRP\`;
+  return delta < 0 ? `${Math.abs(delta).toFixed(1)}% BELOW RRP` : `${delta.toFixed(1)}% ABOVE RRP`;
 }
 
 export default function AlertsScreenV3() {
@@ -188,7 +188,7 @@ function SignalInbox({
           const item = stageMeta[value];
           const active = value === stage;
           return (
-            <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, active && { borderColor: \`${item.color}88\`, backgroundColor: \`${item.color}10\` }]}>
+            <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, active && { borderColor: `${item.color}88`, backgroundColor: `${item.color}10` }]}>
               <Text style={[styles.tabLabel, active && { color: item.color }]}>{item.label.toUpperCase()}</Text>
               <Text style={[styles.tabCount, active && { color: FateDropColors.ivory }]}>{signedIn ? counts[value] : '—'}</Text>
             </Pressable>
@@ -196,7 +196,7 @@ function SignalInbox({
         })}
       </View>
 
-      <View style={[styles.hero, { borderColor: \`${meta.color}66\` }]}>
+      <View style={[styles.hero, { borderColor: `${meta.color}66` }]}>
         <Image source={meta.hero} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" transition={160} />
         <View style={styles.heroShade} />
         <View style={styles.heroContent}>
@@ -290,9 +290,9 @@ function FateMatchInbox({ signedIn, snapshot }: { signedIn: boolean; snapshot: R
             <View style={styles.flex}>
               <Text style={styles.huntTitle}>{query}</Text>
               <Text style={styles.huntMeta}>
-                {maxPercent != null ? \`max +${maxPercent}% vs RRP\` : 'RRP threshold not shown'}
-                {maxItem ? \` · item ≤ ${maxItem}\` : ''}
-                {maxTrue ? \` · True Price ≤ ${maxTrue}\` : ''}
+                {maxPercent != null ? `max +${maxPercent}% vs RRP` : 'RRP threshold not shown'}
+                {maxItem ? ` · item ≤ ${maxItem}` : ''}
+                {maxTrue ? ` · True Price ≤ ${maxTrue}` : ''}
               </Text>
               <Text style={styles.huntCloud}>Watching in Cloud</Text>
             </View>
@@ -355,12 +355,12 @@ function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
   const buyNow = alert.fateStage === 'MANIFESTED' && Boolean(alert.productUrl);
 
   return (
-    <Pressable onPress={() => alert.productUrl ? void Linking.openURL(alert.productUrl) : undefined} style={({ pressed }) => [styles.alertCard, { borderColor: \`${meta.color}38\` }, pressed && styles.pressed]}>
+    <Pressable onPress={() => alert.productUrl ? void Linking.openURL(alert.productUrl) : undefined} style={({ pressed }) => [styles.alertCard, { borderColor: `${meta.color}38` }, pressed && styles.pressed]}>
       <View style={styles.alertTop}>
         {alert.product.imageUrl ? (
           <Image source={{ uri: alert.product.imageUrl }} style={styles.productImage} contentFit="cover" />
         ) : (
-          <View style={[styles.productFallback, { borderColor: \`${meta.color}44\` }]}>
+          <View style={[styles.productFallback, { borderColor: `${meta.color}44` }]}>
             <Ionicons name="cube-outline" size={24} color={meta.color} />
           </View>
         )}
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   headerButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
   viewSwitch: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 10 },
   viewOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 11 },
-  viewOptionActive: { backgroundColor: \`${FateDropColors.gold}12\`, borderWidth: 1, borderColor: \`${FateDropColors.gold}45\` },
+  viewOptionActive: { backgroundColor: `${FateDropColors.gold}12`, borderWidth: 1, borderColor: `${FateDropColors.gold}45` },
   viewOptionText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   viewOptionTextActive: { color: FateDropColors.goldBright },
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 10 },
@@ -430,14 +430,14 @@ const styles = StyleSheet.create({
   hero: { height: 265, borderRadius: 24, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card, marginBottom: 20 },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,10,.46)' },
   heroContent: { flex: 1, justifyContent: 'flex-end', padding: 18 },
-  companionPill: { flexDirection: 'row', alignItems: 'center', gap: 9, alignSelf: 'flex-start', paddingRight: 11, paddingLeft: 5, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: \`${FateDropColors.gold}44\`, backgroundColor: 'rgba(8,14,20,.72)' },
+  companionPill: { flexDirection: 'row', alignItems: 'center', gap: 9, alignSelf: 'flex-start', paddingRight: 11, paddingLeft: 5, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}44`, backgroundColor: 'rgba(8,14,20,.72)' },
   companionThumb: { width: 34, height: 34, borderRadius: 17 },
   companionStage: { fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
   companionRole: { color: FateDropColors.secondary, fontSize: 11, marginTop: 1 },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 27, lineHeight: 30, fontWeight: '700', marginTop: 10 },
   heroCopy: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 18, marginTop: 5, maxWidth: 335 },
   matchHero: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 18 },
-  matchHeroIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: \`${FateDropColors.gold}0E\`, borderWidth: 1, borderColor: \`${FateDropColors.gold}35\`, marginBottom: 12 },
+  matchHeroIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0E`, borderWidth: 1, borderColor: `${FateDropColors.gold}35`, marginBottom: 12 },
   matchHeroEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   matchHeroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 26, lineHeight: 29, fontWeight: '700', marginTop: 5 },
   matchHeroCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 19, marginTop: 7 },
@@ -470,12 +470,12 @@ const styles = StyleSheet.create({
   alertFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: FateDropColors.borderSoft, marginTop: 12, paddingTop: 11 },
   inspectText: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '900', letterSpacing: 0.6 },
   huntCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 8 },
-  huntPulse: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: \`${FateDropColors.gold}50\`, backgroundColor: \`${FateDropColors.gold}0C\` },
+  huntPulse: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}50`, backgroundColor: `${FateDropColors.gold}0C` },
   huntPulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: FateDropColors.success },
   huntTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
   huntMeta: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
   huntCloud: { color: FateDropColors.success, fontSize: 10, fontWeight: '800', marginTop: 5 },
-  liveMatchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: \`${FateDropColors.manifested}48\`, backgroundColor: FateDropColors.surface, marginBottom: 9 },
+  liveMatchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface, marginBottom: 9 },
   liveMatchLabel: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   liveMatchTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900', marginTop: 4 },
   liveMatchRetailer: { color: FateDropColors.secondary, fontSize: 12, marginTop: 3 },
@@ -486,9 +486,9 @@ const styles = StyleSheet.create({
   emptyCompanion: { width: 62, height: 62, borderRadius: 18 },
   emptyTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900', marginTop: 10 },
   emptyCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 5, maxWidth: 310 },
-  signInButton: { marginTop: 15, borderWidth: 1, borderColor: FateDropColors.gold, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, backgroundColor: \`${FateDropColors.gold}16\` },
+  signInButton: { marginTop: 15, borderWidth: 1, borderColor: FateDropColors.gold, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, backgroundColor: `${FateDropColors.gold}16` },
   signInText: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
-  errorCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 13, marginBottom: 10, borderRadius: 15, borderWidth: 1, borderColor: \`${FateDropColors.warning}50\`, backgroundColor: \`${FateDropColors.warning}0C\` },
+  errorCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 13, marginBottom: 10, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.warning}50`, backgroundColor: `${FateDropColors.warning}0C` },
   errorTitle: { color: FateDropColors.warning, fontSize: 13, fontWeight: '900' },
   errorCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   flex: { flex: 1 },
