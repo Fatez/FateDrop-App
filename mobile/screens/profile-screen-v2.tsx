@@ -60,10 +60,7 @@ export default function ProfileScreenV2() {
           <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
         </View>
 
-        <View style={styles.sectionHead}>
-          <SectionTitle label="ALERT COMPANIONS" />
-          <Pressable onPress={() => router.push('/companion')}><Text style={styles.sectionAction}>COMPANION LAB →</Text></Pressable>
-        </View>
+        <SectionTitle label="ALERT COMPANIONS" />
         <Text style={styles.sectionCopy}>The four lifecycle voices are fixed to the signal they represent, so a push alert and the in-app alert always speak the same language.</Text>
 
         <View style={styles.companions}>
@@ -136,8 +133,6 @@ const styles = StyleSheet.create({
   preferenceTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
   preferenceDetail: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   divider: { height: 1, backgroundColor: FateDropColors.borderSoft, marginLeft: 62 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionAction: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900' },
   sectionCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 19, marginBottom: 11 },
   companions: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   companion: { flex: 1, aspectRatio: .78, borderRadius: 15, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card },
