@@ -49,6 +49,7 @@ function groupOffers(offers: ProductOffer[]): ProductGroup[] {
 
 function ProductResult({ group, saved, onToggle }: { group: ProductGroup; saved: boolean; onToggle: () => void }) {
   const retailerCount = new Set(group.offers.map((offer) => offer.retailerId)).size;
+  const canonicalProductId = group.offers.find((offer) => offer.canonicalProductId)?.canonicalProductId;
   const itemPrices = group.offers.map((offer) => offer.priceGbp).filter((value): value is number => value !== undefined);
   const truePrices = group.offers.map(deliveredFor).filter((value): value is number => value !== undefined);
   const lowestItem = itemPrices.length ? Math.min(...itemPrices) : undefined;
@@ -92,8 +93,9 @@ function ProductResult({ group, saved, onToggle }: { group: ProductGroup; saved:
     })}</View>
 
     <View style={styles.productActions}>
-      <Pressable onPress={() => router.push({ pathname: '/true-price', params: { query: group.title } })} style={styles.secondary}><Ionicons name="swap-horizontal-outline" size={14} color={FateDropColors.cyan} /><Text style={styles.secondaryText}>COMPARE TRUE PRICE</Text></Pressable>
-      <Pressable onPress={() => router.push({ pathname: '/fatefind', params: { query: group.title } })} style={styles.secondary}><Ionicons name="telescope-outline" size={14} color={FateDropColors.violetLight} /><Text style={styles.secondaryText}>CREATE FATEFIND</Text></Pressable>
+      <Pressable onPress={() => router.push({ pathname: '/true-price', params: { query: group.title } })} style={styles.secondary}><Ionicons name="swap-horizontal-outline" size={14} color={FateDropColors.cyan} /><Text style={styles.secondaryText}>TRUE PRICE</Text></Pressable>
+      <Pressable onPress={() => router.push({ pathname: '/fatefind', params: { query: group.title } })} style={styles.secondary}><Ionicons name="telescope-outline" size={14} color={FateDropColors.violetLight} /><Text style={styles.secondaryText}>FATEFIND</Text></Pressable>
+      <Pressable onPress={() => router.push({ pathname: '/fatematch', params: { query: group.title, productId: canonicalProductId || '' } })} style={styles.secondary}><Ionicons name="notifications-outline" size={14} color={FateDropColors.mint} /><Text style={styles.secondaryText}>WATCH STOCK</Text></Pressable>
     </View>
   </View>;
 }
