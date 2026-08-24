@@ -3,9 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/components/fatedrop-ui": [
-        "./components/fatedrop-ui-brand.tsx"
-      ],
       "@/*": [
         "./*"
       ]
