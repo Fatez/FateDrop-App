@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
@@ -11,11 +11,11 @@ import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAle
 
 type Filter = 'ALL' | CanonicalAlertStage;
 
-const stageMeta: Record<CanonicalAlertStage, { color: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  WHISPER: { color: FateDropColors.cyan, icon: 'eye-outline', label: 'Whisper' },
-  ECHO: { color: FateDropColors.violetLight, icon: 'pulse-outline', label: 'Echo' },
-  MANIFESTED: { color: FateDropColors.mint, icon: 'sparkles-outline', label: 'Manifested' },
-  VANISHED: { color: FateDropColors.coral, icon: 'close-circle-outline', label: 'Vanished' },
+const stageMeta: Record<CanonicalAlertStage, { color: string; companion: string; image: number; label: string }> = {
+  WHISPER: { color: FateDropColors.cyan, companion: 'Oru', image: require('../assets/images/alert-oru.webp'), label: 'Whisper' },
+  ECHO: { color: FateDropColors.violetLight, companion: 'Fenn', image: require('../assets/images/alert-fenn.webp'), label: 'Echo' },
+  MANIFESTED: { color: FateDropColors.mint, companion: 'Koru', image: require('../assets/images/alert-koru.webp'), label: 'Manifested' },
+  VANISHED: { color: FateDropColors.coral, companion: 'Nyxen', image: require('../assets/images/alert-nyxen.webp'), label: 'Vanished' },
 };
 
 function pounds(pence: number | null | undefined) {
@@ -63,11 +63,11 @@ function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
     <Pressable onPress={open} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
       <View style={styles.alertTop}>
         <View style={[styles.stageIcon, { backgroundColor: `${meta.color}18`, borderColor: `${meta.color}45` }]}>
-          <Ionicons name={meta.icon} size={18} color={meta.color} />
+          <Image source={meta.image} style={styles.stageImage} resizeMode="cover" />
         </View>
         <View style={styles.alertTopCopy}>
           <View style={styles.alertMetaRow}>
-            <Text style={[styles.stageLabel, { color: meta.color }]}>{meta.label.toUpperCase()}</Text>
+            <Text style={[styles.stageLabel, { color: meta.color }]}>{meta.companion.toUpperCase()} · {meta.label.toUpperCase()}</Text>
             <Text style={styles.time}>{ago(alert.detectedAt)}</Text>
           </View>
           <Text style={styles.alertTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
@@ -211,7 +211,8 @@ const styles = StyleSheet.create({
   alertList: { gap: 10 },
   alertCard: { padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.92)' },
   alertTop: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
-  stageIcon: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stageIcon: { width: 44, height: 44, borderRadius: 13, borderWidth: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  stageImage: { width: '100%', height: '100%' },
   alertTopCopy: { flex: 1 },
   alertMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   stageLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
