@@ -101,13 +101,11 @@ export default function TabLayout() {
                 onPress={() => setToolboxOpen(true)}
                 style={({ pressed }) => [styles.emblemButton, pressed && styles.pressed]}
               >
-                <View style={styles.emblemHalo}>
-                  <Image
-                    source={require('../../assets/images/fatedrop-emblem.webp')}
-                    style={styles.emblemImage}
-                    contentFit="contain"
-                  />
-                </View>
+                <Image
+                  source={require('../../assets/images/fatedrop-center-emblem.png')}
+                  style={styles.emblemImage}
+                  contentFit="contain"
+                />
               </Pressable>
             ),
           }}
@@ -144,7 +142,7 @@ export default function TabLayout() {
           <Pressable style={styles.toolbox} onPress={() => undefined}>
             <View style={styles.toolboxBrand}>
               <Image
-                source={require('../../assets/images/fatedrop-emblem.webp')}
+                source={require('../../assets/images/fatedrop-center-emblem.png')}
                 style={styles.toolboxEmblem}
                 contentFit="contain"
               />
@@ -210,27 +208,22 @@ function ToolChoice({
 
 const styles = StyleSheet.create({
   emblemButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 0,
-  },
-  emblemHalo: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     marginTop: -17,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: FateDropColors.ink,
+    backgroundColor: 'rgba(8,14,20,.96)',
     borderWidth: 1,
     borderColor: FateDropColors.gold,
     shadowColor: '#000000',
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.42,
     shadowRadius: 14,
     elevation: 14,
   },
-  emblemImage: { width: 47, height: 47 },
+  emblemImage: { width: 43, height: 56 },
   pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
   backdrop: {
     flex: 1,
@@ -255,7 +248,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 10,
   },
-  toolboxEmblem: { width: 50, height: 50 },
+  toolboxEmblem: { width: 38, height: 50 },
   toolboxBrandCopy: { flex: 1 },
   toolboxEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   toolboxTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, fontWeight: '700', marginTop: 2 },
