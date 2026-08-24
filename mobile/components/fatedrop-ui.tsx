@@ -21,7 +21,7 @@ export function ScreenBackground() {
   return (
     <View pointerEvents="none" style={styles.backgroundLayer}>
       <Image
-        source={require('@/assets/images/fatedrop-portal-hero.png')}
+        source={require('@/assets/images/app-background-cosmic.jpg')}
         style={StyleSheet.absoluteFillObject}
         contentFit="cover"
       />
@@ -35,7 +35,7 @@ export const FateDropBackground = ScreenBackground;
 export function AbstractHero({ eyebrow, title, subtitle, icon = 'sparkles' }: { eyebrow: string; title: string; subtitle: string; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.abstractHero}>
-      <Image source={require('@/assets/images/fatedrop-portal-hero.png')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <Image source={require('@/assets/images/app-background-cosmic.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
       <View style={styles.abstractHeroShade} />
       <View style={styles.abstractHeroIcon}><Ionicons name={icon} size={19} color={FateDropColors.cyan} /></View>
       <Text style={styles.abstractEyebrow}>{eyebrow}</Text>
@@ -76,11 +76,9 @@ export function FateDropHeader({
   return (
     <View style={styles.headerShell}>
       <View style={styles.brandGroup}>
-        <View style={styles.headerLogoShell}><Image source={require('@/assets/images/fatedrop-center-emblem.png')} style={styles.headerLogo} contentFit="contain" /></View>
+        <View style={styles.headerLogoShell}><Image source={require('@/assets/images/fatedrop-emblem.webp')} style={styles.headerLogo} contentFit="contain" /></View>
         <View style={styles.brandTextWrap}>
-          <Text style={styles.brandText}>
-            Fate<Text style={styles.brandTextAccent}>Drop</Text>
-          </Text>
+          <Image source={require('@/assets/images/fatedrop-wordmark.webp')} style={styles.headerWordmark} contentFit="contain" contentPosition="left center" />
           {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
         </View>
       </View>
@@ -395,7 +393,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: `${FateDropColors.violetLight}55`, marginBottom: 18,
     shadowColor: FateDropColors.violet, shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 5,
   },
-  abstractHeroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,7,15,0.48)' },
+  abstractHeroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,7,15,0.44)' },
   abstractHeroIcon: { position: 'absolute', right: 18, top: 18, width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,24,40,.78)', borderWidth: 1, borderColor: `${FateDropColors.cyan}44` },
   abstractEyebrow: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 7 },
   abstractTitle: { color: FateDropColors.text, fontSize: 25, lineHeight: 30, fontWeight: '900', letterSpacing: -0.7, maxWidth: '82%' },
@@ -406,7 +404,7 @@ const styles = StyleSheet.create({
   },
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 5, 11, 0.38)',
+    backgroundColor: 'rgba(4, 5, 11, 0.34)',
   },
   headerShell: {
     flexDirection: 'row',
@@ -426,6 +424,11 @@ const styles = StyleSheet.create({
   },
   brandTextWrap: {
     justifyContent: 'center',
+    flex: 1,
+  },
+  headerWordmark: {
+    width: 136,
+    height: 42,
   },
   headerLogo: {
     width: 44,
@@ -441,16 +444,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: `${FateDropColors.violetLight}48`,
   },
-  brandText: {
-    color: FateDropColors.text,
-    fontSize: 29,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    lineHeight: 26,
-  },
-  brandTextAccent: {
-    color: FateDropColors.violetLight,
-  },
   headerSubtitle: {
     color: FateDropColors.secondary,
     fontSize: 10,
@@ -465,7 +458,7 @@ const styles = StyleSheet.create({
   },
   pageLabel: {
     position: 'absolute',
-    left: 82,
+    left: 206,
     bottom: 5,
     color: FateDropColors.secondary,
     fontSize: 11,
