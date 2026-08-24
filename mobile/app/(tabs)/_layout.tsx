@@ -161,13 +161,13 @@ export default function TabLayout() {
             <ToolChoice
               icon="telescope-outline"
               title="FateFind"
-              copy="Search live offers, compare value and get the Fate Verdict for the strongest deal now."
+              copy="Find the right deal now or keep hunting under your conditions. FateFind uses verified RRP, visible True Price and one Cloud Fate Verdict."
               onPress={() => openTool('/fatefind')}
             />
             <ToolChoice
-              icon="radio-outline"
-              title="FateMatch"
-              copy="Set your product and price rules. FateDrop watches until an offer genuinely qualifies."
+              icon="sparkles-outline"
+              title="FateMatches"
+              copy="See successful results from your FateFinds, plus the active hunts still searching the network for you."
               onPress={() => openTool('/fate-match')}
             />
             <ToolChoice
