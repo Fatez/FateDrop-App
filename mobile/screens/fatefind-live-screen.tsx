@@ -94,11 +94,11 @@ export default function FateFindLiveScreen() {
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text} /><Text style={styles.backText}>Back</Text></Pressable>
-    <AbstractHero eyebrow="FateFind" title="Find the strongest deal live now." subtitle="Search current FateDrop offers, compare two products directly and let the Fate Verdict rank value from verified RRP/reference position while True Price stays visible as checkout evidence." icon="telescope" />
+    <AbstractHero eyebrow="FateFind" title="Find the strongest deal live now." subtitle="FateFind combines live offer search, verified RRP/reference calculations, True Price and the Fate Verdict to show the strongest current deal. Compare two products directly when you want a head-to-head answer." icon="telescope" />
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="Delivered price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
-    <Text style={styles.disclaimer}>RRP/reference percentages are calculated from item price only when FateDrop Cloud has verified evidence. Unknown delivery never becomes £0. Component references are clearly labelled and only appear when composition is provable.</Text>
+    <Text style={styles.disclaimer}>True Price is built into FateFind. RRP/reference percentages are calculated from item price only when FateDrop Cloud has verified evidence; known mandatory delivery is then shown separately in True Price. Unknown delivery never becomes £0.</Text>
     <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} />
   </>;
 
