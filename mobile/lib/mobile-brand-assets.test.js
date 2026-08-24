@@ -36,11 +36,12 @@ test('Home keeps monitor health out of the welcome experience', () => {
   assert.doesNotMatch(home, /\/api\/status/);
 });
 
-test('center tool launcher uses the final compact FateDrop emblem', () => {
-  assert.match(tabs, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(tabs, /fatedrop-center-emblem\.png/);
+test('center tool launcher uses the clean transparent FateDrop PNG emblem', () => {
+  assert.match(tabs, /fatedrop-center-emblem\.png/);
+  const launcher = tabs.slice(tabs.indexOf('name="tools"'), tabs.indexOf('name="network"'));
+  assert.doesNotMatch(launcher, /fatedrop-emblem\.webp/);
+  assert.doesNotMatch(launcher, /emblemHalo/);
 });
-
 
 function walkTsx(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -68,7 +69,6 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
 
   assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
 });
-
 
 test('final Home art assets are real production images, not tiny placeholders', () => {
   const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
