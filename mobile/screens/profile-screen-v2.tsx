@@ -51,9 +51,11 @@ export default function ProfileScreenV2() {
         <View style={styles.panel}>
           <Preference icon="notifications-outline" title="Notifications" detail="Whisper, Echo, Manifested, Vanished and FateMatch delivery." onPress={() => router.push('/notification-preferences')} />
           <Divider />
-          <Preference icon="pricetag-outline" title="Price & FateMatch rules" detail="Manage your hosted hunts and acceptable price thresholds." onPress={() => router.push('/fatefind')} />
+          <Preference icon="pricetag-outline" title="Price & FateMatch rules" detail="Manage hosted hunts, RRP tolerance and budget thresholds." onPress={() => router.push('/fate-match')} />
           <Divider />
           <Preference icon="bookmark-outline" title="Wishlist" detail="Products you want to keep across stock and retailer changes." onPress={() => router.push('/(tabs)/watchlist')} />
+          <Divider />
+          <Preference icon="speedometer-outline" title="App dashboard" detail="Live monitor health, account sync and optimisation visibility." onPress={() => router.push('/dashboard')} />
           <Divider />
           <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
         </View>
