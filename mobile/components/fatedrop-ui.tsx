@@ -78,7 +78,7 @@ export function FateDropHeader({
       <View style={styles.brandGroup}>
         <View style={styles.headerLogoShell}><Image source={require('@/assets/images/fatedrop-emblem.webp')} style={styles.headerLogo} contentFit="contain" /></View>
         <View style={styles.brandTextWrap}>
-          <Image source={require('@/assets/images/fatedrop-wordmark.webp')} style={styles.headerWordmark} contentFit="contain" contentPosition="left center" />
+          <Image source={require('@/assets/images/fatedrop-wordmark.png')} style={styles.headerWordmark} contentFit="contain" contentPosition="left center" />
           {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
         </View>
       </View>

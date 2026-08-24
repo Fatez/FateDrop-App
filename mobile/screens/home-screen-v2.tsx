@@ -81,7 +81,7 @@ export default function HomeScreenV2() {
       >
         <View style={styles.brandHeader}>
           <Image
-            source={require('../assets/images/fatedrop-wordmark.webp')}
+            source={require('../assets/images/fatedrop-wordmark.png')}
             style={styles.brandWordmarkImage}
             contentFit="contain"
             contentPosition="left center"

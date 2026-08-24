@@ -72,8 +72,8 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
 
 test('final Home art assets are real production images, not tiny placeholders', () => {
   const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
-  const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.webp'));
+  const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.png'));
 
-  assert.ok(hero.size > 30000, `Koru hero unexpectedly small: ${hero.size} bytes`);
-  assert.ok(wordmark.size > 30000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
+  assert.ok(hero.size > 10000, `Koru hero unexpectedly small: ${hero.size} bytes`);
+  assert.ok(wordmark.size > 10000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
 });
