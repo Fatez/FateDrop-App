@@ -22,34 +22,92 @@ export const Colors = {
   },
 };
 
+/**
+ * FateDrop mobile brand tokens.
+ *
+ * The warm collector palette is the default frame. Violet/cyan/crimson are
+ * reserved for signal semantics and companion artwork rather than generic UI.
+ * Legacy aliases remain while older screens are migrated onto the shared tokens.
+ */
 export const FateDropColors = {
-  background: '#070810',
-  card: '#11131D',
-  cardElevated: '#181B29',
-  border: '#292D40',
-  shell: '#0D0F18',
-  text: '#F5F7FA',
-  secondary: '#8A8E9D',
-  muted: '#666B7A',
-  violet: '#7C3AED',
-  violetLight: '#A855F7',
-  mint: '#49E6B1',
-  coral: '#FF647C',
-  amber: '#F6B94A',
-  blue: '#58A6FF',
-  inactive: '#666B7A',
-  cyan: '#67E8F9',
-  glass: 'rgba(17, 19, 29, 0.88)',
+  ink: '#080E14',
+  background: '#080E14',
+  shell: '#0D131B',
+  surface: '#121820',
+  card: '#181C27',
+  cardElevated: '#202633',
+  border: '#3A3429',
+  borderSoft: '#2B3038',
+  text: '#F2E9DA',
+  ivory: '#F2E9DA',
+  secondary: '#B9AD9A',
+  muted: '#80776A',
+  inactive: '#69655F',
+  gold: '#C7A66A',
+  goldBright: '#E2C58D',
+  bronze: '#8D6847',
+  bronzeDeep: '#5E4938',
+
+  // Lifecycle / companion semantics.
+  whisper: '#D2B66F',
+  echo: '#7C6EFF',
+  manifested: '#63E1FF',
+  vanished: '#EF4D5A',
+
+  success: '#6ECF8B',
+  warning: '#E0A65A',
+  error: '#EF4D5A',
+
+  // Transitional aliases used by existing screens.
+  violet: '#7C6EFF',
+  violetLight: '#A899FF',
+  cyan: '#63E1FF',
+  mint: '#6ECF8B',
+  coral: '#EF4D5A',
+  amber: '#E0A65A',
+  blue: '#70A9FF',
+  glass: 'rgba(18, 24, 32, 0.92)',
+} as const;
+
+export const FateDropLifecycleColors = {
+  WHISPER: FateDropColors.whisper,
+  ECHO: FateDropColors.echo,
+  MANIFESTED: FateDropColors.manifested,
+  VANISHED: FateDropColors.vanished,
 } as const;
 
 export const FateDropSpacing = {
-  page: 20,
+  xxs: 4,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
+  page: 18,
   section: 24,
   cardGap: 10,
   cardRadius: 18,
-  heroRadius: 22,
-  inputRadius: 12,
+  heroRadius: 24,
+  inputRadius: 13,
   borderWidth: 1,
+} as const;
+
+export const FateDropTypography = {
+  metadata: 12,
+  small: 13,
+  body: 15,
+  cardTitle: 17,
+  sectionTitle: 21,
+  screenTitle: 30,
+  display: 34,
+} as const;
+
+export const FateDropRadii = {
+  chip: 999,
+  control: 12,
+  card: 18,
+  hero: 24,
 } as const;
 
 export const Fonts = Platform.select({
