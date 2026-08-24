@@ -158,18 +158,18 @@ export default function HomeScreenV2() {
             onPress={() => router.push({ pathname: '/alerts', params: { stage: 'MANIFESTED' } })}
           />
           <QuickCard
-            icon="pricetag-outline"
-            title="TRUE PRICE"
-            detail="Pay the truth"
-            color={FateDropColors.gold}
-            onPress={() => router.push('/true-price')}
-          />
-          <QuickCard
             icon="telescope-outline"
             title="FATEFIND"
-            detail="Find best value"
+            detail="Compare live value"
             color={FateDropColors.goldBright}
             onPress={() => router.push('/fatefind')}
+          />
+          <QuickCard
+            icon="radio-outline"
+            title="FATEMATCH"
+            detail="Watch until it fits"
+            color={FateDropColors.gold}
+            onPress={() => router.push('/fate-match')}
           />
         </View>
 
