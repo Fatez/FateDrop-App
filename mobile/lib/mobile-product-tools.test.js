@@ -24,11 +24,14 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /title="Search live database"/);
 });
 
-test('FateFind owns live value finding, RRP calculations, True Price and Fate Verdict', () => {
-  assert.match(fateFind, /\/api\/true-price/);
-  assert.match(fateFind, /compareValueGroups/);
+test('FateFind owns live value finding, RRP calculations, True Price and one Cloud Fate Verdict', () => {
+  assert.match(fateFind, /\/api\/fatefind\/matches/);
+  assert.match(fateFind, /mode: 'verdict'/);
+  assert.match(fateFind, /FATEDROP_CLOUD/);
+  assert.doesNotMatch(fateFind, /compareValueGroups/);
   assert.match(fateFind, /True Price is built into FateFind/);
   assert.match(fateFind, /FATE VERDICT/);
+  assert.match(fateFind, /BEST ACROSS THIS SEARCH/);
   assert.match(fateFind, /Compare two items/);
   assert.doesNotMatch(fateFind, /saveRemoteFateFind/);
 });
