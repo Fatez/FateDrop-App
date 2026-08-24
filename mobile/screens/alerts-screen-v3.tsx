@@ -19,44 +19,34 @@ const stageMeta: Record<CanonicalAlertStage, {
   label: string;
   hero: number;
   thumbnail: number;
-  headline: string;
-  copy: string;
 }> = {
   WHISPER: {
     color: FateDropColors.whisper,
     companion: 'Oru',
     label: 'Whisper',
-    hero: require('../assets/images/alert-oru.webp'),
+    hero: require('../assets/images/alert-oru-hero-final.webp'),
     thumbnail: require('../assets/images/alert-oru.webp'),
-    headline: 'Something is stirring.',
-    copy: 'Early movement worth watching. Whisper is evidence of change, not confirmed live stock.',
   },
   ECHO: {
     color: FateDropColors.echo,
     companion: 'Fenn',
     label: 'Echo',
-    hero: require('../assets/images/alert-fenn.webp'),
+    hero: require('../assets/images/alert-fenn-hero-final.webp'),
     thumbnail: require('../assets/images/alert-fenn.webp'),
-    headline: 'Readiness detected.',
-    copy: 'Access, queue, traffic or security conditions changed. Get ready without pretending stock is confirmed.',
   },
   MANIFESTED: {
     color: FateDropColors.manifested,
     companion: 'Koru',
     label: 'Manifested',
-    hero: require('../assets/images/alert-koru.webp'),
+    hero: require('../assets/images/alert-koru-hero-final.webp'),
     thumbnail: require('../assets/images/alert-koru.webp'),
-    headline: 'Verified stock is live.',
-    copy: 'Manifested means FateDrop has observed confirmed purchasable availability from the current evidence.',
   },
   VANISHED: {
     color: FateDropColors.vanished,
     companion: 'Nyxen',
     label: 'Vanished',
-    hero: require('../assets/images/alert-nyxen.webp'),
+    hero: require('../assets/images/alert-nyxen-hero-final.webp'),
     thumbnail: require('../assets/images/alert-nyxen.webp'),
-    headline: 'The signal has gone quiet.',
-    copy: 'Previously verified availability is no longer observed. FateDrop keeps the history instead of inventing a new event.',
   },
 };
 
@@ -123,6 +113,7 @@ export default function AlertsScreenV3() {
     [alerts],
   );
   const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage), [alerts, stage]);
+  const activeMeta = stageMeta[stage];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -141,6 +132,18 @@ export default function AlertsScreenV3() {
             </Pressable>
           }
         />
+
+        {view === 'signals' ? (
+          <View style={[styles.signalHero, { borderColor: `${activeMeta.color}55` }]}>
+            <Image
+              source={activeMeta.hero}
+              style={StyleSheet.absoluteFillObject}
+              contentFit="cover"
+              contentPosition="center"
+              transition={160}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.viewSwitch}>
           <Pressable onPress={() => setView('signals')} style={[styles.viewOption, view === 'signals' && styles.viewOptionActive]}>
@@ -194,22 +197,6 @@ function SignalInbox({
             </Pressable>
           );
         })}
-      </View>
-
-      <View style={[styles.hero, { borderColor: `${meta.color}66` }]}>
-        <Image source={meta.hero} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" transition={160} />
-        <View style={styles.heroShade} />
-        <View style={styles.heroContent}>
-          <View style={styles.companionPill}>
-            <Image source={meta.thumbnail} style={styles.companionThumb} contentFit="cover" />
-            <View>
-              <Text style={[styles.companionStage, { color: meta.color }]}>{meta.companion.toUpperCase()} · {meta.label.toUpperCase()}</Text>
-              <Text style={styles.companionRole}>Your {meta.label.toLowerCase()} companion</Text>
-            </View>
-          </View>
-          <Text style={styles.heroTitle}>{meta.headline}</Text>
-          <Text style={styles.heroCopy}>{meta.copy}</Text>
-        </View>
       </View>
 
       {!signedIn ? (
@@ -418,24 +405,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
   headerButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
+  signalHero: { height: 205, borderRadius: 22, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card, marginBottom: 12 },
   viewSwitch: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 10 },
   viewOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 11 },
   viewOptionActive: { backgroundColor: `${FateDropColors.gold}12`, borderWidth: 1, borderColor: `${FateDropColors.gold}45` },
   viewOptionText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   viewOptionTextActive: { color: FateDropColors.goldBright },
-  tabs: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  tabs: { flexDirection: 'row', gap: 6, marginBottom: 14 },
   tab: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   tabLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.35 },
   tabCount: { color: FateDropColors.secondary, fontSize: 13, fontWeight: '900', marginTop: 2 },
-  hero: { height: 265, borderRadius: 24, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card, marginBottom: 20 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,10,.46)' },
-  heroContent: { flex: 1, justifyContent: 'flex-end', padding: 18 },
-  companionPill: { flexDirection: 'row', alignItems: 'center', gap: 9, alignSelf: 'flex-start', paddingRight: 11, paddingLeft: 5, paddingVertical: 5, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}44`, backgroundColor: 'rgba(8,14,20,.72)' },
-  companionThumb: { width: 34, height: 34, borderRadius: 17 },
-  companionStage: { fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
-  companionRole: { color: FateDropColors.secondary, fontSize: 11, marginTop: 1 },
-  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 27, lineHeight: 30, fontWeight: '700', marginTop: 10 },
-  heroCopy: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 18, marginTop: 5, maxWidth: 335 },
   matchHero: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 18 },
   matchHeroIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0E`, borderWidth: 1, borderColor: `${FateDropColors.gold}35`, marginBottom: 12 },
   matchHeroEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
