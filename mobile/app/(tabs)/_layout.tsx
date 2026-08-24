@@ -103,7 +103,7 @@ export default function TabLayout() {
               >
                 <View style={styles.emblemHalo}>
                   <Image
-                    source={require('../../assets/images/fatedrop-center-emblem.png')}
+                    source={require('../../assets/images/fatedrop-emblem.webp')}
                     style={styles.emblemImage}
                     contentFit="contain"
                   />
@@ -144,7 +144,7 @@ export default function TabLayout() {
           <Pressable style={styles.toolbox} onPress={() => undefined}>
             <View style={styles.toolboxBrand}>
               <Image
-                source={require('../../assets/images/fatedrop-center-emblem.png')}
+                source={require('../../assets/images/fatedrop-emblem.webp')}
                 style={styles.toolboxEmblem}
                 contentFit="contain"
               />
