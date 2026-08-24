@@ -17,13 +17,13 @@ const signalPresentation=(state:NetworkSignal['state'])=>{
   if(state==='whisper')return{label:'Whisper',companion:'Oru',voice:'Oru spotted movement in the network.',color:FateDropColors.cyan,icon:'eye-outline' as const};
   if(state==='echo')return{label:'Echo',companion:'Fenn',voice:'Fenn picked up readiness activity. Get ready.',color:FateDropColors.violetLight,icon:'flash' as const};
   if(state==='manifested')return{label:'Manifested',companion:'Koru',voice:'Koru found verified purchasable stock. Go now.',color:FateDropColors.mint,icon:'sparkles' as const};
-  return{label:'Vanished',companion:'Nixon',voice:'Nixon saw the verified availability disappear.',color:FateDropColors.coral,icon:'close-circle' as const};
+  return{label:'Vanished',companion:'Nyxen',voice:'Nyxen saw the verified availability disappear.',color:FateDropColors.coral,icon:'close-circle' as const};
 };
 const preferenceLabel=(key:'whisper'|'echo'|'manifested'|'vanished'|'fateMatch'|'priceChange'|'web'|'discord')=>{
   if(key==='whisper')return'Oru · Whisper';
   if(key==='echo')return'Fenn · Echo';
   if(key==='manifested')return'Koru · Manifested';
-  if(key==='vanished')return'Nixon · Vanished';
+  if(key==='vanished')return'Nyxen · Vanished';
   if(key==='fateMatch')return'Koru · FateMatch';
   if(key==='priceChange')return'Price change';
   if(key==='web')return'Web';
@@ -61,19 +61,19 @@ export default function AlertsScreenV2(){
 
   return <SafeAreaView style={styles.safe}><FateDropBackground/><ScrollView contentContainerStyle={styles.content}>
     <FateDropHeader title="Alerts" rightAction={<Pressable onPress={()=>router.push('/fatefind')} style={styles.headerAction}><Ionicons name="telescope" size={18} color={FateDropColors.violetLight}/></Pressable>}/>
-    <AbstractHero eyebrow="Alert network" title="Your friends are hunting the network." subtitle="Oru watches for Whispers. Fenn catches Echoes. Koru confirms Manifested stock. Nixon tracks what Vanishes. Every surface follows the same FateDrop signal." icon="notifications"/>
+    <AbstractHero eyebrow="Alert network" title="Your friends are hunting the network." subtitle="Oru watches for Whispers. Fenn catches Echoes. Koru confirms Manifested stock. Nyxen tracks what Vanishes. Every surface follows the same FateDrop signal." icon="notifications"/>
 
-    <Header eyebrow="NETWORK LIFECYCLE" title="Oru · Fenn · Koru · Nixon"/>
+    <Header eyebrow="NETWORK LIFECYCLE" title="Oru · Fenn · Koru · Nyxen"/>
     <View style={styles.lifecycleGuide}>
       <Guide label="Oru · Whisper" text="Catalogue or product movement. Something may be coming; stock is not confirmed." color={FateDropColors.cyan}/>
       <Guide label="Fenn · Echo" text="Queue, traffic, security or access readiness changed. Get ready; stock is not confirmed." color={FateDropColors.violetLight}/>
       <Guide label="Koru · Manifested" text="Verified purchasable stock is live. Go now." color={FateDropColors.mint}/>
-      <Guide label="Nixon · Vanished" text="Previously verified availability is gone. Check alternatives." color={FateDropColors.coral}/>
+      <Guide label="Nyxen · Vanished" text="Previously verified availability is gone. Check alternatives." color={FateDropColors.coral}/>
     </View>
     <View style={styles.list}>{networkSignals.length ? networkSignals.map((signal)=>{
       const presentation=signalPresentation(signal.state);
       return <Pressable key={signal.id} onPress={()=>openSignal(signal)} style={[styles.networkCard,{borderColor:`${presentation.color}45`}]}><View style={[styles.signalIcon,{backgroundColor:`${presentation.color}16`}]}><Ionicons name={presentation.icon} size={17} color={presentation.color}/></View><View style={styles.copy}><Text style={[styles.signalLabel,{color:presentation.color}]}>{presentation.companion.toUpperCase()} · {presentation.label.toUpperCase()}</Text><Text style={styles.cardTitle}>{signal.title}</Text><Text style={styles.companionVoice}>{presentation.voice}</Text><Text style={styles.cardDetail}>{signal.retailerName||'FateDrop network'} · {signalPrice(signal)} · {ago(signal.detectedAt)}</Text>{signal.reason?<Text style={styles.signalReason}>{signal.reason}</Text>:null}</View><Ionicons name="chevron-forward" size={17} color={FateDropColors.muted}/></Pressable>;
-    }) : <Compact title={networkLoading?'Loading network activity…':'No lifecycle activity available'} text={networkError||'Oru, Fenn, Koru and Nixon will surface real Whisper, Echo, Manifested and Vanished events here from FateDrop Cloud.'}/>}</View>
+    }) : <Compact title={networkLoading?'Loading network activity…':'No lifecycle activity available'} text={networkError||'Oru, Fenn, Koru and Nyxen will surface real Whisper, Echo, Manifested and Vanished events here from FateDrop Cloud.'}/>}</View>
 
     {!signedIn?<View style={styles.empty}><Text style={styles.emptyTitle}>Connect FateDrop ID</Text><Text style={styles.emptyText}>Network alerts remain visible without an account. Sign in to add FateFinds, notification preferences and personal match history.</Text><Pressable onPress={()=>router.push('/account')} style={styles.primary}><Text style={styles.primaryText}>Sign in</Text></Pressable></View>:<>
       <View style={styles.stats}><View style={styles.stat}><Text style={styles.statValue}>{fateFinds.filter(x=>x.enabled!==false).length}</Text><Text style={styles.statLabel}>Hosted FateFinds</Text></View><View style={styles.stat}><Text style={styles.statValue}>{fateMatches.length}</Text><Text style={styles.statLabel}>FateMatches</Text></View></View>
