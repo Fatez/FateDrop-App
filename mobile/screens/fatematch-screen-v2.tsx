@@ -100,7 +100,7 @@ export default function FateMatchScreenV2() {
         <View style={styles.identity}>
           <View style={styles.flex}>
             <Text style={styles.identityLabel}>FATEDROP ID</Text>
-            <Text style={styles.identityValue}>{signedIn ? \`${snapshot?.user.fateId} · ${snapshot?.entitlement.effectiveTier.toUpperCase()}\` : 'Not connected'}</Text>
+            <Text style={styles.identityValue}>{signedIn ? `${snapshot?.user.fateId} · ${snapshot?.entitlement.effectiveTier.toUpperCase()}` : 'Not connected'}</Text>
             <Text style={styles.identitySub}>{signedIn ? (premium ? 'Cloud monitoring capability confirmed.' : 'Account connected; hosted monitoring remains locked.') : 'Sign in so the hunt can run outside this device.'}</Text>
           </View>
           <Pressable onPress={() => router.push('/account')}>
@@ -115,7 +115,7 @@ export default function FateMatchScreenV2() {
               <Text style={styles.premiumTitle}>Hosted FateMatch is Premium</Text>
               <Text style={styles.premiumText}>Membership truth comes from the backend. Upgrade on the website and the capability syncs back to the app.</Text>
             </View>
-            <Pressable onPress={() => void Linking.openURL(\`${website}/subscriptions\`)}>
+            <Pressable onPress={() => void Linking.openURL(`${website}/subscriptions`)}>
               <Text style={styles.upgrade}>PLANS ↗</Text>
             </Pressable>
           </View>
@@ -137,7 +137,7 @@ export default function FateMatchScreenV2() {
               const active = rrpPreset === value;
               return (
                 <Pressable key={value} onPress={() => setRrpPreset(value)} style={[styles.preset, active && styles.presetActive]}>
-                  <Text style={[styles.presetText, active && styles.presetTextActive]}>{value === 'custom' ? 'CUSTOM' : \`${value}%\`}</Text>
+                  <Text style={[styles.presetText, active && styles.presetTextActive]}>{value === 'custom' ? 'CUSTOM' : `${value}%`}</Text>
                 </Pressable>
               );
             })}
@@ -159,7 +159,7 @@ export default function FateMatchScreenV2() {
               ? '0% means below RRP and at RRP qualify; anything above RRP is blocked.'
               : maxPercentAboveRrp == null
                 ? 'Enter the highest premium above RRP you are willing to accept.'
-                : \`Up to +${maxPercentAboveRrp}% above RRP may qualify. Anything higher is blocked.\`}
+                : `Up to +${maxPercentAboveRrp}% above RRP may qualify. Anything higher is blocked.`}
           </Text>
 
           <View style={styles.row}>
@@ -210,7 +210,7 @@ export default function FateMatchScreenV2() {
               <View style={styles.huntIcon}><Ionicons name="radio" size={18} color={FateDropColors.goldBright} /></View>
               <View style={styles.flex}>
                 <Text style={styles.huntTitle}>{queryText}</Text>
-                <Text style={styles.huntMeta}>Watching in Cloud{percent != null ? \` · max +${percent}% vs RRP\` : ''}</Text>
+                <Text style={styles.huntMeta}>Watching in Cloud{percent != null ? ` · max +${percent}% vs RRP` : ''}</Text>
               </View>
               <View style={styles.liveDot} />
             </View>
@@ -227,8 +227,8 @@ export default function FateMatchScreenV2() {
                   <Text style={styles.matchTitle}>{match.title}</Text>
                   <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
                   <Text style={styles.matchPrice}>
-                    {match.itemPricePence != null ? \`£${(match.itemPricePence / 100).toFixed(2)}\` : 'Price unavailable'}
-                    {match.percentAboveRrp != null ? \` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP\` : ''}
+                    {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
+                    {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
                   </Text>
                 </View>
                 <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   back: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 12 },
   backText: { color: FateDropColors.ivory, fontWeight: '800' },
   hero: { position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 12 },
-  heroOrnament: { position: 'absolute', width: 170, height: 170, borderRadius: 85, right: -65, top: -90, borderWidth: 1, borderColor: \`${FateDropColors.gold}28\` },
+  heroOrnament: { position: 'absolute', width: 170, height: 170, borderRadius: 85, right: -65, top: -90, borderWidth: 1, borderColor: `${FateDropColors.gold}28` },
   eyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, lineHeight: 31, fontWeight: '700', marginTop: 7, maxWidth: 330 },
   heroCopy: { color: FateDropColors.secondary, fontSize: 14, lineHeight: 20, marginTop: 8 },
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   identityValue: { color: FateDropColors.ivory, fontWeight: '900', marginTop: 3 },
   identitySub: { color: FateDropColors.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
   identityAction: { color: FateDropColors.goldBright, fontWeight: '900', fontSize: 10 },
-  premium: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 14, borderRadius: 17, backgroundColor: \`${FateDropColors.gold}0D\`, borderWidth: 1, borderColor: \`${FateDropColors.gold}38\`, marginBottom: 12 },
+  premium: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 14, borderRadius: 17, backgroundColor: `${FateDropColors.gold}0D`, borderWidth: 1, borderColor: `${FateDropColors.gold}38`, marginBottom: 12 },
   premiumTitle: { color: FateDropColors.ivory, fontWeight: '900' },
   premiumText: { color: FateDropColors.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
   upgrade: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900' },
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: FateDropColors.ivory, backgroundColor: FateDropColors.card, padding: 13, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, fontSize: 14 },
   presetRow: { flexDirection: 'row', gap: 7 },
   preset: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
-  presetActive: { borderColor: FateDropColors.gold, backgroundColor: \`${FateDropColors.gold}12\` },
+  presetActive: { borderColor: FateDropColors.gold, backgroundColor: `${FateDropColors.gold}12` },
   presetText: { color: FateDropColors.muted, fontSize: 11, fontWeight: '900' },
   presetTextActive: { color: FateDropColors.goldBright },
   ruleExplainer: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17 },
@@ -281,11 +281,11 @@ const styles = StyleSheet.create({
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700', marginTop: 3 },
   sectionAction: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900' },
   huntCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 8 },
-  huntIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: \`${FateDropColors.gold}0D\`, borderWidth: 1, borderColor: \`${FateDropColors.gold}30\` },
+  huntIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0D`, borderWidth: 1, borderColor: `${FateDropColors.gold}30` },
   huntTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900' },
   huntMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: FateDropColors.success },
-  matchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: \`${FateDropColors.manifested}48\`, backgroundColor: FateDropColors.surface, marginTop: 8 },
+  matchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface, marginTop: 8 },
   matchLive: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   matchTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
   matchMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
