@@ -21,7 +21,7 @@ export function ScreenBackground() {
   return (
     <View pointerEvents="none" style={styles.backgroundLayer}>
       <Image
-        source={require('@/assets/images/FDwallpaper.png')}
+        source={require('@/assets/images/fatedrop-portal-hero.png')}
         style={StyleSheet.absoluteFillObject}
         contentFit="cover"
       />
@@ -76,7 +76,7 @@ export function FateDropHeader({
   return (
     <View style={styles.headerShell}>
       <View style={styles.brandGroup}>
-        <View style={styles.headerLogoShell}><Image source={require('@/assets/images/fatedrop-logo.png')} style={styles.headerLogo} contentFit="contain" /></View>
+        <View style={styles.headerLogoShell}><Image source={require('@/assets/images/fatedrop-center-emblem.png')} style={styles.headerLogo} contentFit="contain" /></View>
         <View style={styles.brandTextWrap}>
           <Text style={styles.brandText}>
             Fate<Text style={styles.brandTextAccent}>Drop</Text>
