@@ -14,8 +14,8 @@ test('tabs route to the redesigned Home and canonical Alerts screens', () => {
   assert.match(alertsRoute, /alerts-screen-v3/);
 });
 
-test('Home combines live network, canonical alerts, FateMatch and discovery data', () => {
-  assert.match(home, /\/api\/status/);
+test('Home combines canonical alerts, FateMatch and discovery without monitor-health clutter', () => {
+  assert.doesNotMatch(home, /\/api\/status/);
   assert.match(home, /fetchCanonicalAlerts/);
   assert.match(home, /\/api\/calendar-events/);
   assert.match(home, /FATEMATCH/);
