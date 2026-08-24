@@ -106,7 +106,7 @@ export default function HomeScreenV2() {
         </View>
 
         <View style={styles.hero}>
-          <Image source={require('../assets/images/alert-koru-hero.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <Image source={require('../assets/images/alert-koru.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
           <View style={styles.heroShade} />
           <View style={styles.heroContent}>
             <View style={styles.networkPill}>
