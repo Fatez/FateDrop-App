@@ -6,17 +6,11 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
-import { API_BASE_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
+import { API_BASE_URL } from '@/constants/api';
 import { FateDropColors, FateDropLifecycleColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 
-type RetailerHealth = { id: string; name: string; healthy: boolean; baselineCompleted?: boolean; productsSeen?: number | null };
-type StatusResponse = {
-  success?: boolean;
-  monitor?: { productsTracked?: number; currentlyAvailable?: number; retailers?: number };
-  state?: { retailers?: RetailerHealth[] };
-};
 type HomeEvent = { id: string; name: string; startDateTime?: string; venueName?: string; townCity?: string; postcode?: string };
 
 const stageLabels: Record<CanonicalAlertStage, string> = {
@@ -38,7 +32,6 @@ function ago(value: string) {
 
 export default function HomeScreenV2() {
   const { signedIn, snapshot } = useFateDropId();
-  const [status, setStatus] = useState<StatusResponse | null>(null);
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [events, setEvents] = useState<HomeEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,11 +39,7 @@ export default function HomeScreenV2() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusResult, alertResult, eventResult] = await Promise.allSettled([
-        fetch(`${SIGNAL_ENGINE_URL}/api/status`).then(async (response) => {
-          if (!response.ok) throw new Error(`Status HTTP ${response.status}`);
-          return await response.json() as StatusResponse;
-        }),
+      const [alertResult, eventResult] = await Promise.allSettled([
         signedIn ? fetchCanonicalAlerts(100) : Promise.resolve([]),
         fetch(`${API_BASE_URL}/api/calendar-events`).then(async (response) => {
           if (!response.ok) throw new Error(`Events HTTP ${response.status}`);
@@ -58,7 +47,6 @@ export default function HomeScreenV2() {
           return data.events ?? [];
         }),
       ]);
-      setStatus(statusResult.status === 'fulfilled' ? statusResult.value : null);
       setAlerts(alertResult.status === 'fulfilled' ? alertResult.value : []);
       setEvents(eventResult.status === 'fulfilled' ? eventResult.value : []);
     } finally {
@@ -70,17 +58,12 @@ export default function HomeScreenV2() {
     void load();
   }, [load]));
 
-  const retailers = status?.state?.retailers ?? [];
-  const healthy = retailers.filter((retailer) => retailer.healthy && retailer.baselineCompleted !== false).length;
-  const networkMeasured = Boolean(status?.success);
-  const networkActive = networkMeasured && healthy > 0;
   const activeFateMatches = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
-  const healthPercent = retailers.length ? Math.round((healthy / retailers.length) * 100) : null;
   const upcomingEvents = events
     .filter((event) => !event.startDateTime || Date.parse(event.startDateTime) >= Date.now())
     .sort((a, b) => (Date.parse(a.startDateTime || '') || Infinity) - (Date.parse(b.startDateTime || '') || Infinity));
-  const displayName = snapshot?.user.displayName?.trim();
-  const greeting = displayName ? `Welcome, ${displayName}.` : 'Welcome, Seeker.';
+  const identityName = snapshot?.user.displayName?.trim() || snapshot?.user.handle?.trim() || 'Seeker';
+  const greeting = `Welcome, ${identityName}.`;
   const counts = useMemo(() => ({
     WHISPER: alerts.filter((alert) => alert.fateStage === 'WHISPER').length,
     ECHO: alerts.filter((alert) => alert.fateStage === 'ECHO').length,
@@ -113,30 +96,22 @@ export default function HomeScreenV2() {
           <Image
             source={require('../assets/images/home-koru-hero.webp')}
             style={StyleSheet.absoluteFillObject}
-            contentFit="cover"
+            contentFit="contain"
             contentPosition="center"
             transition={180}
           />
           <View style={styles.heroShade} />
-          <View style={styles.heroTop}>
-            <View style={styles.networkPill}>
-              <View style={[styles.networkDot, !networkActive && styles.networkDotQuiet]} />
-              <Text style={[styles.networkText, !networkActive && styles.networkTextQuiet]}>
-                {networkActive ? `${healthy} MONITORS HEALTHY` : networkMeasured ? 'NETWORK QUIET / DEGRADED' : 'STATUS UNAVAILABLE'}
-              </Text>
-            </View>
-          </View>
           <View style={styles.heroContent}>
-            <Text style={styles.heroEyebrow}>{signedIn ? 'YOUR FATEDROP NETWORK' : 'THE SIGNAL IS ALWAYS MOVING'}</Text>
+            <Text style={styles.heroEyebrow}>{signedIn ? 'YOUR FATEDROP' : 'THE SIGNAL IS ALWAYS MOVING'}</Text>
             <Text style={styles.heroTitle}>{greeting}</Text>
-            <Text style={styles.heroCopy}>Koru is listening. FateDrop keeps live evidence, value intelligence and your personal hunts together.</Text>
+            <Text style={styles.heroCopy}>Koru is listening. Find live value, follow your hunts and stay close to the signal.</Text>
           </View>
         </View>
 
         <View style={styles.sectionHead}>
           <View>
             <Text style={styles.sectionEyebrow}>SIGNAL OVERVIEW</Text>
-            <Text style={styles.sectionTitle}>Your recent network</Text>
+            <Text style={styles.sectionTitle}>Your recent signals</Text>
           </View>
           <Pressable onPress={() => router.push('/alerts')}><Text style={styles.sectionAction}>VIEW ALL →</Text></Pressable>
         </View>
@@ -145,7 +120,6 @@ export default function HomeScreenV2() {
           <OverviewMetric label="ECHO" value={signedIn ? counts.ECHO : null} color={FateDropColors.echo} />
           <OverviewMetric label="MANIFESTED" value={signedIn ? counts.MANIFESTED : null} color={FateDropColors.manifested} />
           <OverviewMetric label="FATEMATCH" value={signedIn ? activeFateMatches : null} color={FateDropColors.goldBright} />
-          <OverviewMetric label="NETWORK" value={healthPercent} suffix={healthPercent == null ? '' : '%'} color={networkActive ? FateDropColors.success : FateDropColors.warning} />
         </View>
 
         <View style={styles.sectionHead}>
@@ -237,15 +211,6 @@ export default function HomeScreenV2() {
           )}
         </View>
 
-        <Pressable onPress={() => router.push('/network')} style={({ pressed }) => [styles.networkCard, pressed && styles.pressed]}>
-          <View style={styles.networkCardIcon}><Ionicons name="pulse-outline" size={21} color={networkActive ? FateDropColors.success : FateDropColors.warning} /></View>
-          <View style={styles.flex}>
-            <Text style={styles.networkCardEyebrow}>NETWORK HEALTH</Text>
-            <Text style={styles.networkCardTitle}>{networkActive ? 'Evidence is flowing.' : 'Inspect source health.'}</Text>
-            <Text style={styles.networkCardCopy}>See which retailer monitors are live, healthy, pending or degraded.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={FateDropColors.gold} />
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -289,23 +254,17 @@ function AlertPreview({ alert }: { alert: CanonicalMobileAlert }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
-  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 68, paddingTop: 8, paddingBottom: 10 },
-  brandWordmarkImage: { width: 184, height: 54 },
-  headerAlert: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, alignItems: 'center', justifyContent: 'center' },
+  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 76, paddingTop: 8, paddingBottom: 8, zIndex: 4 },
+  brandWordmarkImage: { width: 210, height: 58 },
+  headerAlert: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(12,16,24,.72)', alignItems: 'center', justifyContent: 'center' },
   headerBadge: { position: 'absolute', right: -3, top: -3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, backgroundColor: FateDropColors.vanished, alignItems: 'center', justifyContent: 'center' },
   headerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  hero: { height: 370, borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.card, marginBottom: 22, position: 'relative' },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,13,.22)' },
-  heroTop: { position: 'absolute', left: 16, right: 16, top: 16, zIndex: 2 },
-  heroContent: { position: 'absolute', left: 14, right: 14, bottom: 14, zIndex: 3, padding: 16, borderRadius: 18, backgroundColor: 'rgba(6,10,18,.76)', borderWidth: 1, borderColor: `${FateDropColors.gold}36` },
-  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: 5 },
-  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.success}55`, backgroundColor: 'rgba(8,14,20,.74)' },
-  networkDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: FateDropColors.success },
-  networkDotQuiet: { backgroundColor: FateDropColors.warning },
-  networkText: { color: FateDropColors.success, fontSize: 11, fontWeight: '900', letterSpacing: .7 },
-  networkTextQuiet: { color: FateDropColors.warning },
-  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 31, lineHeight: 34, fontWeight: '700' },
-  heroCopy: { color: FateDropColors.ivory, fontSize: 14, lineHeight: 20, marginTop: 7, maxWidth: 330 },
+  hero: { height: 500, marginHorizontal: -18, marginBottom: 22, overflow: 'hidden', position: 'relative' },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,6,13,.08)' },
+  heroContent: { position: 'absolute', left: 24, right: 138, bottom: 28, zIndex: 3 },
+  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: 6, textShadowColor: 'rgba(0,0,0,.85)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
+  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 30, lineHeight: 34, fontWeight: '700', textShadowColor: 'rgba(0,0,0,.9)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
+  heroCopy: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 18, marginTop: 7, maxWidth: 245, textShadowColor: 'rgba(0,0,0,.9)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 },
   sectionEyebrow: { color: FateDropColors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700', marginTop: 3 },
@@ -343,11 +302,6 @@ const styles = StyleSheet.create({
   emptyPreview: { flexDirection: 'row', gap: 11, alignItems: 'center', padding: 16, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   emptyTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
   emptyCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, marginTop: 3 },
-  networkCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
-  networkCardIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.card },
-  networkCardEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: .9 },
-  networkCardTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900', marginTop: 2 },
-  networkCardCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   flex: { flex: 1 },
   pressed: { opacity: .78, transform: [{ scale: .99 }] },
 });
