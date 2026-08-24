@@ -16,7 +16,7 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="index"/);
   assert.match(tabs, /name="alerts"/);
   assert.match(tabs, /name="tools"/);
-  assert.match(tabs, /fatedrop-center-emblem\.png/);
+  assert.match(tabs, /fatedrop-emblem\\.webp/);
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /title="FateFind"/);
