@@ -68,3 +68,12 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
 
   assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
 });
+
+
+test('final Home art assets are real production images, not tiny placeholders', () => {
+  const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
+  const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.webp'));
+
+  assert.ok(hero.size > 30000, `Koru hero unexpectedly small: ${hero.size} bytes`);
+  assert.ok(wordmark.size > 50000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
+});
