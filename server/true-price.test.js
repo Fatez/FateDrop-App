@@ -61,3 +61,19 @@ test('drops conflicting canonical evidence rather than guessing which retailer i
   assert.equal(groups[0].unitRrpGbp, undefined);
   assert.equal(groups[0].valueFamilyKey, 'destined-rivals-booster-packs');
 });
+
+test('does not expose unverified or internally conflicting RRP evidence to clients', () => {
+  const noSource = product('a');
+  delete noSource.rrpSource;
+  const [unverified] = truePriceGroups({ a: noSource }, 'Destined Rivals 4 Pack');
+  assert.equal(unverified.rrpKind, undefined);
+  assert.equal(unverified.unitRrpGbp, undefined);
+  assert.equal(unverified.unitCount, 4);
+  assert.equal(unverified.unitKind, 'booster_pack');
+
+  const conflicting = product('b', { rrpGbp: 99 });
+  const [invalid] = truePriceGroups({ b: conflicting }, 'Destined Rivals 4 Pack');
+  assert.equal(invalid.rrpGbp, undefined);
+  assert.equal(invalid.unitRrpGbp, undefined);
+  assert.equal(invalid.rrpSource, undefined);
+});

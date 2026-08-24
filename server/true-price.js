@@ -41,6 +41,21 @@ function mergeEvidence(group, product) {
   }
 }
 
+function discardRrpEvidence(group) {
+  for (const field of ['rrpGbp', 'rrpSource', 'rrpKind', 'rrpObservedAt', 'rrpReferenceBasis', 'unitRrpGbp']) delete group[field];
+}
+
+function hasVerifiedRrpEvidence(group) {
+  const source = evidenceValue(group, 'rrpSource', 'string');
+  if (!source) return false;
+  const direct = evidenceValue(group, 'rrpGbp', 'positive');
+  const unit = evidenceValue(group, 'unitRrpGbp', 'positive');
+  const count = evidenceValue(group, 'unitCount', 'positiveInteger');
+  const scaled = unit !== null && count !== null ? unit * count : null;
+  if (direct !== null && scaled !== null && Math.abs(direct - scaled) > 0.005) return false;
+  return direct !== null || scaled !== null;
+}
+
 function offerFromLegacy(product) {
   const compact = compactProduct(product);
   const shipping = Number.isFinite(product.shippingGbp) ? product.shippingGbp : undefined;
@@ -91,6 +106,7 @@ function truePriceGroups(database, query = '') {
       .sort((a, b) => a.totalDeliveredGbp - b.totalDeliveredGbp);
     const lowest = known[0]?.totalDeliveredGbp;
     const { _evidenceConflicts, ...publicGroup } = group;
+    if (!hasVerifiedRrpEvidence(publicGroup)) discardRrpEvidence(publicGroup);
     return {
       ...publicGroup,
       retailerCount: new Set(group.offers.map((offer) => offer.retailerId)).size,
