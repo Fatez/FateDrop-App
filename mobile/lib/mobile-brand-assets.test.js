@@ -21,11 +21,19 @@ test('shared brand header uses the supplied FateDrop wordmark and emblem', () =>
   assert.doesNotMatch(shared, /brandTextAccent/);
 });
 
-test('Home uses the final Koru hero and greets the FateDrop ID display name', () => {
+test('Home uses the final Koru hero and canonical FateDrop ID identity greeting', () => {
   assert.match(home, /home-koru-hero\.webp/);
   assert.match(home, /snapshot\?\.user\.displayName\?\.trim\(\)/);
-  assert.match(home, /Welcome, \$\{displayName\}/);
+  assert.match(home, /snapshot\?\.user\.handle\?\.trim\(\)/);
+  assert.match(home, /Welcome, \$\{identityName\}/);
   assert.match(home, /fatedrop-wordmark\.webp/);
+});
+
+test('Home keeps monitor health out of the welcome experience', () => {
+  assert.doesNotMatch(home, /MONITORS HEALTHY/);
+  assert.doesNotMatch(home, /NETWORK HEALTH/);
+  assert.doesNotMatch(home, /label="NETWORK"/);
+  assert.doesNotMatch(home, /\/api\/status/);
 });
 
 test('center tool launcher uses the final compact FateDrop emblem', () => {
