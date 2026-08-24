@@ -18,7 +18,8 @@ type Tool = {
 };
 
 const collectorTools: Tool[] = [
-  { title: 'FateFind', detail: 'Hosted hunts with price and stock rules.', icon: 'telescope-outline', path: '/fatefind', color: FateDropColors.violetLight },
+  { title: 'FateFind', detail: 'Find the strongest-value live buying option now.', icon: 'telescope-outline', path: '/fatefind', color: FateDropColors.violetLight },
+  { title: 'FateMatch', detail: 'Let your companion watch for stock and alert you when it goes live.', icon: 'notifications-outline', path: '/fatematch', color: FateDropColors.mint },
   { title: 'True Price', detail: 'Compare item price, RRP and known delivery.', icon: 'swap-horizontal-outline', path: '/true-price', color: FateDropColors.cyan },
   { title: 'Wishlist', detail: 'Keep products saved across the collector journey.', icon: 'bookmark-outline', path: '/(tabs)/watchlist', color: FateDropColors.violetLight },
   { title: 'Local Radar', detail: 'Nearby shops and collector events.', icon: 'navigate-outline', path: '/local-radar', color: FateDropColors.blue, feature: 'localRadar' },
@@ -63,7 +64,7 @@ export default function MoreScreenV2() {
       <View style={styles.heroGlow} />
       <Text style={styles.heroEyebrow}>THE REST OF THE NETWORK</Text>
       <Text style={styles.heroTitle}>Powerful tools without cluttering the core tabs.</Text>
-      <Text style={styles.heroCopy}>Home, Search, Indies and Alerts stay focused. Hunts, local discovery, events, identity and companion controls live here when you need them.</Text>
+      <Text style={styles.heroCopy}>Home, Search, Indies and Alerts stay focused. FateFind handles best value now; FateMatch handles the stock watch. Local discovery, events, identity and companion controls live here when you need them.</Text>
     </View>
 
     <View style={styles.sectionHead}><Text style={styles.sectionEyebrow}>COLLECTOR TOOLS</Text><Text style={styles.sectionCount}>{visibleCollectorTools.length}</Text></View>
