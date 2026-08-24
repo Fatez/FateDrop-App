@@ -15,6 +15,13 @@ function walk(dir) {
   });
 }
 
+function resolveRequiredAsset(sourceFile, request) {
+  if (request.startsWith('@/')) {
+    return path.join(mobileRoot, request.slice(2));
+  }
+  return path.resolve(path.dirname(sourceFile), request);
+}
+
 test('every statically required mobile image exists on disk', () => {
   const missing = [];
 
@@ -27,7 +34,7 @@ test('every statically required mobile image exists on disk', () => {
       const requirePattern = /require\((['"])([^'"]+\.(?:png|jpe?g|webp|gif))\1\)/g;
 
       for (const match of source.matchAll(requirePattern)) {
-        const requiredPath = path.resolve(path.dirname(file), match[2]);
+        const requiredPath = resolveRequiredAsset(file, match[2]);
         if (!fs.existsSync(requiredPath)) {
           missing.push(`${path.relative(mobileRoot, file)} -> ${match[2]}`);
         }
