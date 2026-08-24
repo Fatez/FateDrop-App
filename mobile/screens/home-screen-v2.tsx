@@ -6,7 +6,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
-import { SIGNAL_ENGINE_URL } from '@/constants/api';
+import { API_BASE_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors, FateDropLifecycleColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
@@ -17,6 +17,7 @@ type StatusResponse = {
   monitor?: { productsTracked?: number; currentlyAvailable?: number; retailers?: number };
   state?: { retailers?: RetailerHealth[] };
 };
+type HomeEvent = { id: string; name: string; startDateTime?: string; venueName?: string; townCity?: string; postcode?: string };
 
 const stageLabels: Record<CanonicalAlertStage, string> = {
   WHISPER: 'Whisper',
@@ -36,23 +37,30 @@ function ago(value: string) {
 }
 
 export default function HomeScreenV2() {
-  const { signedIn } = useFateDropId();
+  const { signedIn, snapshot } = useFateDropId();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
+  const [events, setEvents] = useState<HomeEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusResult, alertResult] = await Promise.allSettled([
+      const [statusResult, alertResult, eventResult] = await Promise.allSettled([
         fetch(`${SIGNAL_ENGINE_URL}/api/status`).then(async (response) => {
           if (!response.ok) throw new Error(`Status HTTP ${response.status}`);
           return await response.json() as StatusResponse;
         }),
         signedIn ? fetchCanonicalAlerts(100) : Promise.resolve([]),
+        fetch(`${API_BASE_URL}/api/calendar-events`).then(async (response) => {
+          if (!response.ok) throw new Error(`Events HTTP ${response.status}`);
+          const data = await response.json() as { events?: HomeEvent[] };
+          return data.events ?? [];
+        }),
       ]);
       setStatus(statusResult.status === 'fulfilled' ? statusResult.value : null);
       setAlerts(alertResult.status === 'fulfilled' ? alertResult.value : []);
+      setEvents(eventResult.status === 'fulfilled' ? eventResult.value : []);
     } finally {
       setLoading(false);
     }
@@ -66,6 +74,11 @@ export default function HomeScreenV2() {
   const healthy = retailers.filter((retailer) => retailer.healthy && retailer.baselineCompleted !== false).length;
   const networkMeasured = Boolean(status?.success);
   const networkActive = networkMeasured && healthy > 0;
+  const activeFateMatches = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
+  const healthPercent = retailers.length ? Math.round((healthy / retailers.length) * 100) : null;
+  const upcomingEvents = events
+    .filter((event) => !event.startDateTime || Date.parse(event.startDateTime) >= Date.now())
+    .sort((a, b) => (Date.parse(a.startDateTime || '') || Infinity) - (Date.parse(b.startDateTime || '') || Infinity));
   const counts = useMemo(() => ({
     WHISPER: alerts.filter((alert) => alert.fateStage === 'WHISPER').length,
     ECHO: alerts.filter((alert) => alert.fateStage === 'ECHO').length,
@@ -81,15 +94,16 @@ export default function HomeScreenV2() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
       >
-        <FateDropHeader
-          subtitle="COLLECTOR FIRST"
-          rightAction={
-            <Pressable onPress={() => router.push('/alerts')} style={styles.headerAlert}>
-              <Ionicons name="notifications-outline" size={18} color={FateDropColors.ivory} />
-              {alerts.length ? <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{Math.min(alerts.length, 9)}</Text></View> : null}
-            </Pressable>
-          }
-        />
+        <View style={styles.brandHeader}>
+          <View>
+            <Text style={styles.brandWordmark}>FATEDROP</Text>
+            <Text style={styles.brandTagline}>COLLECTOR FIRST</Text>
+          </View>
+          <Pressable onPress={() => router.push('/alerts')} style={styles.headerAlert}>
+            <Ionicons name="notifications-outline" size={18} color={FateDropColors.ivory} />
+            {alerts.length ? <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{Math.min(alerts.length, 9)}</Text></View> : null}
+          </Pressable>
+        </View>
 
         <View style={styles.hero}>
           <Image source={require('../assets/images/alert-koru-hero.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
@@ -101,8 +115,8 @@ export default function HomeScreenV2() {
                 {networkActive ? `${healthy} MONITORS HEALTHY` : networkMeasured ? 'NETWORK QUIET / DEGRADED' : 'STATUS UNAVAILABLE'}
               </Text>
             </View>
-            <Text style={styles.heroTitle}>Welcome back, Seeker.</Text>
-            <Text style={styles.heroCopy}>The signal is always moving. FateDrop keeps the evidence, price context and alerts in one place.</Text>
+            <Text style={styles.heroTitle}>Welcome back{snapshot?.user.displayName ? `, ${snapshot.user.displayName}` : ', Seeker'}.</Text>
+            <Text style={styles.heroCopy}>Koru is listening. FateDrop keeps the live evidence, value context and your personal hunts together.</Text>
           </View>
         </View>
 
@@ -115,9 +129,10 @@ export default function HomeScreenV2() {
         </View>
 
         <View style={styles.signalGrid}>
-          {(Object.keys(stageLabels) as CanonicalAlertStage[]).map((stage) => (
-            <SignalMetric key={stage} stage={stage} count={signedIn ? counts[stage] : null} />
-          ))}
+          <OverviewMetric label="ECHO" value={signedIn ? counts.ECHO : null} color={FateDropColors.echo} />
+          <OverviewMetric label="MANIFESTED" value={signedIn ? counts.MANIFESTED : null} color={FateDropColors.manifested} />
+          <OverviewMetric label="FATEMATCH" value={signedIn ? activeFateMatches : null} color={FateDropColors.goldBright} />
+          <OverviewMetric label="NETWORK" value={healthPercent} suffix={healthPercent == null ? '' : '%'} color={networkActive ? FateDropColors.success : FateDropColors.warning} />
         </View>
 
         <View style={styles.sectionHead}>
@@ -160,6 +175,38 @@ export default function HomeScreenV2() {
 
         <View style={styles.sectionHead}>
           <View>
+            <Text style={styles.sectionEyebrow}>DISCOVER NEARBY</Text>
+            <Text style={styles.sectionTitle}>Local Radar & encounters</Text>
+          </View>
+        </View>
+
+        <View style={styles.discoveryGrid}>
+          <Pressable onPress={() => router.push('/local-radar')} style={({ pressed }) => [styles.discoveryCard, pressed && styles.pressed]}>
+            <View style={styles.discoveryIcon}><Ionicons name="navigate-outline" size={22} color={FateDropColors.goldBright} /></View>
+            <Text style={styles.discoveryTitle}>Local Radar</Text>
+            <Text style={styles.discoveryCopy}>Nearby trusted shops, events and collector activity using the existing privacy-first location flow.</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/encounters')} style={({ pressed }) => [styles.discoveryCard, pressed && styles.pressed]}>
+            <View style={styles.discoveryIcon}><Ionicons name="calendar-outline" size={22} color={FateDropColors.goldBright} /></View>
+            <Text style={styles.discoveryTitle}>Fate Encounters</Text>
+            <Text style={styles.discoveryCopy}>{upcomingEvents.length ? `${upcomingEvents.length} upcoming event${upcomingEvents.length === 1 ? '' : 's'} in the current feed.` : 'Browse the current events feed.'}</Text>
+          </Pressable>
+        </View>
+
+        {upcomingEvents[0] ? (
+          <Pressable onPress={() => router.push({ pathname: '/encounters/detail', params: { id: upcomingEvents[0].id } })} style={({ pressed }) => [styles.eventPreview, pressed && styles.pressed]}>
+            <View style={styles.eventIcon}><Ionicons name="sparkles-outline" size={20} color={FateDropColors.goldBright} /></View>
+            <View style={styles.flex}>
+              <Text style={styles.eventEyebrow}>NEXT COMMUNITY SIGNAL</Text>
+              <Text style={styles.eventTitle}>{upcomingEvents[0].name}</Text>
+              <Text style={styles.eventMeta}>{upcomingEvents[0].startDateTime ? new Date(upcomingEvents[0].startDateTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Date TBC'} · {upcomingEvents[0].venueName || upcomingEvents[0].townCity || upcomingEvents[0].postcode || 'Venue TBC'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={FateDropColors.gold} />
+          </Pressable>
+        ) : null}
+
+        <View style={styles.sectionHead}>
+          <View>
             <Text style={styles.sectionEyebrow}>LATEST ACTIVITY</Text>
             <Text style={styles.sectionTitle}>Signals worth seeing</Text>
           </View>
@@ -191,14 +238,13 @@ export default function HomeScreenV2() {
   );
 }
 
-function SignalMetric({ stage, count }: { stage: CanonicalAlertStage; count: number | null }) {
-  const color = FateDropLifecycleColors[stage];
+function OverviewMetric({ label, value, suffix = '', color }: { label: string; value: number | null; suffix?: string; color: string }) {
   return (
-    <Pressable onPress={() => router.push({ pathname: '/alerts', params: { stage } })} style={({ pressed }) => [styles.signalMetric, pressed && styles.pressed]}>
+    <View style={styles.signalMetric}>
       <View style={[styles.signalGlyph, { borderColor: `${color}55` }]}><View style={[styles.signalDot, { backgroundColor: color }]} /></View>
-      <Text style={styles.signalValue}>{count == null ? '—' : count}</Text>
-      <Text style={[styles.signalLabel, { color }]}>{stageLabels[stage].toUpperCase()}</Text>
-    </Pressable>
+      <Text style={styles.signalValue}>{value == null ? '—' : `${value}${suffix}`}</Text>
+      <Text style={[styles.signalLabel, { color }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -230,6 +276,9 @@ function AlertPreview({ alert }: { alert: CanonicalMobileAlert }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
+  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  brandWordmark: { color: FateDropColors.goldBright, fontFamily: Fonts?.serif, fontSize: 27, fontWeight: '700', letterSpacing: 1.4 },
+  brandTagline: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 2.1, marginTop: 1 },
   headerAlert: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, alignItems: 'center', justifyContent: 'center' },
   headerBadge: { position: 'absolute', right: -3, top: -3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, backgroundColor: FateDropColors.vanished, alignItems: 'center', justifyContent: 'center' },
   headerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
@@ -254,6 +303,16 @@ const styles = StyleSheet.create({
   signalValue: { color: FateDropColors.ivory, fontSize: 21, fontWeight: '900' },
   signalLabel: { fontSize: 9, fontWeight: '900', letterSpacing: .5, marginTop: 2 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 24 },
+  discoveryGrid: { flexDirection: 'row', gap: 9, marginBottom: 10 },
+  discoveryCard: { flex: 1, minHeight: 150, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
+  discoveryIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}38`, backgroundColor: `${FateDropColors.gold}0D`, marginBottom: 10 },
+  discoveryTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, fontWeight: '700' },
+  discoveryCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 5 },
+  eventPreview: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 24 },
+  eventIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0D`, borderWidth: 1, borderColor: `${FateDropColors.gold}30` },
+  eventEyebrow: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 0.9 },
+  eventTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  eventMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   quickCard: { width: '48.5%', minHeight: 142, alignItems: 'center', justifyContent: 'center', padding: 13, borderRadius: 18, borderWidth: 1, backgroundColor: FateDropColors.surface },
   quickIcon: { width: 50, height: 50, borderRadius: 25, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   quickTitle: { color: FateDropColors.goldBright, fontFamily: Fonts?.serif, fontSize: 16, fontWeight: '700', textAlign: 'center' },
