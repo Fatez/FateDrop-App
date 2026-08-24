@@ -30,7 +30,7 @@ test('RRP wording is a comparison baseline, not a retailer price promise', () =>
   assert.match(screen, /can still price above or below it/);
 });
 
-test('bottom navigation exposes the retailer hub without route churn', () => {
-  assert.match(tabs, /name="indies"/);
-  assert.match(tabs, /title: 'Retailers'/);
+test('retailer hub remains routable without occupying a primary bottom-tab slot', () => {
+  assert.match(tabs, /<Tabs\.Screen name="indies" options=\{\{ href: null \}\} \/>/);
+  assert.doesNotMatch(tabs, /name="indies"[\s\S]{0,220}title:\s*'Retailers'/);
 });
