@@ -134,10 +134,10 @@ export default function AlertsScreenV3() {
         />
 
         {view === 'signals' ? (
-          <View style={[styles.signalHero, { borderColor: `${activeMeta.color}55` }]}>
+          <View style={styles.signalHero}>
             <Image
               source={activeMeta.hero}
-              style={StyleSheet.absoluteFillObject}
+              style={styles.signalHeroImage}
               contentFit="cover"
               contentPosition="center"
               transition={160}
@@ -405,7 +405,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
   headerButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
-  signalHero: { height: 205, borderRadius: 22, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card, marginBottom: 12 },
+  signalHero: { height: 232, marginHorizontal: -18, marginTop: -4, marginBottom: 4, overflow: 'hidden', backgroundColor: 'transparent' },
+  signalHeroImage: { ...StyleSheet.absoluteFillObject, opacity: 0.96, transform: [{ scale: 1.025 }] },
   viewSwitch: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 10 },
   viewOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 11 },
   viewOptionActive: { backgroundColor: `${FateDropColors.gold}12`, borderWidth: 1, borderColor: `${FateDropColors.gold}45` },
