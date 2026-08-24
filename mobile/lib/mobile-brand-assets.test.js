@@ -6,25 +6,23 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-const shared = read('components/fatedrop-ui.tsx');
-const brandHeader = read('components/fatedrop-wordmark-header.tsx');
-const brandOverride = read('components/fatedrop-ui-brand.tsx');
-const tsconfig = read('tsconfig.json');
+const sharedBarrel = read('components/fatedrop-ui.tsx');
+const sharedLegacy = read('components/fatedrop-ui-legacy.tsx');
+const brandHeader = read('components/fatedrop-brand-header.tsx');
 const home = read('screens/home-screen-v2.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
-  assert.match(shared, /app-background-cosmic\.webp/);
-  assert.doesNotMatch(shared, /fatedrop-portal-hero\.png/);
+  assert.match(sharedLegacy, /app-background-cosmic\.webp/);
+  assert.doesNotMatch(sharedLegacy, /fatedrop-portal-hero\.png/);
 });
 
 test('shared app header is wordmark-only with no legacy emblem box', () => {
+  assert.match(sharedBarrel, /FateDropBrandHeader as FateDropHeader/);
   assert.match(brandHeader, /fatedrop-wordmark\.png/);
   assert.doesNotMatch(brandHeader, /fatedrop-emblem\.webp/);
   assert.doesNotMatch(brandHeader, /headerLogoShell/);
-  assert.match(brandOverride, /FateDropHeader/);
-  assert.match(tsconfig, /fatedrop-ui-brand\.tsx/);
 });
 
 test('Home uses the final Koru hero and canonical FateDrop ID identity greeting', () => {
