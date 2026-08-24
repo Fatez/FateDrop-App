@@ -111,7 +111,7 @@ export default function HomeScreenV2() {
 
         <View style={styles.hero}>
           <Image
-            source={require('../assets/images/home-koru-hero.jpg')}
+            source={require('../assets/images/home-koru-hero.webp')}
             style={StyleSheet.absoluteFillObject}
             contentFit="cover"
             contentPosition="center"
