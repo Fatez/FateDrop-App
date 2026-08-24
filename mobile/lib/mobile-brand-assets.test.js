@@ -32,3 +32,31 @@ test('center tool launcher uses the final compact FateDrop emblem', () => {
   assert.match(tabs, /fatedrop-emblem\.webp/);
   assert.doesNotMatch(tabs, /fatedrop-center-emblem\.png/);
 });
+
+
+function walkTsx(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return walkTsx(full);
+    return entry.name.endsWith('.tsx') ? [full] : [];
+  });
+}
+
+test('every rendered mobile page keeps the shared FateDrop background', () => {
+  const files = [
+    ...walkTsx(path.join(root, 'screens')),
+    ...walkTsx(path.join(root, 'app')),
+  ];
+
+  const missing = [];
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    if (!source.includes('SafeAreaView')) continue;
+    if (!source.includes('FateDropBackground') && !source.includes('ScreenBackground')) {
+      missing.push(path.relative(root, file));
+    }
+  }
+
+  assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
+});
