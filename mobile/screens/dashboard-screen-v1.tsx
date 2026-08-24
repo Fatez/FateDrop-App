@@ -30,8 +30,8 @@ export default function DashboardScreenV1() {
     setError(null);
     try {
       const [network] = await Promise.all([
-        fetch(\`${SIGNAL_ENGINE_URL}/api/status\`).then(async (response) => {
-          if (!response.ok) throw new Error(\`Status HTTP ${response.status}\`);
+        fetch(`${SIGNAL_ENGINE_URL}/api/status`).then(async (response) => {
+          if (!response.ok) throw new Error(`Status HTTP ${response.status}`);
           return await response.json() as StatusResponse;
         }),
         signedIn ? refresh().catch(() => null) : Promise.resolve(null),
@@ -97,14 +97,14 @@ export default function DashboardScreenV1() {
           <MetricCard label="PRODUCTS TRACKED" value={metric(status?.monitor?.productsTracked)} />
           <MetricCard label="AVAILABLE NOW" value={metric(status?.monitor?.currentlyAvailable)} />
           <MetricCard label="HEALTHY MONITORS" value={status?.success ? String(healthy) : '—'} />
-          <MetricCard label="NETWORK HEALTH" value={healthPercent == null ? '—' : \`${healthPercent}%\`} tone={healthPercent != null && healthPercent < 100 ? FateDropColors.warning : undefined} />
+          <MetricCard label="NETWORK HEALTH" value={healthPercent == null ? '—' : `${healthPercent}%`} tone={healthPercent != null && healthPercent < 100 ? FateDropColors.warning : undefined} />
         </View>
 
         <Section title="Optimisation visibility" eyebrow="SYSTEM">
-          <DashboardRow icon="pulse-outline" title="Retailer monitors" detail={status?.success ? \`${healthy} healthy · ${attention} need attention\` : 'Live status unavailable'} onPress={() => router.push('/network')} />
-          <DashboardRow icon="radio-outline" title="FateMatch hunts" detail={signedIn ? \`${activeHunts} active · ${matches} synced match result${matches === 1 ? '' : 's'}\` : 'Sign in to inspect personal monitoring'} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { view: 'matches' } })} />
+          <DashboardRow icon="pulse-outline" title="Retailer monitors" detail={status?.success ? `${healthy} healthy · ${attention} need attention` : 'Live status unavailable'} onPress={() => router.push('/network')} />
+          <DashboardRow icon="radio-outline" title="FateMatch hunts" detail={signedIn ? `${activeHunts} active · ${matches} synced match result${matches === 1 ? '' : 's'}` : 'Sign in to inspect personal monitoring'} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { view: 'matches' } })} />
           <DashboardRow icon="notifications-outline" title="Delivery channels" detail={channelSummary} onPress={() => router.push('/notification-preferences')} />
-          <DashboardRow icon="sync-outline" title="Account sync" detail={snapshot ? \`Last synced ${new Date(snapshot.syncedAt * 1000).toLocaleString('en-GB')}\` : 'No account snapshot loaded'} onPress={() => router.push('/account')} />
+          <DashboardRow icon="sync-outline" title="Account sync" detail={snapshot ? `Last synced ${new Date(snapshot.syncedAt * 1000).toLocaleString('en-GB')}` : 'No account snapshot loaded'} onPress={() => router.push('/account')} />
         </Section>
 
         <Section title="Current architecture" eyebrow="GUARDRAILS">
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700', marginTop: 3, marginBottom: 9 },
   sectionPanel: { overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   row: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14, borderBottomWidth: 1, borderBottomColor: FateDropColors.borderSoft },
-  rowIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: \`${FateDropColors.gold}0D\`, borderWidth: 1, borderColor: \`${FateDropColors.gold}2E\` },
+  rowIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0D`, borderWidth: 1, borderColor: `${FateDropColors.gold}2E` },
   rowTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900' },
   rowDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
   guardrail: { flexDirection: 'row', gap: 11, padding: 14, borderBottomWidth: 1, borderBottomColor: FateDropColors.borderSoft },
