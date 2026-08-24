@@ -10,6 +10,7 @@ const search = readFileSync(join(root, 'screens', 'search-screen-v2.tsx'), 'utf8
 const more = readFileSync(join(root, 'screens', 'more-screen-v2.tsx'), 'utf8');
 const liveClient = readFileSync(join(root, 'services', 'fatefind-live.ts'), 'utf8');
 const identity = readFileSync(join(root, 'services', 'fatedrop-id.ts'), 'utf8');
+const legacyTruePrice = readFileSync(join(root, 'app', 'true-price.tsx'), 'utf8');
 
 test('FateFind is the live best-value finder and consumes the shared Cloud contract', () => {
   assert.match(liveClient, /\/api\/fatefind\?q=/);
@@ -31,10 +32,17 @@ test('FateMatch owns stock monitoring and companion assignment', () => {
 test('Search and More expose FateFind and FateMatch as separate jobs', () => {
   assert.match(search, /pathname: '\/fatefind'/);
   assert.match(search, /pathname: '\/fatematch'/);
-  assert.match(search, />FATEFIND</);
-  assert.match(search, />WATCH STOCK</);
+  assert.match(search, /FATEFIND · BEST VALUE/);
+  assert.match(search, /FATEMATCH · WATCH/);
+  assert.doesNotMatch(search, /pathname: '\/true-price'/);
   assert.match(more, /title: 'FateFind'/);
   assert.match(more, /title: 'FateMatch'/);
   assert.match(more, /strongest-value live buying option now/);
-  assert.match(more, /watch for stock and alert you/);
+  assert.match(more, /budget and buying conditions/);
+  assert.doesNotMatch(more, /title: 'True Price'/);
+});
+
+test('True Price is a FateFind calculation, not a standalone mobile tool', () => {
+  assert.match(legacyTruePrice, /pathname: '\/fatefind'/);
+  assert.match(fateFind, /TRUE PRICE/);
 });
