@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
+import { FateDropBackground } from '@/components/fatedrop-ui';
 import { API_BASE_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors, FateDropLifecycleColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -79,6 +79,8 @@ export default function HomeScreenV2() {
   const upcomingEvents = events
     .filter((event) => !event.startDateTime || Date.parse(event.startDateTime) >= Date.now())
     .sort((a, b) => (Date.parse(a.startDateTime || '') || Infinity) - (Date.parse(b.startDateTime || '') || Infinity));
+  const displayName = snapshot?.user.displayName?.trim();
+  const greeting = displayName ? `Welcome, ${displayName}.` : 'Welcome, Seeker.';
   const counts = useMemo(() => ({
     WHISPER: alerts.filter((alert) => alert.fateStage === 'WHISPER').length,
     ECHO: alerts.filter((alert) => alert.fateStage === 'ECHO').length,
@@ -95,10 +97,12 @@ export default function HomeScreenV2() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
       >
         <View style={styles.brandHeader}>
-          <View>
-            <Text style={styles.brandWordmark}>FATEDROP</Text>
-            <Text style={styles.brandTagline}>COLLECTOR FIRST</Text>
-          </View>
+          <Image
+            source={require('../assets/images/fatedrop-wordmark.webp')}
+            style={styles.brandWordmarkImage}
+            contentFit="contain"
+            contentPosition="left center"
+          />
           <Pressable onPress={() => router.push('/alerts')} style={styles.headerAlert}>
             <Ionicons name="notifications-outline" size={18} color={FateDropColors.ivory} />
             {alerts.length ? <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{Math.min(alerts.length, 9)}</Text></View> : null}
@@ -106,17 +110,26 @@ export default function HomeScreenV2() {
         </View>
 
         <View style={styles.hero}>
-          <Image source={require('../assets/images/alert-koru.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <Image
+            source={require('../assets/images/home-koru-hero.jpg')}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            contentPosition="center"
+            transition={180}
+          />
           <View style={styles.heroShade} />
-          <View style={styles.heroContent}>
+          <View style={styles.heroTop}>
             <View style={styles.networkPill}>
               <View style={[styles.networkDot, !networkActive && styles.networkDotQuiet]} />
               <Text style={[styles.networkText, !networkActive && styles.networkTextQuiet]}>
                 {networkActive ? `${healthy} MONITORS HEALTHY` : networkMeasured ? 'NETWORK QUIET / DEGRADED' : 'STATUS UNAVAILABLE'}
               </Text>
             </View>
-            <Text style={styles.heroTitle}>Welcome back{snapshot?.user.displayName ? `, ${snapshot.user.displayName}` : ', Seeker'}.</Text>
-            <Text style={styles.heroCopy}>Koru is listening. FateDrop keeps the live evidence, value context and your personal hunts together.</Text>
+          </View>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroEyebrow}>{signedIn ? 'YOUR FATEDROP NETWORK' : 'THE SIGNAL IS ALWAYS MOVING'}</Text>
+            <Text style={styles.heroTitle}>{greeting}</Text>
+            <Text style={styles.heroCopy}>Koru is listening. FateDrop keeps live evidence, value intelligence and your personal hunts together.</Text>
           </View>
         </View>
 
@@ -276,16 +289,17 @@ function AlertPreview({ alert }: { alert: CanonicalMobileAlert }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
-  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-  brandWordmark: { color: FateDropColors.goldBright, fontFamily: Fonts?.serif, fontSize: 27, fontWeight: '700', letterSpacing: 1.4 },
-  brandTagline: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 2.1, marginTop: 1 },
+  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 68, paddingTop: 8, paddingBottom: 10 },
+  brandWordmarkImage: { width: 184, height: 54 },
   headerAlert: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, alignItems: 'center', justifyContent: 'center' },
   headerBadge: { position: 'absolute', right: -3, top: -3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, backgroundColor: FateDropColors.vanished, alignItems: 'center', justifyContent: 'center' },
   headerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
-  hero: { height: 300, borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.card, marginBottom: 22 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,8,12,.43)' },
-  heroContent: { flex: 1, justifyContent: 'flex-end', padding: 20, maxWidth: 360 },
-  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.success}55`, backgroundColor: 'rgba(8,14,20,.68)', marginBottom: 10 },
+  hero: { height: 370, borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.card, marginBottom: 22, position: 'relative' },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,13,.22)' },
+  heroTop: { position: 'absolute', left: 16, right: 16, top: 16, zIndex: 2 },
+  heroContent: { position: 'absolute', left: 14, right: 14, bottom: 14, zIndex: 3, padding: 16, borderRadius: 18, backgroundColor: 'rgba(6,10,18,.76)', borderWidth: 1, borderColor: `${FateDropColors.gold}36` },
+  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: 5 },
+  networkPill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.success}55`, backgroundColor: 'rgba(8,14,20,.74)' },
   networkDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: FateDropColors.success },
   networkDotQuiet: { backgroundColor: FateDropColors.warning },
   networkText: { color: FateDropColors.success, fontSize: 11, fontWeight: '900', letterSpacing: .7 },
