@@ -14,6 +14,7 @@ function fateVerdictSearch(database, search) {
     : null;
   return {
     mode: 'verdict',
+    count: groups.length,
     groups,
     verdict: rankGroups(groups),
     pairVerdict,
