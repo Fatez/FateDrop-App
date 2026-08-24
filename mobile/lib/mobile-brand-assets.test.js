@@ -7,6 +7,9 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const shared = read('components/fatedrop-ui.tsx');
+const brandHeader = read('components/fatedrop-wordmark-header.tsx');
+const brandOverride = read('components/fatedrop-ui-brand.tsx');
+const tsconfig = read('tsconfig.json');
 const home = read('screens/home-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
 
@@ -15,10 +18,12 @@ test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.doesNotMatch(shared, /fatedrop-portal-hero\.png/);
 });
 
-test('shared brand header uses the supplied FateDrop wordmark and emblem', () => {
-  assert.match(shared, /fatedrop-wordmark\.png/);
-  assert.match(shared, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(shared, /brandTextAccent/);
+test('shared app header is wordmark-only with no legacy emblem box', () => {
+  assert.match(brandHeader, /fatedrop-wordmark\.png/);
+  assert.doesNotMatch(brandHeader, /fatedrop-emblem\.webp/);
+  assert.doesNotMatch(brandHeader, /headerLogoShell/);
+  assert.match(brandOverride, /FateDropHeader/);
+  assert.match(tsconfig, /fatedrop-ui-brand\.tsx/);
 });
 
 test('Home uses the final Koru hero and canonical FateDrop ID identity greeting', () => {
@@ -41,6 +46,12 @@ test('center tool launcher uses the clean transparent FateDrop PNG emblem', () =
   const launcher = tabs.slice(tabs.indexOf('name="tools"'), tabs.indexOf('name="network"'));
   assert.doesNotMatch(launcher, /fatedrop-emblem\.webp/);
   assert.doesNotMatch(launcher, /emblemHalo/);
+});
+
+test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
+  assert.match(tabs, /const NAV_GOLD = FateDropColors\.goldBright/);
+  assert.match(tabs, /tabBarActiveTintColor: NAV_GOLD/);
+  assert.match(tabs, /tabBarInactiveTintColor: NAV_GOLD/);
 });
 
 function walkTsx(dir) {
