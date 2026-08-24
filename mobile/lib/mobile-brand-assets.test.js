@@ -11,7 +11,7 @@ const home = read('screens/home-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
-  assert.match(shared, /app-background-cosmic\.jpg/);
+  assert.match(shared, /app-background-cosmic\.webp/);
   assert.doesNotMatch(shared, /fatedrop-portal-hero\.png/);
 });
 
@@ -22,7 +22,7 @@ test('shared brand header uses the supplied FateDrop wordmark and emblem', () =>
 });
 
 test('Home uses the final Koru hero and greets the FateDrop ID display name', () => {
-  assert.match(home, /home-koru-hero\.jpg/);
+  assert.match(home, /home-koru-hero\.webp/);
   assert.match(home, /snapshot\?\.user\.displayName\?\.trim\(\)/);
   assert.match(home, /Welcome, \$\{displayName\}/);
   assert.match(home, /fatedrop-wordmark\.webp/);
