@@ -21,7 +21,7 @@ export function ScreenBackground() {
   return (
     <View pointerEvents="none" style={styles.backgroundLayer}>
       <Image
-        source={require('@/assets/images/app-background-cosmic.jpg')}
+        source={require('@/assets/images/app-background-cosmic.webp')}
         style={StyleSheet.absoluteFillObject}
         contentFit="cover"
       />
@@ -35,7 +35,7 @@ export const FateDropBackground = ScreenBackground;
 export function AbstractHero({ eyebrow, title, subtitle, icon = 'sparkles' }: { eyebrow: string; title: string; subtitle: string; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.abstractHero}>
-      <Image source={require('@/assets/images/app-background-cosmic.jpg')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <Image source={require('@/assets/images/app-background-cosmic.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
       <View style={styles.abstractHeroShade} />
       <View style={styles.abstractHeroIcon}><Ionicons name={icon} size={19} color={FateDropColors.cyan} /></View>
       <Text style={styles.abstractEyebrow}>{eyebrow}</Text>
