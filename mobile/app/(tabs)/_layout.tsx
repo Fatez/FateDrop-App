@@ -8,6 +8,8 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts } from '@/services/canonical-alerts';
 
+const NAV_GOLD = FateDropColors.goldBright;
+
 export default function TabLayout() {
   const { signedIn } = useFateDropId();
   const [alertCount, setAlertCount] = useState(0);
@@ -35,8 +37,8 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: FateDropColors.goldBright,
-          tabBarInactiveTintColor: FateDropColors.inactive,
+          tabBarActiveTintColor: NAV_GOLD,
+          tabBarInactiveTintColor: NAV_GOLD,
           tabBarStyle: {
             position: 'absolute',
             height: 88,
@@ -195,35 +197,32 @@ function ToolChoice({
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.toolChoice, pressed && styles.pressed]}>
       <View style={styles.toolIcon}>
-        <Ionicons name={icon} size={21} color={FateDropColors.goldBright} />
+        <Ionicons name={icon} size={21} color={NAV_GOLD} />
       </View>
       <View style={styles.toolCopy}>
         <Text style={styles.toolTitle}>{title}</Text>
         <Text style={styles.toolDetail}>{copy}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color={FateDropColors.gold} />
+      <Ionicons name="chevron-forward" size={17} color={NAV_GOLD} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   emblemButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    marginTop: -17,
+    width: 70,
+    height: 70,
+    marginTop: -18,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,14,20,.96)',
-    borderWidth: 1,
-    borderColor: FateDropColors.gold,
+    backgroundColor: 'transparent',
     shadowColor: '#000000',
-    shadowOpacity: 0.42,
-    shadowRadius: 14,
-    elevation: 14,
+    shadowOpacity: 0.34,
+    shadowRadius: 12,
+    elevation: 12,
   },
-  emblemImage: { width: 43, height: 56 },
+  emblemImage: { width: 66, height: 66 },
   pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
   backdrop: {
     flex: 1,
@@ -248,9 +247,9 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 10,
   },
-  toolboxEmblem: { width: 38, height: 50 },
+  toolboxEmblem: { width: 50, height: 50 },
   toolboxBrandCopy: { flex: 1 },
-  toolboxEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  toolboxEyebrow: { color: NAV_GOLD, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   toolboxTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, fontWeight: '700', marginTop: 2 },
   toolboxCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   close: {
@@ -280,8 +279,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: `${FateDropColors.gold}38`,
-    backgroundColor: `${FateDropColors.gold}0E`,
+    borderColor: `${NAV_GOLD}38`,
+    backgroundColor: `${NAV_GOLD}0E`,
   },
   toolCopy: { flex: 1 },
   toolTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900' },
