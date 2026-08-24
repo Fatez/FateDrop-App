@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   pageLabel: {
     position: 'absolute',
-    left: 206,
+    left: 82,
     bottom: 5,
     color: FateDropColors.secondary,
     fontSize: 11,
