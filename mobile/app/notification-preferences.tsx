@@ -12,12 +12,12 @@ import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
 type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'web' | 'discord';
 
-const rows: Array<{ key: PreferenceKey; title: string; detail: string }> = [
+const rows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'whisper', title: 'Whisper', detail: 'Product or catalogue movement before stock is confirmed.' },
   { key: 'echo', title: 'Echo', detail: 'Queue, traffic, security or access-readiness changes.' },
   { key: 'manifested', title: 'Manifested', detail: 'Verified purchasable availability.' },
   { key: 'vanished', title: 'Vanished', detail: 'Previously verified availability is no longer present.' },
-  { key: 'fateMatch', title: 'FateMatch', detail: 'A hosted FateFind has found a qualifying offer.' },
+  { key: 'fateMatch', title: 'FateMatch', detail: 'A FateMatch hunt has found a qualifying live offer.' },
   { key: 'priceChange', title: 'Price change', detail: 'Relevant movement in observed item pricing.' },
   { key: 'web', title: 'Web inbox', detail: 'Keep eligible alert history available on the FateDrop dashboard.' },
   { key: 'discord', title: 'Discord', detail: 'Allow eligible alerts to use your linked Discord delivery preferences.' },
