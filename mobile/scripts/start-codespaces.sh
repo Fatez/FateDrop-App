@@ -18,6 +18,10 @@ echo "Metro port: ${PORT}"
 echo "Public proxy: ${PUBLIC_URL}"
 echo ""
 
+echo "Static asset preflight..."
+node --test lib/static-assets.test.js
+echo ""
+
 restore_private() {
   if command -v gh >/dev/null 2>&1; then
     gh codespace ports visibility "${PORT}:private" -c "${CODESPACE_NAME}" >/dev/null 2>&1 || true
