@@ -22,6 +22,8 @@ export interface TruePriceGroup {
   category: string;
   matchingConfidence: number;
   retailerCount: number;
+  identityKey?: string;
+  valueFamilyKey?: string;
   rrpGbp?: number;
   rrpSource?: string;
   rrpKind?: 'official' | 'component_reference' | 'pack_reference';
@@ -40,9 +42,34 @@ export interface TruePriceResponse {
   disclaimer: string;
 }
 
+export interface FateRrpReferenceEvidence {
+  rrpGbp: number;
+  directRrpGbp: number | null;
+  unitRrpGbp: number | null;
+  unitCount: number | null;
+  unitKind: string | null;
+  source: string | null;
+  kind: string | null;
+  observedAt: string | null;
+  basis: string | null;
+  scaledFromUnit: boolean;
+}
+
+export interface FateTruePriceEvidence {
+  itemPriceGbp: number | null;
+  deliveryGbp: number | null;
+  totalGbp: number | null;
+  deliveryKnown: boolean;
+  retailerName: string | null;
+  observedAt: string | null;
+  stockStatus: string | null;
+}
+
 export interface FateVerdictPosition {
   groupId: string;
   title: string;
+  identityKey: string | null;
+  valueFamilyKey: string | null;
   offerId: string;
   retailerId?: string;
   retailerName?: string;
@@ -56,6 +83,8 @@ export interface FateVerdictPosition {
   unitCost: number | null;
   deliveryKnown: boolean;
   provisional: boolean;
+  reference: FateRrpReferenceEvidence | null;
+  truePriceEvidence: FateTruePriceEvidence;
 }
 
 export interface FatePairVerdict {

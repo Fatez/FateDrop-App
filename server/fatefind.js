@@ -19,7 +19,7 @@ function fateVerdictSearch(database, search) {
     verdict: rankGroups(groups),
     pairVerdict,
     source: 'FATEDROP_CLOUD',
-    rulesVersion: 'fate-verdict-v1',
+    rulesVersion: 'fate-verdict-v2',
     disclaimer: 'RRP percentage uses item price against the verified value baseline. True Price adds known mandatory delivery; unknown delivery remains provisional.',
   };
 }

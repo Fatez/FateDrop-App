@@ -4,23 +4,72 @@ function finite(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function positive(value) {
+  return finite(value) && value > 0 ? value : null;
+}
+
+function cleanKey(value) {
+  return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null;
+}
+
 function bestOffer(group) {
-  const offers = Array.isArray(group?.offers) ? [...group.offers] : [];
+  const offers = (Array.isArray(group?.offers) ? group.offers : []).filter((offer) => finite(offer?.priceGbp));
   offers.sort((a, b) => {
+    if (a.priceGbp !== b.priceGbp) return a.priceGbp - b.priceGbp;
     if (Boolean(a.deliveryKnown) !== Boolean(b.deliveryKnown)) return a.deliveryKnown ? -1 : 1;
-    const aCost = finite(a.totalDeliveredGbp) ? a.totalDeliveredGbp : finite(a.priceGbp) ? a.priceGbp : Infinity;
-    const bCost = finite(b.totalDeliveredGbp) ? b.totalDeliveredGbp : finite(b.priceGbp) ? b.priceGbp : Infinity;
-    return aCost - bCost;
+    if (a.deliveryKnown && b.deliveryKnown) {
+      const deliveredGap = (finite(a.totalDeliveredGbp) ? a.totalDeliveredGbp : Infinity)
+        - (finite(b.totalDeliveredGbp) ? b.totalDeliveredGbp : Infinity);
+      if (deliveredGap !== 0) return deliveredGap;
+    }
+    const aSeen = Date.parse(a.lastCheckedAt || '') || 0;
+    const bSeen = Date.parse(b.lastCheckedAt || '') || 0;
+    return bSeen - aSeen || String(a.retailerName || '').localeCompare(String(b.retailerName || ''));
   });
   return offers[0] || null;
 }
 
-function effectiveRrp(group) {
-  if (finite(group?.rrpGbp) && group.rrpGbp > 0) return group.rrpGbp;
-  if (finite(group?.unitRrpGbp) && group.unitRrpGbp > 0 && finite(group?.unitCount) && group.unitCount > 0) {
-    return group.unitRrpGbp * group.unitCount;
+function rrpEvidence(group) {
+  const source = typeof group?.rrpSource === 'string' && group.rrpSource.trim() ? group.rrpSource : null;
+  const kind = typeof group?.rrpKind === 'string' && group.rrpKind.trim() ? group.rrpKind : null;
+  if (!source) return null;
+
+  const directRrpGbp = positive(group?.rrpGbp);
+  const unitRrpGbp = positive(group?.unitRrpGbp);
+  const unitCount = positive(group?.unitCount);
+  const scaledRrpGbp = unitRrpGbp !== null && unitCount !== null ? unitRrpGbp * unitCount : null;
+
+  if (directRrpGbp !== null && scaledRrpGbp !== null && Math.abs(directRrpGbp - scaledRrpGbp) > 0.005) {
+    return null;
   }
-  return null;
+
+  const rrpGbp = directRrpGbp ?? scaledRrpGbp;
+  if (rrpGbp === null) return null;
+  return {
+    rrpGbp,
+    directRrpGbp,
+    unitRrpGbp,
+    unitCount,
+    unitKind: cleanKey(group?.unitKind),
+    source,
+    kind,
+    observedAt: typeof group?.rrpObservedAt === 'string' ? group.rrpObservedAt : null,
+    basis: typeof group?.rrpReferenceBasis === 'string' ? group.rrpReferenceBasis : null,
+    scaledFromUnit: directRrpGbp === null && scaledRrpGbp !== null,
+  };
+}
+
+function effectiveRrp(group) {
+  return rrpEvidence(group)?.rrpGbp ?? null;
+}
+
+function sameComparableFamily(leftGroup, rightGroup) {
+  const leftIdentity = cleanKey(leftGroup?.identityKey);
+  const rightIdentity = cleanKey(rightGroup?.identityKey);
+  if (leftIdentity && rightIdentity && leftIdentity === rightIdentity) return true;
+  const leftFamily = cleanKey(leftGroup?.valueFamilyKey);
+  const rightFamily = cleanKey(rightGroup?.valueFamilyKey);
+  return Boolean(leftFamily && rightFamily && leftFamily === rightFamily);
 }
 
 function valuePosition(group) {
@@ -29,114 +78,195 @@ function valuePosition(group) {
 
   const itemPrice = finite(offer.priceGbp) ? offer.priceGbp : null;
   const truePrice = offer.deliveryKnown && finite(offer.totalDeliveredGbp) ? offer.totalDeliveredGbp : null;
-  const checkoutCost = truePrice ?? itemPrice;
-  const rrpGbp = effectiveRrp(group);
+  const reference = rrpEvidence(group);
+  const rrpGbp = reference?.rrpGbp ?? null;
   const rrpPercent = itemPrice !== null && rrpGbp !== null
     ? ((itemPrice - rrpGbp) / rrpGbp) * 100
     : null;
-  const unitCost = checkoutCost !== null && finite(group?.unitCount) && group.unitCount > 0
-    ? checkoutCost / group.unitCount
-    : null;
+  const unitCount = positive(group?.unitCount);
+  const unitCost = truePrice !== null && unitCount !== null ? truePrice / unitCount : null;
 
   return {
     groupId: group.id,
     title: group.title,
+    identityKey: cleanKey(group?.identityKey),
+    valueFamilyKey: cleanKey(group?.valueFamilyKey),
     offerId: offer.id,
     retailerId: offer.retailerId,
     retailerName: offer.retailerName,
     itemPrice,
     truePrice,
-    checkoutCost,
+    checkoutCost: truePrice,
     rrpGbp,
     rrpPercent,
-    unitCount: finite(group?.unitCount) ? group.unitCount : null,
-    unitKind: group?.unitKind || null,
+    unitCount,
+    unitKind: cleanKey(group?.unitKind),
     unitCost,
     deliveryKnown: Boolean(offer.deliveryKnown),
     provisional: !offer.deliveryKnown,
+    reference,
+    truePriceEvidence: {
+      itemPriceGbp: itemPrice,
+      deliveryGbp: offer.deliveryKnown && finite(offer.shippingGbp) ? offer.shippingGbp : null,
+      totalGbp: truePrice,
+      deliveryKnown: Boolean(offer.deliveryKnown),
+      retailerName: offer.retailerName || null,
+      observedAt: offer.lastCheckedAt || null,
+      stockStatus: offer.stockStatus || null,
+    },
   };
 }
 
-function comparePositions(left, right) {
-  if (!left || !right || left.groupId === right.groupId) {
-    return { winnerId: null, basis: null, gap: null, reason: 'Choose two different comparable items.' };
-  }
-
-  if (left.rrpPercent !== null && right.rrpPercent !== null) {
-    const winner = left.rrpPercent <= right.rrpPercent ? left : right;
-    const loser = winner === left ? right : left;
-    return {
-      winnerId: winner.groupId,
-      basis: 'rrp_percent',
-      gap: Math.abs(winner.rrpPercent - loser.rrpPercent),
-      reason: `${winner.title} has the better value position versus its verified RRP/reference baseline based on item price.`,
-    };
-  }
-
-  if (left.unitCost !== null && right.unitCost !== null && left.unitKind && left.unitKind === right.unitKind) {
-    const winner = left.unitCost <= right.unitCost ? left : right;
-    const loser = winner === left ? right : left;
-    return {
-      winnerId: winner.groupId,
-      basis: 'unit_true_price',
-      gap: Math.abs(winner.unitCost - loser.unitCost),
-      reason: `${winner.title} has the lower ${winner.deliveryKnown && loser.deliveryKnown ? 'delivered ' : ''}cost per ${winner.unitKind === 'booster_pack' ? 'pack' : 'unit'}.`,
-    };
-  }
-
-  return {
-    winnerId: null,
-    basis: null,
-    gap: null,
-    reason: 'FateDrop needs comparable verified RRP/reference or unit evidence before declaring a winner.',
-  };
+function noWinner(left, right, reason) {
+  return { left, right, winnerId: null, basis: null, gap: null, reason };
 }
 
 function compareGroups(leftGroup, rightGroup) {
   const left = valuePosition(leftGroup);
   const right = valuePosition(rightGroup);
-  return { left, right, ...comparePositions(left, right) };
+  if (!left || !right || left.groupId === right.groupId) {
+    return noWinner(left, right, 'Choose two different comparable items.');
+  }
+  if (!sameComparableFamily(leftGroup, rightGroup)) {
+    return noWinner(left, right, 'FateDrop could not verify that these items are equivalent members of the same value family.');
+  }
+
+  const leftHasRrp = left.rrpPercent !== null;
+  const rightHasRrp = right.rrpPercent !== null;
+  if (leftHasRrp !== rightHasRrp) {
+    return noWinner(left, right, 'FateDrop needs verified RRP/reference evidence for both items before declaring an RRP-based winner.');
+  }
+
+  if (leftHasRrp && rightHasRrp) {
+    const gap = Math.abs(left.rrpPercent - right.rrpPercent);
+    if (gap > 1e-9) {
+      const winner = left.rrpPercent < right.rrpPercent ? left : right;
+      return {
+        left,
+        right,
+        winnerId: winner.groupId,
+        basis: 'rrp_percent',
+        gap,
+        reason: `${winner.title} has the better value position versus its verified RRP/reference baseline based on item price.`,
+      };
+    }
+
+    if (left.truePrice !== null && right.truePrice !== null && Math.abs(left.truePrice - right.truePrice) > 1e-9) {
+      const winner = left.truePrice < right.truePrice ? left : right;
+      return {
+        left,
+        right,
+        winnerId: winner.groupId,
+        basis: 'rrp_percent',
+        gap: 0,
+        reason: `${winner.title} matches the RRP value position and has the lower known True Price.`,
+      };
+    }
+
+    return noWinner(left, right, 'These items currently have the same verified RRP value position and no trustworthy known True Price tie-break.');
+  }
+
+  const safeUnitFallback = left.unitCost !== null
+    && right.unitCost !== null
+    && left.unitKind
+    && left.unitKind === right.unitKind;
+  if (safeUnitFallback) {
+    const gap = Math.abs(left.unitCost - right.unitCost);
+    if (gap <= 1e-9) return noWinner(left, right, 'These items currently have the same known True Price per comparable unit.');
+    const winner = left.unitCost < right.unitCost ? left : right;
+    return {
+      left,
+      right,
+      winnerId: winner.groupId,
+      basis: 'unit_true_price',
+      gap,
+      reason: `${winner.title} has the lower known True Price per ${winner.unitKind === 'booster_pack' ? 'pack' : 'unit'}.`,
+    };
+  }
+
+  return noWinner(left, right, 'FateDrop needs comparable verified RRP/reference or unit evidence before declaring a winner.');
 }
 
 function rankGroups(groups) {
-  const positions = (Array.isArray(groups) ? groups : []).map(valuePosition).filter(Boolean);
-  const withRrp = positions.filter((item) => item.rrpPercent !== null);
+  const sourceGroups = Array.isArray(groups) ? groups : [];
+  const positioned = sourceGroups.map((group) => ({ group, position: valuePosition(group) })).filter((entry) => entry.position);
+  const positions = positioned.map((entry) => entry.position);
+  const provisional = positions.some((item) => item.provisional);
 
-  if (withRrp.length) {
-    const ranking = [...withRrp].sort((a, b) => a.rrpPercent - b.rrpPercent || (a.checkoutCost ?? Infinity) - (b.checkoutCost ?? Infinity));
-    const winner = ranking[0];
+  if (!positions.length) {
+    return { winnerId: null, basis: null, reason: 'No purchasable offers are available to rank.', provisional, ranking: [] };
+  }
+
+  if (positioned.length > 1 && positioned.some((entry) => !sameComparableFamily(positioned[0].group, entry.group))) {
     return {
-      winnerId: winner.groupId,
+      winnerId: null,
+      basis: null,
+      reason: 'FateDrop found mixed or unverified product identities, so it will not declare one cross-product winner.',
+      provisional,
+      ranking: positions,
+    };
+  }
+
+  const allHaveRrp = positions.every((item) => item.rrpPercent !== null);
+  const noRrp = positions.every((item) => item.rrpPercent === null);
+  if (!allHaveRrp && !noRrp) {
+    return {
+      winnerId: null,
+      basis: null,
+      reason: 'FateDrop needs verified RRP/reference evidence for every comparable candidate before declaring a winner.',
+      provisional,
+      ranking: positions,
+    };
+  }
+
+  if (allHaveRrp) {
+    const ranking = [...positions].sort((a, b) => {
+      const rrpGap = a.rrpPercent - b.rrpPercent;
+      if (Math.abs(rrpGap) > 1e-9) return rrpGap;
+      if (a.truePrice !== null && b.truePrice !== null && a.truePrice !== b.truePrice) return a.truePrice - b.truePrice;
+      if (a.deliveryKnown !== b.deliveryKnown) return a.deliveryKnown ? -1 : 1;
+      return 0;
+    });
+    const winner = ranking[0];
+    const runnerUp = ranking[1];
+    const tied = Boolean(runnerUp
+      && Math.abs(winner.rrpPercent - runnerUp.rrpPercent) <= 1e-9
+      && (winner.truePrice === null || runnerUp.truePrice === null || Math.abs(winner.truePrice - runnerUp.truePrice) <= 1e-9));
+    return {
+      winnerId: tied ? null : winner.groupId,
       basis: 'rrp_percent',
-      reason: `${winner.title} has the strongest value position versus its verified RRP/reference baseline across the searched items.`,
-      provisional: ranking.some((item) => item.provisional),
+      reason: tied
+        ? 'The leading candidates are tied on verified RRP value position and available True Price evidence.'
+        : `${winner.title} has the strongest value position versus its verified RRP/reference baseline across the comparable searched items.`,
+      provisional,
       ranking,
     };
   }
 
   const unitKinds = new Set(positions.map((item) => item.unitKind).filter(Boolean));
-  if (unitKinds.size === 1) {
-    const comparable = positions.filter((item) => item.unitCost !== null);
-    if (comparable.length) {
-      const ranking = [...comparable].sort((a, b) => a.unitCost - b.unitCost);
-      const winner = ranking[0];
-      return {
-        winnerId: winner.groupId,
-        basis: 'unit_true_price',
-        reason: `${winner.title} has the lowest observed cost per ${winner.unitKind === 'booster_pack' ? 'pack' : 'unit'} across the searched items.`,
-        provisional: ranking.some((item) => item.provisional),
-        ranking,
-      };
-    }
+  const comparableUnits = positions.every((item) => item.unitCost !== null && item.unitKind) && unitKinds.size === 1;
+  if (comparableUnits) {
+    const ranking = [...positions].sort((a, b) => a.unitCost - b.unitCost);
+    const winner = ranking[0];
+    const tied = ranking[1] && Math.abs(winner.unitCost - ranking[1].unitCost) <= 1e-9;
+    return {
+      winnerId: tied ? null : winner.groupId,
+      basis: 'unit_true_price',
+      reason: tied
+        ? 'The leading candidates are tied on known True Price per comparable unit.'
+        : `${winner.title} has the lowest known True Price per ${winner.unitKind === 'booster_pack' ? 'pack' : 'unit'} across the comparable searched items.`,
+      provisional,
+      ranking,
+    };
   }
 
   return {
     winnerId: null,
     basis: null,
     reason: 'FateDrop cannot declare a trustworthy best deal until the searched items have comparable RRP/reference or unit evidence.',
-    provisional: positions.some((item) => item.provisional),
+    provisional,
     ranking: positions,
   };
 }
 
-module.exports = { bestOffer, effectiveRrp, valuePosition, compareGroups, rankGroups };
+module.exports = { bestOffer, effectiveRrp, rrpEvidence, sameComparableFamily, valuePosition, compareGroups, rankGroups };
