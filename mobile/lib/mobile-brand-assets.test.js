@@ -16,7 +16,7 @@ test('final cosmic artwork is the shared FateDrop app background', () => {
 });
 
 test('shared brand header uses the supplied FateDrop wordmark and emblem', () => {
-  assert.match(shared, /fatedrop-wordmark\.webp/);
+  assert.match(shared, /fatedrop-wordmark\.png/);
   assert.match(shared, /fatedrop-emblem\.webp/);
   assert.doesNotMatch(shared, /brandTextAccent/);
 });
@@ -26,7 +26,7 @@ test('Home uses the final Koru hero and canonical FateDrop ID identity greeting'
   assert.match(home, /snapshot\?\.user\.displayName\?\.trim\(\)/);
   assert.match(home, /snapshot\?\.user\.handle\?\.trim\(\)/);
   assert.match(home, /Welcome, \$\{identityName\}/);
-  assert.match(home, /fatedrop-wordmark\.webp/);
+  assert.match(home, /fatedrop-wordmark\.png/);
 });
 
 test('Home keeps monitor health out of the welcome experience', () => {
