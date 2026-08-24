@@ -78,6 +78,7 @@ export interface FateRankVerdict {
 export interface FateVerdictResponse {
   success: boolean;
   mode: 'verdict';
+  count: number;
   groups: TruePriceGroup[];
   verdict: FateRankVerdict;
   pairVerdict: FatePairVerdict | null;
