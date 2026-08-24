@@ -23,6 +23,15 @@ const rows: Array<{ key: PreferenceKey; title: string; detail: string }> = [
   { key: 'discord', title: 'Discord', detail: 'Allow eligible alerts to use your linked Discord delivery preferences.' },
 ];
 
+function pushStatusMessage(result: { enabled: boolean; reason?: string }) {
+  if (result.enabled) return 'Push notifications enabled on this device.';
+  if (result.reason === 'permission-denied') return 'Push is off because notification permission was denied on this device.';
+  if (result.reason === 'physical-device-required') return 'Push registration requires a physical device.';
+  if (result.reason === 'fatedrop-id-required') return 'Sign in with FateDrop ID before enabling push.';
+  if (result.reason === 'eas-project-id-required') return 'Push setup is incomplete: this app build is missing its Expo/EAS project ID.';
+  return 'Push notifications disabled on this device.';
+}
+
 export default function NotificationPreferencesScreen() {
   const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const [working, setWorking] = useState<string | null>(null);
@@ -49,7 +58,7 @@ export default function NotificationPreferencesScreen() {
     setMessage(null);
     try {
       const result = preferences.push ? await unregisterStockAlerts() : await registerForStockAlerts();
-      setMessage(result.enabled ? 'Push notifications enabled on this device.' : 'Push notifications disabled on this device.');
+      setMessage(pushStatusMessage(result));
       await refresh();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Push preference could not be updated.');

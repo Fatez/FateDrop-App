@@ -13,6 +13,13 @@ Notifications.setNotificationHandler({
 
 const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fate-drop.com').replace(/\/$/, '');
 
+function expoProjectId() {
+  return process.env.EXPO_PUBLIC_EAS_PROJECT_ID
+    || Constants.expoConfig?.extra?.eas?.projectId
+    || Constants.easConfig?.projectId
+    || null;
+}
+
 export async function registerForStockAlerts() {
   const sessionToken = await getStoredSessionToken();
   if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
@@ -26,7 +33,7 @@ export async function registerForStockAlerts() {
   const existing = await Notifications.getPermissionsAsync();
   const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
   if (permission.status !== 'granted') return { enabled: false, reason: 'permission-denied' };
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const projectId = expoProjectId();
   if (!projectId) return { enabled: false, reason: 'eas-project-id-required' };
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
   const response = await fetch(`${website}/api/mobile/push`, {
