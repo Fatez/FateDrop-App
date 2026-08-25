@@ -20,34 +20,43 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /title="FateFind"/);
-  assert.match(tabs, /title="FateMatch"/);
+  assert.match(tabs, /title="FateMatches"/);
   assert.match(tabs, /title="Search live database"/);
 });
 
-test('FateFind owns live value finding, RRP calculations, True Price and one Cloud Fate Verdict', () => {
+test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {
   assert.match(fateFind, /\/api\/fatefind\/matches/);
   assert.match(fateFind, /mode: 'verdict'/);
   assert.match(fateFind, /FATEDROP_CLOUD/);
   assert.doesNotMatch(fateFind, /compareValueGroups/);
-  assert.match(fateFind, /True Price is built into FateFind/);
+  assert.match(fateFind, /True Price shows what you will actually pay/);
+  assert.match(fateFind, /Unknown delivery never becomes £0/);
   assert.match(fateFind, /FATE VERDICT/);
   assert.match(fateFind, /BEST ACROSS THIS SEARCH/);
   assert.match(fateFind, /Compare two items/);
-  assert.doesNotMatch(fateFind, /saveRemoteFateFind/);
+  assert.match(fateFind, /KEEP HUNTING WITH FATEFIND/);
+  assert.match(fateFind, /alertsEnabled: false/);
+  assert.doesNotMatch(fateFind, /compareValueGroups/);
 });
 
-test('FateMatch owns Cloud watch rules including maximum percentage above RRP', () => {
+test('FateFind owns hosted hunt rules and FateMatch is the successful outcome', () => {
   assert.match(fateMatch, /saveRemoteFateFind/);
   assert.match(fateMatch, /maxPercentAboveRrp/);
+  assert.match(fateMatch, /maxTruePricePence/);
   assert.match(fateMatch, /\['0', '5', '10', 'custom'\]/);
   assert.match(fateMatch, /stockRequirement: 'in_stock'/);
-  assert.match(fateMatch, /START FATEMATCH/);
+  assert.match(fateMatch, /companionId/);
+  assert.match(fateMatch, /START FATEFIND/);
   assert.match(fateMatch, /FATEMATCH — LIVE NOW/);
+  assert.match(fateMatch, /A FateMatch means FateFind found what you asked for/);
+  assert.doesNotMatch(fateMatch, /START FATEMATCH/);
 });
 
-test('Search remains database discovery and hands off to FateFind or FateMatch', () => {
+test('Search remains passive database discovery and hands intelligent work to FateFind', () => {
   assert.match(search, /RUN FATEFIND/);
-  assert.match(search, /WATCH WITH FATEMATCH/);
+  assert.match(search, /alertsEnabled: false/);
+  assert.match(search, /FateFind owns the intelligent value verdict and persistent hunt/);
+  assert.doesNotMatch(search, /WATCH WITH FATEMATCH/);
   assert.doesNotMatch(search, /FATE VERDICT/);
   assert.doesNotMatch(search, /saveRemoteFateFind/);
 });
