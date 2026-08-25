@@ -1,0 +1,1 @@
+FateDrop Stories assets are committed as binary Git blobs; this staging directory is deprecated.
