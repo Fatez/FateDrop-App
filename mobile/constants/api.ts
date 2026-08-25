@@ -1,8 +1,14 @@
 const DEFAULT_SIGNAL_ENGINE_URL = 'https://fatedrop-cloud-production.up.railway.app';
+const DEFAULT_FATEDROP_WEB_URL = 'https://fatedrop.co.uk';
 
 /** Canonical market/network truth used by Search, Indies catalogue and True Price. */
 export const SIGNAL_ENGINE_URL = (
   process.env.EXPO_PUBLIC_SIGNAL_ENGINE_URL || DEFAULT_SIGNAL_ENGINE_URL
+).replace(/\/$/, '');
+
+/** Shared authenticated/API gateway used by App and Web for cross-platform contracts. */
+export const FATEDROP_WEB_URL = (
+  process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_FATEDROP_WEB_URL
 ).replace(/\/$/, '');
 
 /**
