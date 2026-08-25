@@ -29,7 +29,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .story-staging/assets.b64 > /tmp/fatedrop-stories-assets.tar.gz
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+
+          payload = Path('.story-staging/assets.b64').read_bytes()
+          normalized = b''.join(payload.split())
+          archive = base64.b64decode(normalized, validate=True)
+          Path('/tmp/fatedrop-stories-assets.tar.gz').write_bytes(archive)
+          PY
           echo "e8361c5fd5dc7eaa4f92c579ddafc13eb4c256745863c1356641e5df673673c8  /tmp/fatedrop-stories-assets.tar.gz" | sha256sum --check -
           test "$(stat -c%s /tmp/fatedrop-stories-assets.tar.gz)" -eq 304885
           rm -rf mobile/assets/stories
