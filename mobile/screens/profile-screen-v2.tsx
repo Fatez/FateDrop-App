@@ -57,15 +57,16 @@ export default function ProfileScreenV2() {
           <View style={styles.cover}>
             <ProfileWallpaperArt wallpaperId={customisation.wallpaperId} />
             <View style={styles.coverShade} />
-            <View style={styles.coverTopShade} />
 
             <View style={styles.overlayHeader}>
-              <Image
-                source={require('@/assets/images/fatedrop-wordmark.png')}
-                style={styles.wordmark}
-                contentFit="contain"
-                contentPosition="left center"
-              />
+              <View style={styles.logoPlate}>
+                <Image
+                  source={require('@/assets/images/fatedrop-wordmark.png')}
+                  style={styles.wordmark}
+                  contentFit="contain"
+                  contentPosition="left center"
+                />
+              </View>
               <MembershipPill label={membershipLabel} />
             </View>
           </View>
@@ -195,9 +196,9 @@ const styles = StyleSheet.create({
   profileIdentity: { alignItems: 'center', marginBottom: 10 },
   cover: { width: '100%', height: 210, overflow: 'hidden', backgroundColor: FateDropColors.surface },
   coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.04)' },
-  coverTopShade: { position: 'absolute', left: 0, right: 0, top: 0, height: 92, backgroundColor: 'rgba(3,7,12,.34)' },
-  overlayHeader: { position: 'absolute', top: 12, left: 18, right: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  wordmark: { width: 176, height: 48 },
+  overlayHeader: { position: 'absolute', top: 10, left: 14, right: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  logoPlate: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(3,7,12,.34)' },
+  wordmark: { width: 168, height: 44 },
   membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}70`, backgroundColor: 'rgba(5,10,16,.68)' },
   membershipText: { color: FateDropColors.goldBright, fontSize: 9.2, fontWeight: '900', letterSpacing: .8 },
 
