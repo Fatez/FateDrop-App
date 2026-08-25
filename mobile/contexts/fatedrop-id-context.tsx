@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
+import { AppState } from 'react-native';
 
 import {
   clearStoredSession,
@@ -56,6 +57,14 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
     }).catch(() => setLoading(false));
     return () => { mounted = false; };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!snapshot?.user.id) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
+    return () => subscription.remove();
+  }, [refresh, snapshot?.user.id]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setSyncing(true);
