@@ -7,9 +7,6 @@ export const profileAvatarSources: Record<Exclude<ProfileAvatarId, 'mark'>, numb
   nyxen: require('../assets/images/profile-avatar-nyxen.png'),
 };
 
-// Until the dedicated full-body companion cutouts are added, use the new transparent
-// profile cutouts rather than the old baked-background alert artwork. This keeps the
-// lifecycle presentation visually clean with no white boxes.
 export const profileCompanionSources = {
   oru: require('../assets/images/profile-avatar-oru.png'),
   fenn: require('../assets/images/profile-avatar-fenn.png'),
