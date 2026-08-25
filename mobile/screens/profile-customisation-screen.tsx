@@ -8,7 +8,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
-import { profileAvatarSources, profileCompanionMeta, profileWallpaperMeta } from '@/constants/profile-customisation';
+import {
+  profileAvatarSources,
+  profileCompanionMeta,
+  profileCompanionSources,
+  profileWallpaperMeta,
+} from '@/constants/profile-customisation';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -24,6 +29,7 @@ import {
 
 type CustomisationTab = 'avatar' | 'wallpapers' | 'companions';
 
+const companionIds = ['oru', 'fenn', 'koru', 'nyxen'] as const;
 const companionColors = {
   oru: FateDropColors.whisper,
   fenn: FateDropColors.echo,
@@ -71,8 +77,6 @@ export default function ProfileCustomisationScreen() {
   }
 
   function reset() {
-    // Reset is a preview action until Apply & Save is pressed. It must not
-    // silently overwrite the user's saved profile customisation.
     setDraft(DEFAULT_PROFILE_CUSTOMISATION);
   }
 
@@ -87,55 +91,62 @@ export default function ProfileCustomisationScreen() {
         <Text style={styles.title}>Profile Customisation</Text>
         <Text style={styles.subtitle}>Personalise your profile with avatars and wallpapers.</Text>
 
+        <ProfilePreview draft={draft} />
+
         <View style={styles.tabs}>
           <TabButton icon="person" label="Avatar" selected={tab === 'avatar'} onPress={() => setTab('avatar')} />
           <TabButton icon="image" label="Wallpapers" selected={tab === 'wallpapers'} onPress={() => setTab('wallpapers')} />
           <TabButton icon="paw" label="Companions" selected={tab === 'companions'} onPress={() => setTab('companions')} />
         </View>
 
-        <ProfilePreview draft={draft} />
-
-        {tab === 'companions' ? (
-          <CompanionGallery />
-        ) : (
+        {tab === 'avatar' ? (
           <>
-            {tab === 'wallpapers' ? (
-              <>
-                <SectionLabel label="CHOOSE WALLPAPER" />
-                <View style={styles.wallpaperGrid}>
-                  {PROFILE_WALLPAPER_IDS.map((id) => (
-                    <WallpaperChoice key={id} id={id} selected={draft.wallpaperId === id} onPress={() => setDraft((current) => ({ ...current, wallpaperId: id }))} />
-                  ))}
-                </View>
-              </>
-            ) : null}
-
             <SectionLabel label="CHOOSE AVATAR" />
             <View style={styles.avatarGrid}>
               {PROFILE_AVATAR_IDS.map((id) => (
-                <AvatarChoice key={id} id={id} selected={draft.avatarId === id} onPress={() => setDraft((current) => ({ ...current, avatarId: id }))} />
+                <AvatarChoice
+                  key={id}
+                  id={id}
+                  selected={draft.avatarId === id}
+                  onPress={() => setDraft((current) => ({ ...current, avatarId: id }))}
+                />
               ))}
             </View>
-
-            {tab === 'avatar' ? (
-              <>
-                <SectionLabel label="MATCH A WALLPAPER" />
-                <View style={styles.wallpaperStrip}>
-                  {PROFILE_WALLPAPER_IDS.map((id) => (
-                    <CompactWallpaperChoice key={id} id={id} selected={draft.wallpaperId === id} onPress={() => setDraft((current) => ({ ...current, wallpaperId: id }))} />
-                  ))}
-                </View>
-              </>
-            ) : null}
           </>
-        )}
+        ) : null}
+
+        {tab === 'wallpapers' ? (
+          <>
+            <SectionLabel label="CHOOSE WALLPAPER" />
+            <View style={styles.wallpaperGrid}>
+              {PROFILE_WALLPAPER_IDS.map((id) => (
+                <WallpaperChoice
+                  key={id}
+                  id={id}
+                  selected={draft.wallpaperId === id}
+                  onPress={() => setDraft((current) => ({ ...current, wallpaperId: id }))}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        {tab === 'companions' ? <CompanionGallery /> : null}
 
         <View style={styles.actions}>
           <Pressable onPress={reset} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Ionicons name="refresh-outline" size={17} color={FateDropColors.goldBright} />
             <Text style={styles.secondaryButtonText}>Reset</Text>
           </Pressable>
-          <Pressable disabled={saving || !changed} onPress={() => void applyAndSave()} style={({ pressed }) => [styles.primaryButton, (!changed || saving) && styles.primaryDisabled, pressed && changed && styles.pressed]}>
+          <Pressable
+            disabled={saving || !changed}
+            onPress={() => void applyAndSave()}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              (!changed || saving) && styles.primaryDisabled,
+              pressed && changed && styles.pressed,
+            ]}
+          >
             <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Apply & Save'}</Text>
           </Pressable>
         </View>
@@ -145,8 +156,8 @@ export default function ProfileCustomisationScreen() {
 }
 
 function normaliseTab(value?: string): CustomisationTab {
-  if (value === 'avatar' || value === 'companions') return value;
-  return 'wallpapers';
+  if (value === 'wallpapers' || value === 'companions') return value;
+  return 'avatar';
 }
 
 function MembershipPill({ premium }: { premium: boolean }) {
@@ -170,11 +181,13 @@ function TabButton({ icon, label, selected, onPress }: { icon: keyof typeof Ioni
 function ProfilePreview({ draft }: { draft: ProfileCustomisation }) {
   return (
     <View style={styles.preview}>
-      <ProfileWallpaperArt wallpaperId={draft.wallpaperId} characterScale={1.08} />
+      <ProfileWallpaperArt wallpaperId={draft.wallpaperId} />
       <View style={styles.previewShade} />
-      <View style={styles.previewAvatar}>
-        <AvatarVisual avatarId={draft.avatarId} size={104} />
-        <View style={styles.previewEdit}><Ionicons name="pencil" size={14} color={FateDropColors.ivory} /></View>
+      <View style={styles.previewAvatarWrap}>
+        <AvatarVisual avatarId={draft.avatarId} size={98} />
+        <View style={styles.previewEdit}>
+          <Ionicons name="pencil" size={14} color={FateDropColors.ivory} />
+        </View>
       </View>
     </View>
   );
@@ -184,9 +197,13 @@ function WallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; se
   const meta = profileWallpaperMeta[id];
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.wallpaperChoice, selected && styles.choiceSelected, pressed && styles.pressed]}>
-      <ProfileWallpaperArt wallpaperId={id} characterScale={1.2} />
+      <ProfileWallpaperArt wallpaperId={id} />
       <View style={styles.wallpaperShade} />
-      {selected ? <View style={styles.check}><Ionicons name="checkmark" size={16} color={FateDropColors.ivory} /></View> : null}
+      {selected ? (
+        <View style={styles.check}>
+          <Ionicons name="checkmark" size={15} color={FateDropColors.ivory} />
+        </View>
+      ) : null}
       <View style={[styles.wallpaperLabelWrap, { borderTopColor: `${meta.accent}66` }]}>
         <Text style={styles.wallpaperLabel}>{meta.name}</Text>
       </View>
@@ -194,21 +211,19 @@ function WallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; se
   );
 }
 
-function CompactWallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; selected: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.compactWallpaper, selected && styles.choiceSelected, pressed && styles.pressed]}>
-      <ProfileWallpaperArt wallpaperId={id} characterScale={1.15} />
-      <View style={styles.wallpaperShade} />
-      <Text style={styles.compactWallpaperText}>{profileWallpaperMeta[id].name}</Text>
-    </Pressable>
-  );
-}
-
 function AvatarChoice({ id, selected, onPress }: { id: ProfileAvatarId; selected: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.avatarChoice, selected && styles.avatarChoiceSelected, pressed && styles.pressed]}>
-      {id === 'mark' ? <FateDropNavEmblem size={42} /> : <Image source={profileAvatarSources[id]} style={styles.avatarChoiceImage} contentFit="contain" />}
-      {selected ? <View style={styles.avatarCheck}><Ionicons name="checkmark" size={12} color={FateDropColors.ivory} /></View> : null}
+      {id === 'mark' ? (
+        <FateDropNavEmblem size={40} />
+      ) : (
+        <Image source={profileAvatarSources[id]} style={styles.avatarChoiceImage} contentFit="contain" />
+      )}
+      {selected ? (
+        <View style={styles.avatarCheck}>
+          <Ionicons name="checkmark" size={12} color={FateDropColors.ivory} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -216,7 +231,11 @@ function AvatarChoice({ id, selected, onPress }: { id: ProfileAvatarId; selected
 function AvatarVisual({ avatarId, size }: { avatarId: ProfileAvatarId; size: number }) {
   return (
     <View style={[styles.avatarFrame, { width: size, height: size, borderRadius: size / 2 }]}>
-      {avatarId === 'mark' ? <FateDropNavEmblem size={Math.round(size * .58)} /> : <Image source={profileAvatarSources[avatarId]} style={{ width: size * .92, height: size * .92 }} contentFit="contain" />}
+      {avatarId === 'mark' ? (
+        <FateDropNavEmblem size={Math.round(size * 0.58)} />
+      ) : (
+        <Image source={profileAvatarSources[avatarId]} style={{ width: size * 0.9, height: size * 0.9 }} contentFit="contain" />
+      )}
     </View>
   );
 }
@@ -225,26 +244,21 @@ function CompanionGallery() {
   return (
     <>
       <SectionLabel label="ALERT COMPANIONS" />
-      <Text style={styles.companionCopy}>The lifecycle voices stay fixed: Oru = Whisper, Fenn = Echo, Koru = Manifested and Nyxen = Vanished. Profile customisation changes presentation only; it never rewrites Cloud lifecycle truth.</Text>
       <View style={styles.companionGallery}>
-        {PROFILE_WALLPAPER_IDS.map((id) => {
+        {companionIds.map((id) => {
           const meta = profileCompanionMeta[id];
           const color = companionColors[id];
           return (
             <View key={id} style={styles.companionCard}>
-              <View style={[styles.companionHalo, { borderColor: `${color}66`, backgroundColor: `${color}10` }]} />
-              <Image source={profileAvatarSources[id]} style={styles.companionCardImage} contentFit="contain" />
+              <View style={[styles.companionHalo, { borderColor: `${color}66`, backgroundColor: `${color}12` }]} />
+              <Image source={profileCompanionSources[id]} style={styles.companionCardImage} contentFit="contain" />
               <Text style={styles.companionName}>{meta.name}</Text>
               <Text style={[styles.companionStage, { color }]}>{meta.stage.toUpperCase()}</Text>
             </View>
           );
         })}
       </View>
-      <Pressable onPress={() => router.push('/companion')} style={({ pressed }) => [styles.manageCompanionButton, pressed && styles.pressed]}>
-        <Ionicons name="paw-outline" size={17} color={FateDropColors.goldBright} />
-        <Text style={styles.manageCompanionText}>Open companion preview</Text>
-        <Ionicons name="chevron-forward" size={15} color={FateDropColors.muted} />
-      </Pressable>
+      <Text style={styles.companionCopy}>Oru = Whisper · Fenn = Echo · Koru = Manifested · Nyxen = Vanished</Text>
     </>
   );
 }
@@ -255,46 +269,41 @@ function SectionLabel({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
-  content: { paddingHorizontal: 18, paddingBottom: 130 },
+  content: { paddingHorizontal: 18, paddingBottom: 124 },
   membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.84)' },
   membershipText: { color: FateDropColors.goldBright, fontSize: 9.5, fontWeight: '900', letterSpacing: .8 },
-  title: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 34, fontWeight: '700', textAlign: 'center', marginTop: 4 },
-  subtitle: { color: FateDropColors.secondary, fontSize: 12.5, lineHeight: 18, textAlign: 'center', marginTop: 5, marginBottom: 16 },
-  tabs: { flexDirection: 'row', borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 12 },
-  tab: { flex: 1, minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 15 },
+  title: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 29, fontWeight: '700', textAlign: 'center', marginTop: -2 },
+  subtitle: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 3, marginBottom: 10 },
+  preview: { height: 225, borderRadius: 21, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 10 },
+  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,9,14,.12)' },
+  previewAvatarWrap: { position: 'absolute', left: 0, right: 0, top: 62, alignItems: 'center' },
+  previewEdit: { position: 'absolute', marginLeft: 76, bottom: 3, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.94)' },
+  avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.84)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: .3, shadowRadius: 10, elevation: 6 },
+  tabs: { flexDirection: 'row', borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 15 },
+  tab: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15 },
   tabSelected: { borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.gold}10` },
-  tabText: { color: FateDropColors.secondary, fontSize: 12, fontWeight: '800' },
+  tabText: { color: FateDropColors.secondary, fontSize: 11.5, fontWeight: '800' },
   tabTextSelected: { color: FateDropColors.goldBright },
-  preview: { height: 266, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 20 },
-  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,9,14,.18)' },
-  previewAvatar: { position: 'absolute', left: '36%', top: 62 },
-  previewEdit: { position: 'absolute', right: -3, bottom: 4, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.94)' },
-  avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.8)' },
-  sectionLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 9, marginTop: 2 },
-  wallpaperGrid: { flexDirection: 'row', gap: 7, marginBottom: 20 },
-  wallpaperChoice: { flex: 1, aspectRatio: .62, borderRadius: 15, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
-  wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.08)' },
-  choiceSelected: { borderColor: FateDropColors.goldBright, borderWidth: 1.5 },
-  wallpaperLabelWrap: { borderTopWidth: 1, backgroundColor: 'rgba(5,9,14,.78)' },
-  wallpaperLabel: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', textAlign: 'center', paddingVertical: 7 },
-  check: { position: 'absolute', right: 6, top: 6, width: 27, height: 27, borderRadius: 13.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.85)' },
-  avatarGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 7, marginBottom: 20 },
-  avatarChoice: { flex: 1, maxWidth: 70, aspectRatio: 1, borderRadius: 999, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: 'rgba(12,18,26,.88)', overflow: 'hidden' },
+  sectionLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 10 },
+  avatarGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginBottom: 17 },
+  avatarChoice: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: 'rgba(12,18,26,.88)', overflow: 'hidden' },
   avatarChoiceSelected: { borderWidth: 2, borderColor: FateDropColors.goldBright },
-  avatarChoiceImage: { width: '92%', height: '92%' },
-  avatarCheck: { position: 'absolute', right: -1, bottom: -1, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.shell },
-  wallpaperStrip: { flexDirection: 'row', gap: 7, marginBottom: 20 },
-  compactWallpaper: { flex: 1, aspectRatio: 1.25, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, justifyContent: 'flex-end' },
-  compactWallpaperText: { color: FateDropColors.ivory, fontSize: 9.5, fontWeight: '900', textAlign: 'center', paddingVertical: 5, backgroundColor: 'rgba(5,9,14,.68)' },
-  companionCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 18, marginBottom: 13 },
-  companionGallery: { flexDirection: 'row', gap: 6, marginBottom: 18 },
-  companionCard: { flex: 1, alignItems: 'center', minWidth: 0 },
-  companionHalo: { position: 'absolute', bottom: 33, width: '82%', height: 18, borderRadius: 999, borderWidth: 1 },
-  companionCardImage: { width: '100%', aspectRatio: .76 },
-  companionName: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900', marginTop: -4 },
-  companionStage: { fontSize: 7.5, fontWeight: '900', letterSpacing: .7, marginTop: 1 },
-  manageCompanionButton: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', marginBottom: 20 },
-  manageCompanionText: { flex: 1, color: FateDropColors.ivory, fontSize: 13, fontWeight: '800' },
+  avatarChoiceImage: { width: '94%', height: '94%' },
+  avatarCheck: { position: 'absolute', right: -1, bottom: -1, width: 21, height: 21, borderRadius: 10.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.shell },
+  wallpaperGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9, marginBottom: 17 },
+  wallpaperChoice: { width: '48.7%', aspectRatio: 1.55, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
+  wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.04)' },
+  choiceSelected: { borderColor: FateDropColors.goldBright, borderWidth: 1.5 },
+  wallpaperLabelWrap: { borderTopWidth: 1, backgroundColor: 'rgba(5,9,14,.76)' },
+  wallpaperLabel: { color: FateDropColors.ivory, fontSize: 10.5, fontWeight: '900', textAlign: 'center', paddingVertical: 6 },
+  check: { position: 'absolute', right: 6, top: 6, width: 25, height: 25, borderRadius: 12.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.88)' },
+  companionGallery: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, marginBottom: 8 },
+  companionCard: { width: '48.7%', height: 178, alignItems: 'center', justifyContent: 'flex-end', borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(12,18,26,.56)', overflow: 'hidden', paddingBottom: 10 },
+  companionHalo: { position: 'absolute', bottom: 44, width: '72%', height: 24, borderRadius: 999, borderWidth: 1 },
+  companionCardImage: { width: '92%', height: 128 },
+  companionName: { color: FateDropColors.ivory, fontSize: 12.5, fontWeight: '900', marginTop: -2 },
+  companionStage: { fontSize: 8, fontWeight: '900', letterSpacing: .75, marginTop: 1 },
+  companionCopy: { color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 15, textAlign: 'center', marginBottom: 13 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 3 },
   secondaryButton: { flex: .8, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '800' },
