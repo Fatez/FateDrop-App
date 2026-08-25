@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
-import { profileAvatarSources, profileCompanionMeta } from '@/constants/profile-customisation';
+import { profileAvatarSources, profileCompanionMeta, profileCompanionSources } from '@/constants/profile-customisation';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -56,7 +56,7 @@ export default function ProfileScreenV2() {
         <FateDropHeader title="Profile" rightAction={<MembershipPill label={membershipLabel} />} />
 
         <View style={styles.hero}>
-          <ProfileWallpaperArt wallpaperId={customisation.wallpaperId} characterScale={1.08} />
+          <ProfileWallpaperArt wallpaperId={customisation.wallpaperId} />
           <View style={styles.heroShade} />
           <View style={styles.heroTopGlow} />
 
@@ -106,7 +106,7 @@ export default function ProfileScreenV2() {
           <SectionTitle label="ALERT COMPANIONS" compact />
           <Pressable onPress={() => openCustomisation('companions')} style={styles.lifecycleInfo}>
             <Ionicons name="information-circle-outline" size={14} color={FateDropColors.secondary} />
-            <Text style={styles.lifecycleInfoText}>About the lifecycle voices</Text>
+            <Text style={styles.lifecycleInfoText}>Lifecycle voices</Text>
           </Pressable>
         </View>
 
@@ -117,7 +117,7 @@ export default function ProfileScreenV2() {
             return (
               <Pressable key={id} onPress={() => openCustomisation('companions')} style={({ pressed }) => [styles.companion, pressed && styles.pressed]}>
                 <View style={[styles.companionGlow, { borderColor: `${color}66`, backgroundColor: `${color}12` }]} />
-                <Image source={profileAvatarSources[id]} style={styles.companionImage} contentFit="contain" />
+                <Image source={profileCompanionSources[id]} style={styles.companionImage} contentFit="contain" />
                 <Text style={styles.companionName}>{item.name}</Text>
                 <Text style={[styles.companionStage, { color }]}>{item.stage.toUpperCase()}</Text>
               </Pressable>
@@ -166,7 +166,9 @@ function HeroAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyp
 function CustomisationTile({ icon, title, detail, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.customisationTile, pressed && styles.pressed]}>
-      <View style={styles.customisationIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View>
+      <View style={styles.customisationIcon}>
+        <Ionicons name={icon} size={19} color={FateDropColors.goldBright} />
+      </View>
       <Text style={styles.customisationTitle}>{title}</Text>
       <Text style={styles.customisationDetail}>{detail}</Text>
       <Ionicons name="chevron-forward" size={14} color={FateDropColors.muted} />
@@ -185,8 +187,13 @@ function Divider() {
 function Preference({ icon, title, detail, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.preference, pressed && styles.pressed]}>
-      <View style={styles.preferenceIcon}><Ionicons name={icon} size={18} color={FateDropColors.goldBright} /></View>
-      <View style={styles.flex}><Text style={styles.preferenceTitle}>{title}</Text><Text style={styles.preferenceDetail}>{detail}</Text></View>
+      <View style={styles.preferenceIcon}>
+        <Ionicons name={icon} size={18} color={FateDropColors.goldBright} />
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.preferenceTitle}>{title}</Text>
+        <Text style={styles.preferenceDetail}>{detail}</Text>
+      </View>
       <Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} />
     </Pressable>
   );
@@ -198,7 +205,7 @@ const styles = StyleSheet.create({
   membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.82)' },
   membershipText: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .9 },
   hero: { height: 388, borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 20 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.18)' },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.16)' },
   heroTopGlow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(5,11,18,.76)' },
   heroAvatarWrap: { position: 'absolute', top: 70, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.82)', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .35, shadowRadius: 14, elevation: 8 },
@@ -224,15 +231,15 @@ const styles = StyleSheet.create({
   preferenceTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
   preferenceDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
   divider: { height: 1, backgroundColor: FateDropColors.borderSoft, marginLeft: 62 },
-  companionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
+  companionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
   lifecycleInfo: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   lifecycleInfoText: { color: FateDropColors.secondary, fontSize: 9.5 },
-  companions: { flexDirection: 'row', gap: 5, marginBottom: 10 },
-  companion: { flex: 1, minWidth: 0, alignItems: 'center', paddingTop: 2, paddingBottom: 5 },
-  companionGlow: { position: 'absolute', bottom: 34, width: '84%', height: 18, borderRadius: 999, borderWidth: 1 },
-  companionImage: { width: '100%', aspectRatio: .78 },
-  companionName: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900', marginTop: -3 },
-  companionStage: { fontSize: 7.5, fontWeight: '900', letterSpacing: .75, marginTop: 1 },
+  companions: { flexDirection: 'row', gap: 4, marginBottom: 10 },
+  companion: { flex: 1, minWidth: 0, alignItems: 'center', paddingTop: 0, paddingBottom: 5 },
+  companionGlow: { position: 'absolute', bottom: 35, width: '88%', height: 20, borderRadius: 999, borderWidth: 1 },
+  companionImage: { width: '112%', height: 112 },
+  companionName: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900', marginTop: -5 },
+  companionStage: { fontSize: 7.5, fontWeight: '900', letterSpacing: .7, marginTop: 1 },
   flex: { flex: 1 },
   pressed: { opacity: .72 },
 });
