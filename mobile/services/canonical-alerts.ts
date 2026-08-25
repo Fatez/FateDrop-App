@@ -88,6 +88,10 @@ function newestDetectedAt(alerts: CanonicalMobileAlert[], previous: string | nul
   return newest;
 }
 
+function emitReadStateChanged(userId: string) {
+  readStateListeners.forEach((listener) => listener(userId));
+}
+
 async function loadCanonicalAlertReadState(userId: string): Promise<CanonicalAlertReadState | null> {
   try {
     const raw = await AsyncStorage.getItem(readStateKey(userId));
@@ -108,7 +112,7 @@ async function loadCanonicalAlertReadState(userId: string): Promise<CanonicalAle
 
 export function subscribeCanonicalAlertReadState(listener: CanonicalAlertReadStateListener) {
   readStateListeners.add(listener);
-  return () => readStateListeners.delete(listener);
+  return () => { readStateListeners.delete(listener); };
 }
 
 export async function countUnreadCanonicalAlerts(userId: string, alerts: CanonicalMobileAlert[]) {
@@ -127,7 +131,11 @@ export async function countUnreadCanonicalAlerts(userId: string, alerts: Canonic
 }
 
 export async function markCanonicalAlertsSeen(userId: string, alerts: CanonicalMobileAlert[]) {
-  if (!userId || alerts.length === 0) return;
+  if (!userId) return;
+  if (alerts.length === 0) {
+    emitReadStateChanged(userId);
+    return;
+  }
   const previous = await loadCanonicalAlertReadState(userId);
   const seenAlertIds = Array.from(new Set([
     ...alerts.map((alert) => alert.id),
@@ -141,7 +149,7 @@ export async function markCanonicalAlertsSeen(userId: string, alerts: CanonicalM
     updatedAt: Date.now(),
   };
   await AsyncStorage.setItem(readStateKey(userId), JSON.stringify(next));
-  readStateListeners.forEach((listener) => listener(userId));
+  emitReadStateChanged(userId);
 }
 
 export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileAlert[]> {
