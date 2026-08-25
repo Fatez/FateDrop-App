@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropColors } from '@/constants/theme';
@@ -30,7 +29,7 @@ export function PersistentBottomNav() {
       <DockItem label="Home" icon="home-sharp" onPress={() => router.replace('/')} />
       <DockItem label="Alerts" icon="notifications-outline" onPress={() => router.replace('/(tabs)/alerts')} />
       <Pressable accessibilityLabel="Open FateDrop tools" onPress={() => router.push('/tools')} style={styles.emblemButton}>
-        <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} contentFit="contain" />
+        <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} resizeMode="contain" />
       </Pressable>
       <DockItem label="Network" icon="pulse-outline" onPress={() => router.replace('/(tabs)/network')} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
