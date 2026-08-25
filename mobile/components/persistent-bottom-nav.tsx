@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors } from '@/constants/theme';
 
 const ROOT_DOCK_PREFIXES = [
@@ -29,7 +30,7 @@ export function PersistentBottomNav() {
       <DockItem label="Home" icon="home-sharp" onPress={() => router.replace('/')} />
       <DockItem label="Alerts" icon="notifications-outline" onPress={() => router.replace('/(tabs)/alerts')} />
       <Pressable accessibilityLabel="Open FateDrop tools" onPress={() => router.push('/tools')} style={styles.emblemButton}>
-        <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} resizeMode="contain" />
+        <FateDropNavEmblem size={48} />
       </Pressable>
       <DockItem label="Network" icon="pulse-outline" onPress={() => router.replace('/(tabs)/network')} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
@@ -42,5 +43,4 @@ const styles = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 50 },
   label: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '800', letterSpacing: .35 },
   emblemButton: { width: 74, height: 68, marginTop: -18, alignItems: 'center', justifyContent: 'center' },
-  emblem: { width: 66, height: 66 },
 });
