@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Tabs } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { fetchCanonicalAlerts } from '@/services/canonical-alerts';
+import { countUnreadCanonicalAlerts, fetchCanonicalAlerts, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
 
 const NAV_GOLD = FateDropColors.goldBright;
 
@@ -23,21 +23,45 @@ function HomeMark({ focused }: { focused: boolean }) {
 }
 
 export default function TabLayout() {
-  const { signedIn } = useFateDropId();
+  const { signedIn, snapshot } = useFateDropId();
   const [alertCount, setAlertCount] = useState(0);
   const [toolboxOpen, setToolboxOpen] = useState(false);
+  const userId = snapshot?.user?.id ?? null;
+
+  const refreshAlertCount = useCallback(async () => {
+    if (!signedIn || !userId) {
+      setAlertCount(0);
+      return;
+    }
+    try {
+      const alerts = await fetchCanonicalAlerts(100);
+      setAlertCount(await countUnreadCanonicalAlerts(userId, alerts));
+    } catch {
+      setAlertCount(0);
+    }
+  }, [signedIn, userId]);
 
   useEffect(() => {
-    let active = true;
-    if (!signedIn) {
+    if (!signedIn || !userId) {
       setAlertCount(0);
-      return () => { active = false; };
+      return;
     }
-    void fetchCanonicalAlerts(100)
-      .then((alerts) => { if (active) setAlertCount(alerts.length); })
-      .catch(() => { if (active) setAlertCount(0); });
-    return () => { active = false; };
-  }, [signedIn]);
+
+    void refreshAlertCount();
+    const interval = setInterval(() => { void refreshAlertCount(); }, 60_000);
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshAlertCount();
+    });
+    const unsubscribeReadState = subscribeCanonicalAlertReadState((changedUserId) => {
+      if (changedUserId === userId) setAlertCount(0);
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSubscription.remove();
+      unsubscribeReadState();
+    };
+  }, [refreshAlertCount, signedIn, userId]);
 
   const openTool = (path: '/fatefind' | '/fate-match' | '/(tabs)/search') => {
     setToolboxOpen(false);
