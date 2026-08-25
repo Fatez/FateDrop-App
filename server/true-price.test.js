@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { truePriceGroups } = require('./true-price');
+const { truePriceGroups, queryMatchScore } = require('./true-price');
 
 function product(retailerKey, overrides = {}) {
   return {
@@ -76,4 +76,42 @@ test('does not expose unverified or internally conflicting RRP evidence to clien
   assert.equal(invalid.rrpGbp, undefined);
   assert.equal(invalid.unitRrpGbp, undefined);
   assert.equal(invalid.rrpSource, undefined);
+});
+
+test('broad FateFind query understands common TCG aliases without weakening identity evidence', () => {
+  const data = {
+    a: product('a', {
+      title: 'Pokémon Destined Rivals Elite Trainer Box',
+      identityKey: 'destined-rivals-etb',
+      valueFamilyKey: 'destined-rivals-etb',
+      unitCount: 1,
+      unitKind: 'elite_trainer_box',
+      unitRrpGbp: 49.99,
+    }),
+  };
+  const groups = truePriceGroups(data, 'Destined Rivals ETB');
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].identityKey, 'destined-rivals-etb');
+  assert.ok(groups[0].matchingConfidence >= 0.9);
+});
+
+test('broad query tolerates reordered natural terms but rejects a one-word false family', () => {
+  assert.ok(queryMatchScore('Pokémon Destined Rivals Elite Trainer Box', 'Rivals Destined ETB') > 0);
+  assert.equal(queryMatchScore('Journey Together Booster Box', 'Destined Rivals ETB'), 0);
+});
+
+test('canonical identity consolidates retailer title variants into one result family', () => {
+  const common = {
+    identityKey: 'destined-rivals-etb',
+    valueFamilyKey: 'destined-rivals-etb',
+    unitCount: 1,
+    unitKind: 'elite_trainer_box',
+    unitRrpGbp: 49.99,
+  };
+  const groups = truePriceGroups({
+    a: product('a', { ...common, title: 'Destined Rivals Elite Trainer Box' }),
+    b: product('b', { ...common, title: 'Pokémon TCG: Destined Rivals ETB' }),
+  }, 'Destined Rivals ETB');
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].retailerCount, 2);
 });

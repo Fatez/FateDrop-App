@@ -31,12 +31,19 @@ export interface NetworkSignal {
   };
 }
 
+export type NetworkPulse = Record<NetworkSignalState, number>;
+
 interface NetworkSignalResponse {
   success: boolean;
   count: number;
   generatedAt?: string;
   signals?: NetworkSignal[];
 }
+
+type SignalHealthResponse = {
+  available?: boolean;
+  lifecycle?: Partial<Record<NetworkSignalState, { total?: number; today?: number }>>;
+};
 
 type CanonicalAlertWire = {
   id?: string;
@@ -70,7 +77,7 @@ type CanonicalAlertResponse = {
 };
 
 const CANONICAL_SIGNAL_STATES: NetworkSignalState[] = ['whisper', 'echo', 'manifested', 'vanished'];
-const DEFAULT_WEB_URL = 'https://fate-drop.com';
+const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 
 function webBaseUrl() {
   return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/, '');
@@ -135,6 +142,30 @@ async function fetchSignedInCanonicalAlerts(limit: number): Promise<NetworkSigna
   });
 }
 
+export async function fetchNetworkPulse(days = 7): Promise<NetworkPulse> {
+  const safeDays = Math.min(30, Math.max(2, Math.trunc(days)));
+  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signal-health?days=${safeDays}`, {
+    headers: { accept: 'application/json' },
+  });
+  const data = await response.json().catch(() => null) as SignalHealthResponse | null;
+  if (!response.ok || data?.available !== true || !data.lifecycle) {
+    throw new Error('FateDrop network pulse is temporarily unavailable.');
+  }
+  return Object.fromEntries(CANONICAL_SIGNAL_STATES.map((state) => {
+    const total = Number(data.lifecycle?.[state]?.total);
+    return [state, Number.isFinite(total) ? Math.max(0, Math.trunc(total)) : 0];
+  })) as NetworkPulse;
+}
+
+export async function fetchPublicNetworkSignals(limit = 100): Promise<NetworkSignal[]> {
+  const safeLimit = Math.max(1, Math.min(500, Math.trunc(limit)));
+  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=${safeLimit}`);
+  if (!response.ok) throw new Error(`Signal feed HTTP ${response.status}`);
+  const data = await response.json() as NetworkSignalResponse;
+  if (!data.success || !Array.isArray(data.signals)) return [];
+  return data.signals.filter((signal): signal is NetworkSignal => Boolean(signal?.id && signal?.title && CANONICAL_SIGNAL_STATES.includes(signal.state)));
+}
+
 export async function fetchNetworkSignals(limit = 50): Promise<NetworkSignal[]> {
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
 
@@ -146,9 +177,5 @@ export async function fetchNetworkSignals(limit = 50): Promise<NetworkSignal[]> 
 
   // Signed-out users may still inspect public lifecycle activity. This is a raw
   // network feed and must not be presented as personal/canonical alert history.
-  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=${safeLimit}`);
-  if (!response.ok) throw new Error(`Signal feed HTTP ${response.status}`);
-  const data = await response.json() as NetworkSignalResponse;
-  if (!data.success || !Array.isArray(data.signals)) return [];
-  return data.signals.filter((signal): signal is NetworkSignal => Boolean(signal?.id && signal?.title && CANONICAL_SIGNAL_STATES.includes(signal.state)));
+  return fetchPublicNetworkSignals(safeLimit);
 }

@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'fatedrop:id:session:v1';
 const SNAPSHOT_KEY = 'fatedrop:id:snapshot:v1';
-const DEFAULT_WEB_URL = 'https://fate-drop.com';
+const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 
 export type FateCapability = 'browse_network'|'selected_signals'|'retailer_discovery'|'true_price'|'advanced_fate_match'|'priority_alerts'|'advanced_filters'|'premium_discord'|'fate_lock_eligibility';
 export type FateFindCompanionId = 'koru'|'fenn'|'oru'|'nyxen';

@@ -14,6 +14,47 @@ const EVIDENCE_FIELDS = [
   ['unitKind', 'string'],
 ];
 
+const SEARCH_ALIASES = [
+  [/\betb\b/g, 'elite trainer box'],
+  [/\bpc etb\b/g, 'pokemon center elite trainer box'],
+  [/\bbooster display\b/g, 'booster box'],
+  [/\bdisplay box\b/g, 'booster box'],
+  [/\bcollection box\b/g, 'collection'],
+];
+
+function searchText(value) {
+  let text = normalise(String(value || '')).slice(0, 180);
+  for (const [pattern, replacement] of SEARCH_ALIASES) text = text.replace(pattern, replacement);
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function queryMatchScore(title, query) {
+  const wanted = searchText(query);
+  const candidate = searchText(title);
+  if (wanted.length < 2 || candidate.length < 2) return 0;
+  if (candidate === wanted) return 1;
+  if (candidate.includes(wanted)) return 0.98;
+
+  const wantedTokens = [...new Set(wanted.split(' ').filter((token) => token.length > 1))];
+  const candidateTokens = new Set(candidate.split(' ').filter(Boolean));
+  if (!wantedTokens.length) return 0;
+  const matched = wantedTokens.filter((token) => candidateTokens.has(token)).length;
+  if (matched === wantedTokens.length) return 0.93;
+
+  // Broad discovery is useful for natural queries, but do not let one generic
+  // word create a false FateFind family. Short queries must match every token;
+  // longer queries may tolerate one descriptive word being absent.
+  if (wantedTokens.length >= 3 && matched >= 2) {
+    const coverage = matched / wantedTokens.length;
+    if (coverage >= 0.67) return 0.68 + (coverage * 0.18);
+  }
+  return 0;
+}
+
+function matchesSearchText(title, query) {
+  return queryMatchScore(title, query) > 0;
+}
+
 function evidenceValue(product, field, type) {
   const value = product?.[field];
   if (type === 'string') return typeof value === 'string' && value.trim() ? value.trim() : null;
@@ -78,23 +119,29 @@ function offerFromLegacy(product) {
 }
 
 function truePriceGroups(database, query = '') {
-  const term = normalise(query).slice(0, 120);
+  const term = searchText(query).slice(0, 120);
   if (term.length < 2) return [];
-  const matching = Object.values(database || {}).filter((product) => isAvailable(product) && normalise(product.title).includes(term));
+  const matching = Object.values(database || {})
+    .filter((product) => isAvailable(product))
+    .map((product) => ({ product, score: queryMatchScore(product.title, term) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score);
   const groups = new Map();
 
-  for (const product of matching) {
+  for (const { product, score } of matching) {
     const category = categoryOf(product.title);
-    const key = `${category}:${normalise(product.title)}`;
+    const identityKey = evidenceValue(product, 'identityKey', 'string');
+    const key = identityKey ? `identity:${identityKey}` : `${category}:${normalise(product.title)}`;
     const offer = offerFromLegacy(product);
     const existing = groups.get(key) || {
       id: key,
       title: product.title,
       category,
-      matchingConfidence: 0.85,
+      matchingConfidence: score,
       offers: [],
       _evidenceConflicts: new Set(),
     };
+    existing.matchingConfidence = Math.max(existing.matchingConfidence || 0, score);
     mergeEvidence(existing, product);
     existing.offers.push(offer);
     groups.set(key, existing);
@@ -115,7 +162,7 @@ function truePriceGroups(database, query = '') {
         isLowestKnownDelivered: lowest !== undefined && offer.totalDeliveredGbp === lowest,
       })),
     };
-  }).sort((a, b) => b.retailerCount - a.retailerCount || a.title.localeCompare(b.title)).slice(0, 50);
+  }).sort((a, b) => b.matchingConfidence - a.matchingConfidence || b.retailerCount - a.retailerCount || a.title.localeCompare(b.title)).slice(0, 50);
 }
 
-module.exports = { offerFromLegacy, truePriceGroups };
+module.exports = { offerFromLegacy, truePriceGroups, queryMatchScore, matchesSearchText, searchText };

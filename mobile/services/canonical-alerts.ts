@@ -1,6 +1,6 @@
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
-const DEFAULT_WEB_URL = 'https://fate-drop.com';
+const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 
 export type CanonicalAlertStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED';
 
