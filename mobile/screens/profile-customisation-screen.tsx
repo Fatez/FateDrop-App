@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
-import { profileAvatarSources, profileCompanionMeta, profileWallpaperSources } from '@/constants/profile-customisation';
+import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
+import { profileAvatarSources, profileCompanionMeta, profileWallpaperMeta } from '@/constants/profile-customisation';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -131,10 +132,6 @@ export default function ProfileCustomisationScreen() {
         )}
 
         <View style={styles.actions}>
-          <Pressable onPress={() => setDraft(saved)} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-            <Ionicons name="eye-outline" size={17} color={FateDropColors.goldBright} />
-            <Text style={styles.secondaryButtonText}>Preview</Text>
-          </Pressable>
           <Pressable onPress={() => void reset()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Ionicons name="refresh-outline" size={17} color={FateDropColors.goldBright} />
             <Text style={styles.secondaryButtonText}>Reset</Text>
@@ -174,24 +171,26 @@ function TabButton({ icon, label, selected, onPress }: { icon: keyof typeof Ioni
 function ProfilePreview({ draft }: { draft: ProfileCustomisation }) {
   return (
     <View style={styles.preview}>
-      <Image source={profileWallpaperSources[draft.wallpaperId]} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <ProfileWallpaperArt wallpaperId={draft.wallpaperId} characterScale={1.08} />
       <View style={styles.previewShade} />
       <View style={styles.previewAvatar}>
         <AvatarVisual avatarId={draft.avatarId} size={104} />
         <View style={styles.previewEdit}><Ionicons name="pencil" size={14} color={FateDropColors.ivory} /></View>
       </View>
-      {draft.avatarId !== 'mark' ? <Image source={profileAvatarSources[draft.avatarId]} style={styles.previewCharacter} contentFit="contain" contentPosition="center bottom" /> : null}
     </View>
   );
 }
 
 function WallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; selected: boolean; onPress: () => void }) {
+  const meta = profileWallpaperMeta[id];
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.wallpaperChoice, selected && styles.choiceSelected, pressed && styles.pressed]}>
-      <Image source={profileWallpaperSources[id]} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <ProfileWallpaperArt wallpaperId={id} characterScale={1.2} />
       <View style={styles.wallpaperShade} />
       {selected ? <View style={styles.check}><Ionicons name="checkmark" size={16} color={FateDropColors.ivory} /></View> : null}
-      <Text style={styles.wallpaperLabel}>{profileCompanionMeta[id].name}</Text>
+      <View style={[styles.wallpaperLabelWrap, { borderTopColor: `${meta.accent}66` }]}>
+        <Text style={styles.wallpaperLabel}>{meta.name}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -199,9 +198,9 @@ function WallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; se
 function CompactWallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; selected: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.compactWallpaper, selected && styles.choiceSelected, pressed && styles.pressed]}>
-      <Image source={profileWallpaperSources[id]} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <ProfileWallpaperArt wallpaperId={id} characterScale={1.15} />
       <View style={styles.wallpaperShade} />
-      <Text style={styles.compactWallpaperText}>{profileCompanionMeta[id].name}</Text>
+      <Text style={styles.compactWallpaperText}>{profileWallpaperMeta[id].name}</Text>
     </Pressable>
   );
 }
@@ -227,7 +226,7 @@ function CompanionGallery() {
   return (
     <>
       <SectionLabel label="ALERT COMPANIONS" />
-      <Text style={styles.companionCopy}>The lifecycle voices stay fixed: Oru = Whisper, Fenn = Echo, Koru = Manifested and Nyxen = Vanished. This gallery changes presentation only; it never rewrites Cloud lifecycle truth.</Text>
+      <Text style={styles.companionCopy}>The lifecycle voices stay fixed: Oru = Whisper, Fenn = Echo, Koru = Manifested and Nyxen = Vanished. Profile customisation changes presentation only; it never rewrites Cloud lifecycle truth.</Text>
       <View style={styles.companionGallery}>
         {PROFILE_WALLPAPER_IDS.map((id) => {
           const meta = profileCompanionMeta[id];
@@ -267,32 +266,27 @@ const styles = StyleSheet.create({
   tabSelected: { borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.gold}10` },
   tabText: { color: FateDropColors.secondary, fontSize: 12, fontWeight: '800' },
   tabTextSelected: { color: FateDropColors.goldBright },
-
   preview: { height: 266, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 20 },
-  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,9,14,.28)' },
+  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,9,14,.18)' },
   previewAvatar: { position: 'absolute', left: '36%', top: 62 },
   previewEdit: { position: 'absolute', right: -3, bottom: 4, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.94)' },
-  previewCharacter: { position: 'absolute', right: 8, bottom: -5, width: '42%', height: '82%' },
   avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.8)' },
-
   sectionLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 9, marginTop: 2 },
   wallpaperGrid: { flexDirection: 'row', gap: 7, marginBottom: 20 },
   wallpaperChoice: { flex: 1, aspectRatio: .62, borderRadius: 15, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
-  wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.12)' },
+  wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.08)' },
   choiceSelected: { borderColor: FateDropColors.goldBright, borderWidth: 1.5 },
-  wallpaperLabel: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', textAlign: 'center', paddingVertical: 7, backgroundColor: 'rgba(5,9,14,.7)' },
+  wallpaperLabelWrap: { borderTopWidth: 1, backgroundColor: 'rgba(5,9,14,.78)' },
+  wallpaperLabel: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', textAlign: 'center', paddingVertical: 7 },
   check: { position: 'absolute', right: 6, top: 6, width: 27, height: 27, borderRadius: 13.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.85)' },
-
   avatarGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 7, marginBottom: 20 },
   avatarChoice: { flex: 1, maxWidth: 70, aspectRatio: 1, borderRadius: 999, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: 'rgba(12,18,26,.88)', overflow: 'hidden' },
   avatarChoiceSelected: { borderWidth: 2, borderColor: FateDropColors.goldBright },
   avatarChoiceImage: { width: '92%', height: '92%' },
   avatarCheck: { position: 'absolute', right: -1, bottom: -1, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.shell },
-
   wallpaperStrip: { flexDirection: 'row', gap: 7, marginBottom: 20 },
-  compactWallpaper: { flex: 1, aspectRatio: 1.3, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, justifyContent: 'flex-end' },
+  compactWallpaper: { flex: 1, aspectRatio: 1.25, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, justifyContent: 'flex-end' },
   compactWallpaperText: { color: FateDropColors.ivory, fontSize: 9.5, fontWeight: '900', textAlign: 'center', paddingVertical: 5, backgroundColor: 'rgba(5,9,14,.68)' },
-
   companionCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 18, marginBottom: 13 },
   companionGallery: { flexDirection: 'row', gap: 6, marginBottom: 18 },
   companionCard: { flex: 1, alignItems: 'center', minWidth: 0 },
@@ -302,11 +296,10 @@ const styles = StyleSheet.create({
   companionStage: { fontSize: 7.5, fontWeight: '900', letterSpacing: .7, marginTop: 1 },
   manageCompanionButton: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', marginBottom: 20 },
   manageCompanionText: { flex: 1, color: FateDropColors.ivory, fontSize: 13, fontWeight: '800' },
-
   actions: { flexDirection: 'row', gap: 8, marginTop: 3 },
-  secondaryButton: { flex: .75, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  secondaryButton: { flex: .8, minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   secondaryButtonText: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '800' },
-  primaryButton: { flex: 1.3, minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.goldBright, borderWidth: 1, borderColor: FateDropColors.gold },
+  primaryButton: { flex: 1.35, minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.goldBright, borderWidth: 1, borderColor: FateDropColors.gold },
   primaryDisabled: { opacity: .48 },
   primaryButtonText: { color: FateDropColors.ink, fontSize: 13, fontWeight: '900' },
   pressed: { opacity: .72 },
