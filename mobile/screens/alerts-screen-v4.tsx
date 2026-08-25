@@ -44,9 +44,9 @@ export default function AlertsScreenV4() {
     if (!signedIn) { setAlerts([]); setError(null); return; }
     setLoading(true); setError(null);
     try {
-      const [next, syncedSnapshot] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
+      const [next] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
       setAlerts(next);
-      const userId = syncedSnapshot?.user?.id ?? snapshot?.user?.id;
+      const userId = snapshot?.user?.id;
       if (userId) await markCanonicalAlertsSeen(userId, next);
     }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Alert inbox unavailable.'); }
