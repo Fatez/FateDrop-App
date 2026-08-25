@@ -8,7 +8,8 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const tabs = read('app/(tabs)/_layout.tsx');
 const search = read('screens/search-screen-v2.tsx');
-const fateFind = read('screens/fatefind-live-screen.tsx');
+const fateFindRoute = read('app/fatefind.tsx');
+const fateFind = read('screens/fatefind-live-screen-v2.tsx');
 const fateMatch = read('screens/fatematch-screen-v2.tsx');
 const fateDropId = read('services/fatedrop-id.ts');
 const legacyTruePrice = read('app/true-price.tsx');
@@ -26,6 +27,10 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
 });
 
 test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {
+  assert.match(fateFindRoute, /fatefind-live-screen-v2/);
+  assert.match(fateFind, /SIGNAL_ENGINE_URL/);
+  assert.match(fateFind, /\/api\/fatefind\/matches/);
+  assert.match(fateFind, /mode: 'verdict'/);
   assert.match(fateFind, /FATEDROP_WEB_URL/);
   assert.match(fateFind, /\/api\/fatefind\/verdict/);
   assert.match(fateFind, /FATEDROP_CLOUD/);
@@ -38,6 +43,14 @@ test('FateFind owns live value finding, visible True Price and one Cloud Fate Ve
   assert.match(fateFind, /KEEP HUNTING WITH FATEFIND/);
   assert.match(fateFind, /alertsEnabled: false/);
   assert.doesNotMatch(fateFind, /function\s+bestOffer|function\s+valuePosition|function\s+rankGroups/);
+});
+
+test('FateFind compare always uses two distinct product IDs and never fakes a waiting request', () => {
+  assert.match(fateFind, /compareLeftId === compareRightId/);
+  assert.match(fateFind, /excludedId/);
+  assert.match(fateFind, /group\.id !== excludedId/);
+  assert.match(fateFind, /fatefind-cloud-pair-verdict-missing/);
+  assert.doesNotMatch(fateFind, /Waiting for FateDrop Cloud to return the canonical head-to-head verdict/);
 });
 
 test('FateFind owns hosted hunt rules and FateMatch is the successful outcome', () => {
