@@ -16,7 +16,6 @@ import {
   PROFILE_AVATAR_IDS,
   PROFILE_WALLPAPER_IDS,
   loadProfileCustomisation,
-  resetProfileCustomisation,
   saveProfileCustomisation,
   type ProfileAvatarId,
   type ProfileCustomisation,
@@ -71,10 +70,10 @@ export default function ProfileCustomisationScreen() {
     }
   }
 
-  async function reset() {
-    const next = await resetProfileCustomisation(identity);
-    setSaved(next);
-    setDraft(next);
+  function reset() {
+    // Reset is a preview action until Apply & Save is pressed. It must not
+    // silently overwrite the user's saved profile customisation.
+    setDraft(DEFAULT_PROFILE_CUSTOMISATION);
   }
 
   const changed = draft.avatarId !== saved.avatarId || draft.wallpaperId !== saved.wallpaperId;
@@ -132,7 +131,7 @@ export default function ProfileCustomisationScreen() {
         )}
 
         <View style={styles.actions}>
-          <Pressable onPress={() => void reset()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={reset} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Ionicons name="refresh-outline" size={17} color={FateDropColors.goldBright} />
             <Text style={styles.secondaryButtonText}>Reset</Text>
           </Pressable>
@@ -234,7 +233,7 @@ function CompanionGallery() {
           return (
             <View key={id} style={styles.companionCard}>
               <View style={[styles.companionHalo, { borderColor: `${color}66`, backgroundColor: `${color}10` }]} />
-              <Image source={profileAvatarSources[id]} style={styles.companionCardImage} contentFit="contain" contentPosition="center bottom" />
+              <Image source={profileAvatarSources[id]} style={styles.companionCardImage} contentFit="contain" />
               <Text style={styles.companionName}>{meta.name}</Text>
               <Text style={[styles.companionStage, { color }]}>{meta.stage.toUpperCase()}</Text>
             </View>
