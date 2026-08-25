@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image as NativeImage, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts } from '@/services/canonical-alerts';
@@ -61,10 +62,20 @@ export default function TabLayout() {
           tabBarBadge: alertCount > 0 ? (alertCount > 99 ? '99+' : alertCount) : undefined,
           tabBarBadgeStyle: styles.badge,
         }} />
-        <Tabs.Screen name="tools" options={{
-          title: '', tabBarLabel: () => null,
-          tabBarButton: () => <Pressable accessibilityRole="button" accessibilityLabel="Open FateDrop tools" onPress={() => setToolboxOpen(true)} style={({ pressed }) => [styles.emblemButton, pressed && styles.pressed]}><NativeImage source={require('../../assets/images/fatedrop-center-emblem.png')} style={styles.emblemImage} resizeMode="contain" /></Pressable>,
-        }} />
+        <Tabs.Screen
+          name="tools"
+          listeners={{
+            tabPress: (event) => {
+              event.preventDefault();
+              setToolboxOpen(true);
+            },
+          }}
+          options={{
+            title: '',
+            tabBarLabel: () => null,
+            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={48} /></View>,
+          }}
+        />
         <Tabs.Screen name="network" options={{ title: 'Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
         <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={21} color={color} /> }} />
         <Tabs.Screen name="search" options={{ href: null }} />
@@ -107,8 +118,8 @@ const styles = StyleSheet.create({
   homeRoof: { position: 'absolute', top: 1, width: 14, height: 14, borderLeftWidth: 2, borderTopWidth: 2, transform: [{ rotate: '45deg' }], borderRadius: 1 },
   homeBody: { position: 'absolute', bottom: 1, width: 16, height: 12, borderWidth: 2, borderTopWidth: 0, alignItems: 'center', justifyContent: 'flex-end' },
   homeDoor: { width: 4, height: 7, borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-  emblemButton: { width: 70, height: 70, marginTop: -18, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', shadowColor: '#000000', shadowOpacity: .34, shadowRadius: 12, elevation: 12 },
-  emblemImage: { width: 66, height: 66 }, pressed: { opacity: .76, transform: [{ scale: .985 }] },
+  emblemSlot: { width: 62, height: 62, marginTop: -18, alignItems: 'center', justifyContent: 'center' },
+  pressed: { opacity: .76, transform: [{ scale: .985 }] },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.68)' },
   toolbox: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, borderColor: FateDropColors.border, backgroundColor: FateDropColors.shell, gap: 9 },
   toolboxBrand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10 }, toolboxEmblem: { width: 50, height: 50 }, toolboxBrandCopy: { flex: 1 },
