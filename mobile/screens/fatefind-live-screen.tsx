@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AbstractHero, FateDropBackground, FilterChip, StatusBadge } from '@/components/fatedrop-ui';
-import { SIGNAL_ENGINE_URL } from '@/constants/api';
+import { FATEDROP_WEB_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
 import { rrpBasisLabel } from '@/lib/value-compare';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
@@ -42,10 +42,10 @@ function deltaLabel(value: number | undefined, rrp: number | undefined) {
 }
 
 async function requestCloudVerdict(query: string, leftId?: string, rightId?: string) {
-  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/fatefind/matches`, {
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/fatefind/verdict`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: 'verdict', query, ...(leftId && rightId ? { leftId, rightId } : {}) }),
+    body: JSON.stringify({ query, ...(leftId && rightId ? { leftId, rightId } : {}) }),
   });
   if (!response.ok) throw new Error('fatefind-cloud-unavailable');
   const data = await response.json() as FateVerdictResponse;
@@ -105,6 +105,7 @@ export default function FateFindLiveScreen() {
         setVerdict(data.verdict);
         setPairVerdict(null);
         setCanonicalAvailable(true);
+        setCloudNotice(data.notice || '');
       } catch {
         try {
           const liveGroups = await requestLiveComparisonGroups(clean);
@@ -112,7 +113,7 @@ export default function FateFindLiveScreen() {
           setVerdict(null);
           setPairVerdict(null);
           setCanonicalAvailable(false);
-          setCloudNotice('Live FateFind results are available. The canonical Cloud Fate Verdict is temporarily unavailable, so FateDrop will not invent a winner on this device.');
+          setCloudNotice('Live FateFind results are available. The canonical Cloud Fate Verdict is temporarily unavailable; the two-item compare remains visible and will retry the Cloud gateway.');
         } catch {
           setGroups([]);
           setVerdict(null);
@@ -140,7 +141,7 @@ export default function FateFindLiveScreen() {
 
   useEffect(() => {
     const clean = query.trim();
-    if (!canonicalAvailable || clean.length < 2 || !compareLeftId || !compareRightId || compareLeftId === compareRightId) {
+    if (clean.length < 2 || !compareLeftId || !compareRightId || compareLeftId === compareRightId) {
       setPairVerdict(null);
       setPairError('');
       setPairLoading(false);
@@ -150,11 +151,16 @@ export default function FateFindLiveScreen() {
     setPairLoading(true);
     setPairError('');
     void requestCloudVerdict(clean, compareLeftId, compareRightId)
-      .then((data) => { if (active) setPairVerdict(data.pairVerdict); })
-      .catch(() => { if (active) { setPairVerdict(null); setPairError('FateDrop Cloud could not return this head-to-head verdict.'); } })
+      .then((data) => {
+        if (!active) return;
+        setPairVerdict(data.pairVerdict);
+        setCanonicalAvailable(true);
+        if (data.notice) setCloudNotice(data.notice);
+      })
+      .catch(() => { if (active) { setPairVerdict(null); setPairError('FateDrop Cloud could not return this head-to-head verdict yet.'); } })
       .finally(() => { if (active) setPairLoading(false); });
     return () => { active = false; };
-  }, [query, compareLeftId, compareRightId, canonicalAvailable]);
+  }, [query, compareLeftId, compareRightId]);
 
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const toggleProduct = async (group: TruePriceGroup) => {
@@ -170,9 +176,9 @@ export default function FateFindLiveScreen() {
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
     <Text style={styles.disclaimer}>RRP/reference percentage shows whether the item price is fair against the verified value baseline. True Price shows what you will actually pay when mandatory delivery/fees are known. Unknown delivery never becomes £0. FateDrop Cloud owns the ranking and Fate Verdict.</Text>
-    {cloudNotice ? <View style={styles.cloudNotice}><Ionicons name="cloud-offline-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.cloudNoticeText}>{cloudNotice}</Text></View> : null}
-    {canonicalAvailable ? <CloudVerdictSummary groups={displayed} verdict={verdict} /> : null}
-    {canonicalAvailable ? <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} result={pairVerdict} loading={pairLoading} error={pairError} /> : null}
+    {cloudNotice ? <View style={styles.cloudNotice}><Ionicons name={canonicalAvailable ? 'cloud-done-outline' : 'cloud-offline-outline'} size={16} color={FateDropColors.goldBright} /><Text style={styles.cloudNoticeText}>{cloudNotice}</Text></View> : null}
+    <CloudVerdictSummary groups={displayed} verdict={verdict} />
+    <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} result={pairVerdict} loading={pairLoading} error={pairError} />
   </>;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground /><FlatList data={displayed} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} ListHeaderComponent={header} ListEmptyComponent={loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{error || 'Search at least two characters to run FateFind across the live database.'}</Text>} renderItem={({ item }) => <ComparisonGroup group={item} saved={saved.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
@@ -196,7 +202,7 @@ function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight, result, 
   const winner = result?.winnerId ? options.find((group) => group.id === result.winnerId) : undefined;
 
   return <View style={styles.comparePanel}>
-    <View style={styles.compareHead}><View style={{ flex: 1 }}><Text style={styles.compareEyebrow}>FATEFIND COMPARE · CLOUD</Text><Text style={styles.compareTitle}>Compare two items</Text><Text style={styles.compareCopy}>This head-to-head uses the same canonical Fate Verdict engine as the website. RRP/reference position decides value first; True Price shows the known checkout cost.</Text></View>{winner ? <StatusBadge label="Best value" color={FateDropColors.mint} /> : null}</View>
+    <View style={styles.compareHead}><View style={{ flex: 1 }}><Text style={styles.compareEyebrow}>FATEFIND COMPARE · CLOUD</Text><Text style={styles.compareTitle}>Compare two items</Text><Text style={styles.compareCopy}>Choose any two matched items. The head-to-head is returned by the shared FateDrop Cloud gateway using the locked Fate Verdict rules; the phone does not calculate a winner.</Text></View>{winner ? <StatusBadge label="Best value" color={FateDropColors.mint} /> : null}</View>
     <CompareSelector label="ITEM A" groups={options} selectedId={leftGroup.id} onSelect={onLeft} />
     <CompareSelector label="ITEM B" groups={options} selectedId={rightGroup.id} onSelect={onRight} />
     {loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : result ? <>
