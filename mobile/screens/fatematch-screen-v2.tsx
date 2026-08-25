@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { saveRemoteFateFind } from '@/services/fatedrop-id';
+import { saveRemoteFateFind, type FateFindCompanionId } from '@/services/fatedrop-id';
 
 const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fate-drop.com').replace(/\/$/, '');
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
@@ -15,7 +15,7 @@ const toPence = (value: string) => value.trim() && Number.isFinite(Number(value)
 const toPercent = (value: string) => value.trim() && Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : null;
 
 type RrpPreset = '0' | '5' | '10' | 'custom';
-type CompanionId = 'koru' | 'fenn' | 'oru' | 'nyxen';
+type CompanionId = FateFindCompanionId;
 
 const COMPANIONS: { id: CompanionId; name: string; signal: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'koru', name: 'Koru', signal: 'Manifested', icon: 'sparkles-outline' },
@@ -24,11 +24,14 @@ const COMPANIONS: { id: CompanionId; name: string; signal: string; icon: keyof t
   { id: 'nyxen', name: 'Nyxen', signal: 'Vanished', icon: 'moon-outline' },
 ];
 
+function companionName(id: unknown) {
+  return COMPANIONS.find((companion) => companion.id === id)?.name ?? 'Koru';
+}
+
 function companionFromFateFind(item: Record<string, unknown>) {
   const preferences = item.notificationPreferences;
   if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) return 'Koru';
-  const id = (preferences as Record<string, unknown>).companionId;
-  return COMPANIONS.find((companion) => companion.id === id)?.name ?? 'Koru';
+  return companionName((preferences as Record<string, unknown>).companionId);
 }
 
 export default function FateMatchScreenV2() {
@@ -269,20 +272,23 @@ export default function FateMatchScreenV2() {
         }) : <Text style={styles.empty}>{signedIn ? 'No active FateFinds yet.' : 'Sign in to load your FateFinds.'}</Text>}
 
         <Text style={styles.sectionEyebrow}>RECENT FATEMATCHES</Text>
-        {recentMatches.length ? recentMatches.map((match) => (
-          <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
-            <View style={styles.flex}>
-              <Text style={styles.matchLive}>FATEMATCH — LIVE NOW</Text>
-              <Text style={styles.matchTitle}>{match.title}</Text>
-              <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
-              <Text style={styles.matchPrice}>
-                {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
-                {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
-              </Text>
-            </View>
-            <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
-          </Pressable>
-        )) : <Text style={styles.empty}>No FateMatches yet. A match appears here only when an active FateFind genuinely qualifies.</Text>}
+        {recentMatches.length ? recentMatches.map((match) => {
+          const matchCompanion = companionName(match.companionId);
+          return (
+            <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
+              <View style={styles.flex}>
+                <Text style={styles.matchLive}>{matchCompanion.toUpperCase()} · FATEMATCH — LIVE NOW</Text>
+                <Text style={styles.matchTitle}>{match.title}</Text>
+                <Text style={styles.matchMeta}>{matchCompanion} found this · {match.retailerName} · {match.stockStatus}</Text>
+                <Text style={styles.matchPrice}>
+                  {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
+                  {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
+            </Pressable>
+          );
+        }) : <Text style={styles.empty}>No FateMatches yet. A match appears here only when an active FateFind genuinely qualifies.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
