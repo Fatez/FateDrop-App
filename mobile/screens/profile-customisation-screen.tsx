@@ -89,7 +89,6 @@ export default function ProfileCustomisationScreen() {
         <FateDropHeader title="Profile Customisation" rightAction={<MembershipPill premium={tier !== 'FREE'} />} />
 
         <Text style={styles.title}>Profile Customisation</Text>
-        <Text style={styles.subtitle}>Personalise your profile with avatars and wallpapers.</Text>
 
         <ProfilePreview draft={draft} />
 
@@ -272,25 +271,24 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 124 },
   membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.84)' },
   membershipText: { color: FateDropColors.goldBright, fontSize: 9.5, fontWeight: '900', letterSpacing: .8 },
-  title: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 29, fontWeight: '700', textAlign: 'center', marginTop: -2 },
-  subtitle: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 3, marginBottom: 10 },
-  preview: { height: 225, borderRadius: 21, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 10 },
+  title: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 20, lineHeight: 24, fontWeight: '700', textAlign: 'center', marginTop: -8, marginBottom: 7 },
+  preview: { height: 225, borderRadius: 21, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 8 },
   previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,9,14,.12)' },
   previewAvatarWrap: { position: 'absolute', left: 0, right: 0, top: 62, alignItems: 'center' },
   previewEdit: { position: 'absolute', marginLeft: 76, bottom: 3, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.94)' },
   avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.84)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: .3, shadowRadius: 10, elevation: 6 },
-  tabs: { flexDirection: 'row', borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 15 },
-  tab: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15 },
+  tabs: { flexDirection: 'row', borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 12 },
+  tab: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 15 },
   tabSelected: { borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.gold}10` },
   tabText: { color: FateDropColors.secondary, fontSize: 11.5, fontWeight: '800' },
   tabTextSelected: { color: FateDropColors.goldBright },
-  sectionLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 10 },
-  avatarGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginBottom: 17 },
+  sectionLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 8 },
+  avatarGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginBottom: 14 },
   avatarChoice: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: 'rgba(12,18,26,.88)', overflow: 'hidden' },
   avatarChoiceSelected: { borderWidth: 2, borderColor: FateDropColors.goldBright },
   avatarChoiceImage: { width: '94%', height: '94%' },
   avatarCheck: { position: 'absolute', right: -1, bottom: -1, width: 21, height: 21, borderRadius: 10.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.shell },
-  wallpaperGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9, marginBottom: 17 },
+  wallpaperGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9, marginBottom: 14 },
   wallpaperChoice: { width: '48.7%', aspectRatio: 1.55, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
   wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.04)' },
   choiceSelected: { borderColor: FateDropColors.goldBright, borderWidth: 1.5 },
