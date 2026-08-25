@@ -11,12 +11,13 @@ const home = read('screens/home-screen-v3.tsx');
 const alertsRoute = read('app/(tabs)/alerts.tsx');
 const rootLayout = read('app/_layout.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
+const navEmblem = read('components/fatedrop-nav-emblem.tsx');
 const idService = read('services/fatedrop-id.ts');
 const alertService = read('services/canonical-alerts.ts');
 const signalService = read('services/network-signals.ts');
 const wishlistService = read('services/wishlist.ts');
 
- test('human audit repair routes Home and Alerts through the vNext screens', () => {
+test('human audit repair routes Home and Alerts through the vNext screens', () => {
   assert.match(homeRoute, /home-screen-v3/);
   assert.match(alertsRoute, /alerts-screen-v4/);
 });
@@ -30,11 +31,13 @@ test('Home uses the shared seven-day network lifecycle pulse', () => {
   assert.match(home, /Last 7 days/);
 });
 
-test('normal root browsing keeps the FateDrop five-button shell visible', () => {
+test('normal root browsing keeps the FateDrop five-button shell visible with a deterministic native emblem', () => {
   assert.match(rootLayout, /PersistentBottomNav/);
   assert.match(dock, /Home/);
   assert.match(dock, /Alerts/);
-  assert.match(dock, /fatedrop-center-emblem\.png/);
+  assert.match(dock, /FateDropNavEmblem/);
+  assert.match(navEmblem, /Native FateDrop compass mark/);
+  assert.doesNotMatch(dock, /fatedrop-center-emblem\.png/);
   assert.match(dock, /Network/);
   assert.match(dock, /Profile/);
   assert.match(dock, /\/encounters/);
