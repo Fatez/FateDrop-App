@@ -11,16 +11,25 @@ export type FateDropEntitlement = { configuredTier:'free'|'plus'|'pro'; effectiv
 export type CrossPlatformWishlistItem = { id:string; userId:string; productIdentityId:string|null; query:string; title:string; tcg:string|null; imageUrl:string|null; source:string; createdAt:number; updatedAt:number };
 export type CrossPlatformFateFind = Record<string, unknown> & { id:string; userId:string; enabled:boolean };
 export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; matchedAt:number; lastObservedAt:number };
-export type CrossPlatformNotificationPreferences = { whisper:boolean; echo:boolean; manifested:boolean; vanished:boolean; priceChange:boolean; fateMatch:boolean; web:boolean; push:boolean; discord:boolean; quietHours:boolean; quietStart:string|null; quietEnd:string|null; timezone:string; updatedAt:number };
+export type CrossPlatformNotificationPreferences = { whisper:boolean; echo:boolean; manifested:boolean; vanished:boolean; priceChange:boolean; fateMatch:boolean; sealedTcg:boolean; singleCards:boolean; accessories:boolean; merchandise:boolean; unknownProducts:boolean; web:boolean; push:boolean; discord:boolean; quietHours:boolean; quietStart:string|null; quietEnd:string|null; timezone:string; updatedAt:number };
 export type FateDropSyncSnapshot = { contractVersion:1; syncedAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement; wishlist:CrossPlatformWishlistItem[]; fateFinds:CrossPlatformFateFind[]; fateMatches:CrossPlatformFateMatch[]; notificationPreferences:CrossPlatformNotificationPreferences; pendingMigrations:string[] };
 type LoginResponse = Partial<FateDropSyncSnapshot> & { sessionToken:string; expiresAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement };
 
 function baseUrl(){ return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/,''); }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
-const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:false,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
+const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:false,priceChange:true,fateMatch:true,sealedTcg:true,singleCards:true,accessories:false,merchandise:false,unknownProducts:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
 
 function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences>|undefined):CrossPlatformNotificationPreferences{
-  return {...defaultPreferences,...(input||{}),whisper:typeof input?.whisper==='boolean'?input.whisper:true};
+  return {
+    ...defaultPreferences,
+    ...(input||{}),
+    whisper:typeof input?.whisper==='boolean'?input.whisper:true,
+    sealedTcg:typeof input?.sealedTcg==='boolean'?input.sealedTcg:true,
+    singleCards:typeof input?.singleCards==='boolean'?input.singleCards:true,
+    accessories:typeof input?.accessories==='boolean'?input.accessories:false,
+    merchandise:typeof input?.merchandise==='boolean'?input.merchandise:false,
+    unknownProducts:typeof input?.unknownProducts==='boolean'?input.unknownProducts:true,
+  };
 }
 function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
   return {...snapshot,fateMatches:snapshot.fateMatches||[],notificationPreferences:normalizePreferences(snapshot.notificationPreferences)};
