@@ -53,7 +53,6 @@ export default function HomeScreenV3() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Image source={require('../assets/images/home-koru-hero.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
-          <View style={styles.heroShade} />
           <View style={styles.heroFadeUpper} />
           <View style={styles.heroFadeLower} />
           <Image source={require('../assets/images/fatedrop-wordmark.png')} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
@@ -131,7 +130,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
   hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background, marginBottom: 18 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,6,11,.20)' },
   heroFadeUpper: { position: 'absolute', left: 0, right: 0, top: 0, height: 72, backgroundColor: 'rgba(4,5,11,.26)' },
   heroFadeLower: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100, backgroundColor: 'rgba(4,5,11,.72)' },
   wordmark: { position: 'absolute', left: 18, width: 150, height: 44 },
