@@ -34,7 +34,17 @@ jobs:
           import base64
 
           payload = Path('.story-staging/assets.b64').read_bytes()
+          whitespace = b' \t\r\n\v\f'
           normalized = b''.join(payload.split())
+          alphabet = set(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=')
+          bad = [(index, byte) for index, byte in enumerate(normalized) if byte not in alphabet]
+          if bad:
+              index, byte = bad[0]
+              start = max(0, index - 96)
+              end = min(len(normalized), index + 160)
+              print(f'Invalid base64 byte at normalized offset {index}: {byte!r}')
+              print(repr(normalized[start:end]))
+              raise SystemExit(2)
           archive = base64.b64decode(normalized, validate=True)
           Path('/tmp/fatedrop-stories-assets.tar.gz').write_bytes(archive)
           PY
