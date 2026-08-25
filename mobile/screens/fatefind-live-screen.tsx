@@ -133,16 +133,16 @@ export default function FateFindLiveScreen() {
   const toggleProduct = async (group: TruePriceGroup) => {
     const id = `product:${group.id}`;
     if (saved.includes(group.id)) { await wishlist.remove(id); setSaved((current) => current.filter((value) => value !== group.id)); }
-    else { await wishlist.save({ id, targetType: 'PRODUCT', targetId: group.id, label: group.title, alertsEnabled: true, createdAt: new Date().toISOString() }); setSaved((current) => [...current, group.id]); }
+    else { await wishlist.save({ id, targetType: 'PRODUCT', targetId: group.id, label: group.title, alertsEnabled: false, createdAt: new Date().toISOString() }); setSaved((current) => [...current, group.id]); }
   };
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text} /><Text style={styles.backText}>Back</Text></Pressable>
-    <AbstractHero eyebrow="FateFind" title="Find the strongest deal live now." subtitle="FateFind combines live offer search, verified RRP/reference calculations, True Price and one canonical Fate Verdict from FateDrop Cloud. The app and website display the same verdict rather than calculating separate winners." icon="telescope" />
+    <AbstractHero eyebrow="FateFind" title="Find the right deal now. Keep hunting if it is not there yet." subtitle="FateFind is FateDrop's intelligent value finder. It combines verified RRP/reference maths with visible True Price, returns one Cloud Fate Verdict, and can keep searching under your conditions until a qualifying offer becomes a FateMatch." icon="telescope" />
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <Text style={styles.label}>Sort offers</Text>
-    <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="Delivered price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
-    <Text style={styles.disclaimer}>True Price is built into FateFind. RRP/reference percentages use item price against the verified value baseline; known mandatory delivery is shown separately in True Price. Unknown delivery never becomes £0. FateDrop Cloud owns the value ranking and Fate Verdict.</Text>
+    <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
+    <Text style={styles.disclaimer}>RRP/reference percentage shows whether the item price is fair against the verified value baseline. True Price shows what you will actually pay when mandatory delivery/fees are known. Unknown delivery never becomes £0. FateDrop Cloud owns the ranking and Fate Verdict.</Text>
     <CloudVerdictSummary groups={displayed} verdict={verdict} />
     <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} result={pairVerdict} loading={pairLoading} error={pairError} />
   </>;
@@ -168,7 +168,7 @@ function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight, result, 
   const winner = result?.winnerId ? options.find((group) => group.id === result.winnerId) : undefined;
 
   return <View style={styles.comparePanel}>
-    <View style={styles.compareHead}><View style={{ flex: 1 }}><Text style={styles.compareEyebrow}>FATEFIND COMPARE · CLOUD</Text><Text style={styles.compareTitle}>Compare two items</Text><Text style={styles.compareCopy}>This head-to-head uses the same canonical Fate Verdict engine as the website. RRP/reference position decides value first; True Price remains separate checkout evidence.</Text></View>{winner ? <StatusBadge label="Best value" color={FateDropColors.mint} /> : null}</View>
+    <View style={styles.compareHead}><View style={{ flex: 1 }}><Text style={styles.compareEyebrow}>FATEFIND COMPARE · CLOUD</Text><Text style={styles.compareTitle}>Compare two items</Text><Text style={styles.compareCopy}>This head-to-head uses the same canonical Fate Verdict engine as the website. RRP/reference position decides value first; True Price shows the known checkout cost.</Text></View>{winner ? <StatusBadge label="Best value" color={FateDropColors.mint} /> : null}</View>
     <CompareSelector label="ITEM A" groups={options} selectedId={leftGroup.id} onSelect={onLeft} />
     <CompareSelector label="ITEM B" groups={options} selectedId={rightGroup.id} onSelect={onRight} />
     {loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : result ? <>
@@ -179,7 +179,7 @@ function MobileValueCompare({ groups, leftId, rightId, onLeft, onRight, result, 
       <View style={winner ? styles.verdictWinner : styles.verdict}>
         <Text style={styles.verdictEyebrow}>{winner ? 'FATE VERDICT' : 'FATEDROP NEEDS MORE EVIDENCE'}</Text>
         <Text style={styles.verdictText}>{result.reason}</Text>
-        <Text style={styles.verdictNote}>{result.left?.provisional || result.right?.provisional ? 'RRP value remains valid from item price, but at least one final delivered cost is still provisional.' : 'Both selected offers have known delivery, so True Price can be compared alongside the RRP value verdict.'}</Text>
+        <Text style={styles.verdictNote}>{result.left?.provisional || result.right?.provisional ? 'RRP value remains valid from item price, but at least one final True Price is still provisional.' : 'Both selected offers have known delivery, so True Price can be compared alongside the RRP value verdict.'}</Text>
       </View>
     </> : <Text style={styles.state}>{error || 'Waiting for FateDrop Cloud to return the canonical head-to-head verdict.'}</Text>}
   </View>;
@@ -210,18 +210,18 @@ function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; sa
         {group.rrpGbp !== undefined ? <View style={styles.rrpRow}><Text style={styles.rrp}>{rrpBasisLabel(group)} {money(group.rrpGbp)}</Text>{group.rrpReferenceBasis ? <Text style={styles.rrpBasis}>{group.rrpReferenceBasis}</Text> : null}{group.unitCount && group.unitRrpGbp !== undefined ? <Text style={styles.rrpBasis}>{group.unitCount} × {money(group.unitRrpGbp)} per {group.unitKind === 'booster_pack' ? 'pack' : 'unit'}</Text> : null}{group.rrpSource ? <Text style={styles.rrpSource}>{group.rrpSource}{group.rrpObservedAt ? ` · observed ${new Date(group.rrpObservedAt).toLocaleDateString()}` : ''}</Text> : null}</View> : <Text style={styles.rrpUnknown}>Verified RRP/reference unavailable · no markup percentage shown</Text>}
       </View>
       <StatusBadge label={group.category} color={FateDropColors.cyan} />
-      <Pressable accessibilityLabel={saved ? 'Remove canonical product from wishlist' : 'Save canonical product to wishlist'} onPress={onToggle} style={styles.bookmark}><Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? FateDropColors.violetLight : FateDropColors.text} /></Pressable>
+      <Pressable accessibilityLabel={saved ? 'Remove canonical product from wishlist' : 'Remember canonical product in wishlist'} onPress={onToggle} style={styles.bookmark}><Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={17} color={saved ? FateDropColors.violetLight : FateDropColors.text} /></Pressable>
     </View>
     {group.offers.map((offer) => {
       const itemDelta = deltaLabel(offer.priceGbp, group.rrpGbp);
       const belowRrp = offer.priceGbp !== undefined && group.rrpGbp !== undefined && offer.priceGbp < group.rrpGbp;
       return <View key={offer.id} style={styles.offer}>
-        <View style={{ flex: 1 }}><Text style={styles.retailer}>{offer.retailerName}</Text><Text style={styles.itemPrice}>Current item price {money(offer.priceGbp)}</Text>{itemDelta ? <Text style={belowRrp ? styles.deltaGood : styles.delta}>{itemDelta}</Text> : <Text style={styles.noDelta}>No verified RRP/reference comparison</Text>}<Text style={styles.delivery}>{offer.deliveryKnown ? `True Price ${money(offer.totalDeliveredGbp)} · delivery ${money(offer.shippingGbp)}` : 'Delivery not yet verified · item-vs-reference comparison remains valid'}</Text>{offer.freeShippingThresholdGbp !== undefined ? <Text style={styles.collection}>Free delivery from {money(offer.freeShippingThresholdGbp)}</Text> : null}{offer.collectionAvailable ? <Text style={styles.collection}>Collection available</Text> : null}</View>
-        {belowRrp ? <StatusBadge label="Below RRP" color={FateDropColors.mint} /> : offer.isLowestKnownDelivered ? <StatusBadge label="Lowest delivered" color={FateDropColors.mint} /> : null}
+        <View style={{ flex: 1 }}><Text style={styles.retailer}>{offer.retailerName}</Text><Text style={styles.itemPrice}>Current item price {money(offer.priceGbp)}</Text>{itemDelta ? <Text style={belowRrp ? styles.deltaGood : styles.delta}>{itemDelta}</Text> : <Text style={styles.noDelta}>No verified RRP/reference comparison</Text>}<Text style={styles.delivery}>{offer.deliveryKnown ? `True Price ${money(offer.totalDeliveredGbp)} · delivery ${money(offer.shippingGbp)}` : 'True Price pending · delivery not yet verified; item-vs-reference comparison remains valid'}</Text>{offer.freeShippingThresholdGbp !== undefined ? <Text style={styles.collection}>Free delivery from {money(offer.freeShippingThresholdGbp)}</Text> : null}{offer.collectionAvailable ? <Text style={styles.collection}>Collection available</Text> : null}</View>
+        {belowRrp ? <StatusBadge label="Below RRP" color={FateDropColors.mint} /> : offer.isLowestKnownDelivered ? <StatusBadge label="Lowest True Price" color={FateDropColors.mint} /> : null}
         {offer.productUrl ? <Pressable accessibilityLabel={`Buy at ${offer.retailerName}`} onPress={() => void openTrackedRetailerLink({ destinationUrl: offer.productUrl!, retailerId: offer.retailerId, offerId: offer.id, placement: 'fatefind' })} style={styles.buy}><Ionicons name="open-outline" size={16} color={FateDropColors.text} /></Pressable> : null}
       </View>;
     })}
-    <Pressable onPress={() => router.push({ pathname: '/fate-match', params: { query: group.title } })} style={styles.fateFindButton}><Ionicons name="telescope" size={15} color={FateDropColors.violetLight} /><Text style={styles.fateFindText}>Watch with FateMatch</Text></Pressable>
+    <Pressable onPress={() => router.push({ pathname: '/fate-match', params: { query: group.title } })} style={styles.fateFindButton}><Ionicons name="telescope" size={15} color={FateDropColors.violetLight} /><Text style={styles.fateFindText}>KEEP HUNTING WITH FATEFIND</Text></Pressable>
   </View>;
 }
 
