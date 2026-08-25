@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const TOKEN_KEY = 'fatedrop:id:session:v1';
+const TOKEN_KEY = 'fatedrop.id.session.v1';
+const LEGACY_TOKEN_KEY = 'fatedrop:id:session:v1';
 const SNAPSHOT_KEY = 'fatedrop:id:snapshot:v1';
 const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 
@@ -36,16 +37,16 @@ async function storeSessionToken(token:string){ await SecureStore.setItemAsync(T
 export async function getStoredSessionToken(){
   const secureToken=await SecureStore.getItemAsync(TOKEN_KEY);
   if(secureToken)return secureToken;
-  const legacyToken=await AsyncStorage.getItem(TOKEN_KEY);
+  const legacyToken=await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
   if(!legacyToken)return null;
   await storeSessionToken(legacyToken);
-  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
   return legacyToken;
 }
-export async function clearStoredSession(){ await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
+export async function clearStoredSession(){ await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(LEGACY_TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
 export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{ try{const raw=await AsyncStorage.getItem(SNAPSHOT_KEY);if(!raw)return null;const parsed=JSON.parse(raw) as FateDropSyncSnapshot;return parsed?.contractVersion===1?normalizeSnapshot(parsed):null;}catch{return null;} }
 async function saveSnapshot(snapshot:FateDropSyncSnapshot){const normalized=normalizeSnapshot(snapshot);await AsyncStorage.setItem(SNAPSHOT_KEY,JSON.stringify(normalized));return normalized;}
-export async function signInFateDropId(email:string,password:string){const response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,password})});const result=await parseJson<LoginResponse>(response);await storeSessionToken(result.sessionToken);await AsyncStorage.removeItem(TOKEN_KEY);return saveSnapshot({contractVersion:1,syncedAt:Math.floor(Date.now()/1000),user:result.user,entitlement:result.entitlement,wishlist:result.wishlist||[],fateFinds:result.fateFinds||[],fateMatches:result.fateMatches||[],notificationPreferences:normalizePreferences(result.notificationPreferences),pendingMigrations:result.pendingMigrations||[]});}
+export async function signInFateDropId(email:string,password:string){const response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,password})});const result=await parseJson<LoginResponse>(response);await storeSessionToken(result.sessionToken);await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);return saveSnapshot({contractVersion:1,syncedAt:Math.floor(Date.now()/1000),user:result.user,entitlement:result.entitlement,wishlist:result.wishlist||[],fateFinds:result.fateFinds||[],fateMatches:result.fateMatches||[],notificationPreferences:normalizePreferences(result.notificationPreferences),pendingMigrations:result.pendingMigrations||[]});}
 export async function signOutFateDropId(){const token=await getStoredSessionToken();if(token)await fetch(`${baseUrl()}/api/mobile/session`,{method:'DELETE',headers:{authorization:`Bearer ${token}`,accept:'application/json'}}).catch(()=>null);await clearStoredSession();}
 export async function syncFateDropId():Promise<FateDropSyncSnapshot>{const token=await getStoredSessionToken();if(!token)throw new Error('FateDrop ID sign-in required.');const response=await fetch(`${baseUrl()}/api/mobile/sync`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});if(response.status===401){await clearStoredSession();throw new Error('Your FateDrop ID session expired. Please sign in again.');}const result=await parseJson<FateDropSyncSnapshot>(response);return saveSnapshot(normalizeSnapshot(result));}
 export async function entitlementIsFresh(maxAgeSeconds=300){const snapshot=await loadCachedIdentitySnapshot();return Boolean(snapshot&&Math.floor(Date.now()/1000)-snapshot.syncedAt<=maxAgeSeconds);}
