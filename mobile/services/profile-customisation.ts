@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PROFILE_AVATAR_IDS = ['oru', 'fenn', 'koru', 'nyxen', 'mark'] as const;
-export const PROFILE_WALLPAPER_IDS = ['oru', 'fenn', 'koru', 'nyxen'] as const;
+export const PROFILE_WALLPAPER_IDS = ['default', 'oru', 'fenn', 'koru', 'nyxen'] as const;
 
 export type ProfileAvatarId = (typeof PROFILE_AVATAR_IDS)[number];
 export type ProfileWallpaperId = (typeof PROFILE_WALLPAPER_IDS)[number];
@@ -13,7 +13,7 @@ export type ProfileCustomisation = {
 
 export const DEFAULT_PROFILE_CUSTOMISATION: ProfileCustomisation = {
   avatarId: 'oru',
-  wallpaperId: 'oru',
+  wallpaperId: 'default',
 };
 
 const STORAGE_PREFIX = 'fatedrop:profile-customisation:v1';
