@@ -8,6 +8,14 @@ const MAX_SEEN_ALERT_IDS = 500;
 
 export type CanonicalAlertStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED';
 
+export type CanonicalAlertPresentation = {
+  referenceKind: string | null;
+  referenceBasis: string | null;
+  sourceMarket: string | null;
+  sourceCurrency: string | null;
+  sourceMsrp: string | null;
+};
+
 export type CanonicalMobileAlert = {
   id: string;
   fateStage: CanonicalAlertStage;
@@ -35,6 +43,12 @@ export type CanonicalMobileAlert = {
       url: string | null;
     } | null;
   };
+  preparedLinks?: {
+    primary?: {
+      stockStatus?: string | null;
+    };
+  };
+  presentation?: CanonicalAlertPresentation | null;
   delivery?: {
     discord?: {
       status: 'sent' | 'failed' | 'skipped';
