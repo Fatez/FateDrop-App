@@ -7,6 +7,12 @@ on:
     paths:
       - '.story-staging/**'
       - '.github/workflows/materialize-stories.yml'
+  pull_request:
+    branches:
+      - feat/profile-customisation-2026-08-25
+    paths:
+      - '.story-staging/**'
+      - '.github/workflows/materialize-stories.yml'
 
 permissions:
   contents: write
@@ -17,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: qa/profile-polish-2026-08-25
       - name: Decode and validate Stories assets
         shell: bash
         run: |
@@ -45,4 +53,4 @@ jobs:
             exit 0
           fi
           git commit -m "Materialize FateDrop Stories assets"
-          git push
+          git push origin HEAD:qa/profile-polish-2026-08-25
