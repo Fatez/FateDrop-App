@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -117,7 +117,7 @@ export default function ProfileScreenV2() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open FateDrop Stories"
-            onPress={() => router.push('/stories')}
+            onPress={() => router.push('/stories' as Href)}
             style={({ pressed }) => [styles.storiesCard, pressed && styles.pressed]}>
             <View style={styles.storiesIcon}>
               <Ionicons name="book-outline" size={20} color={FateDropColors.goldBright} />
