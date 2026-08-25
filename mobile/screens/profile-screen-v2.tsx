@@ -113,6 +113,27 @@ export default function ProfileScreenV2() {
             </View>
           </Pressable>
 
+          <SectionTitle label="FATEDROP STORIES" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open FateDrop Stories"
+            onPress={() => router.push('/stories')}
+            style={({ pressed }) => [styles.storiesCard, pressed && styles.pressed]}>
+            <View style={styles.storiesIcon}>
+              <Ionicons name="book-outline" size={20} color={FateDropColors.goldBright} />
+            </View>
+            <View style={styles.flex}>
+              <View style={styles.storiesTitleRow}>
+                <Text style={styles.storiesTitle}>FateDrop Stories</Text>
+                <View style={styles.storiesBadge}>
+                  <Text style={styles.storiesBadgeText}>10 PAGES</Text>
+                </View>
+              </View>
+              <Text style={styles.storiesDetail}>Read how FateDrop works</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={FateDropColors.goldBright} />
+          </Pressable>
+
           <SectionTitle label="PREFERENCES" />
           <View style={styles.panel}>
             <Preference icon="notifications-outline" title="Notifications" detail="Whisper, Echo, Manifested, Vanished and FateMatch delivery." onPress={() => router.push('/notification-preferences')} />
@@ -224,6 +245,14 @@ const styles = StyleSheet.create({
   companionStage: { fontSize: 6.8, fontWeight: '900', letterSpacing: .6, marginTop: 1 },
   companionFooter: { minHeight: 36, marginTop: 2, borderTopWidth: 1, borderTopColor: FateDropColors.borderSoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: 'rgba(8,14,20,.36)' },
   companionFooterText: { color: FateDropColors.goldBright, fontSize: 10.5, fontWeight: '800' },
+
+  storiesCard: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 22, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.gold}4D`, backgroundColor: 'rgba(20,22,34,.94)', overflow: 'hidden' },
+  storiesIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}45`, backgroundColor: `${FateDropColors.gold}12` },
+  storiesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  storiesTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, fontWeight: '800' },
+  storiesDetail: { color: FateDropColors.secondary, fontSize: 11.5, marginTop: 3 },
+  storiesBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}4D`, backgroundColor: `${FateDropColors.gold}0D` },
+  storiesBadgeText: { color: FateDropColors.goldBright, fontSize: 7.5, fontWeight: '900', letterSpacing: .65 },
 
   panel: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 22 },
   preference: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13 },
