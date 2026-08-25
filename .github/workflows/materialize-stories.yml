@@ -1,0 +1,48 @@
+name: Materialize FateDrop Stories assets
+
+on:
+  push:
+    branches:
+      - qa/profile-polish-2026-08-25
+    paths:
+      - '.story-staging/**'
+      - '.github/workflows/materialize-stories.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode and validate Stories assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .story-staging/assets.b64 > /tmp/fatedrop-stories-assets.tar.gz
+          echo "e8361c5fd5dc7eaa4f92c579ddafc13eb4c256745863c1356641e5df673673c8  /tmp/fatedrop-stories-assets.tar.gz" | sha256sum --check -
+          test "$(stat -c%s /tmp/fatedrop-stories-assets.tar.gz)" -eq 304885
+          rm -rf mobile/assets/stories
+          mkdir -p mobile/assets/stories
+          tar -xzf /tmp/fatedrop-stories-assets.tar.gz -C mobile/assets/stories
+          for n in 01 02 03 04; do test -s "mobile/assets/stories/intro/frame-${n}.webp"; done
+          for n in 01 02 03 04 05 06 07 08 09 10; do test -s "mobile/assets/stories/manga/page-${n}.webp"; done
+          test "$(find mobile/assets/stories -type f | wc -l)" -eq 14
+          for file in mobile/assets/stories/intro/*.webp mobile/assets/stories/manga/*.webp; do
+            test "$(xxd -p -l 4 "$file")" = "52494646"
+          done
+          rm -rf .story-staging
+      - name: Commit materialized Stories assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A mobile/assets/stories .story-staging
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Materialize FateDrop Stories assets"
+          git push
