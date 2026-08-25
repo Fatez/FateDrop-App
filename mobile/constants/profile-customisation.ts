@@ -1,3 +1,4 @@
+import { DEFAULT_PROFILE_WALLPAPER_SOURCE } from '@/constants/profile-default-wallpaper';
 import type { ProfileAvatarId, ProfileWallpaperId } from '@/services/profile-customisation';
 
 export const profileAvatarSources: Record<Exclude<ProfileAvatarId, 'mark'>, number> = {
@@ -14,8 +15,8 @@ export const profileCompanionSources = {
   nyxen: require('../assets/images/profile-avatar-nyxen.png'),
 } as const;
 
-export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
-  default: require('../assets/images/profile-wallpaper-default.jpg'),
+export const profileWallpaperSources: Record<ProfileWallpaperId, number | { uri: string }> = {
+  default: DEFAULT_PROFILE_WALLPAPER_SOURCE,
   oru: require('../assets/images/alert-oru-hero-final.webp'),
   fenn: require('../assets/images/alert-fenn-hero-final.webp'),
   koru: require('../assets/images/alert-koru-hero-final.webp'),
