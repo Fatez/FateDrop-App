@@ -117,7 +117,7 @@ export default function ProfileScreenV2() {
             return (
               <Pressable key={id} onPress={() => openCustomisation('companions')} style={({ pressed }) => [styles.companion, pressed && styles.pressed]}>
                 <View style={[styles.companionGlow, { borderColor: `${color}66`, backgroundColor: `${color}12` }]} />
-                <Image source={profileAvatarSources[id]} style={styles.companionImage} contentFit="contain" contentPosition="center bottom" />
+                <Image source={profileAvatarSources[id]} style={styles.companionImage} contentFit="contain" />
                 <Text style={styles.companionName}>{item.name}</Text>
                 <Text style={[styles.companionStage, { color }]}>{item.stage.toUpperCase()}</Text>
               </Pressable>
