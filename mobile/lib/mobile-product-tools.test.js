@@ -10,6 +10,7 @@ const tabs = read('app/(tabs)/_layout.tsx');
 const search = read('screens/search-screen-v2.tsx');
 const fateFind = read('screens/fatefind-live-screen.tsx');
 const fateMatch = read('screens/fatematch-screen-v2.tsx');
+const fateDropId = read('services/fatedrop-id.ts');
 const legacyTruePrice = read('app/true-price.tsx');
 
 test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile', () => {
@@ -50,6 +51,14 @@ test('FateFind owns hosted hunt rules and FateMatch is the successful outcome', 
   assert.match(fateMatch, /FATEMATCH — LIVE NOW/);
   assert.match(fateMatch, /A FateMatch means FateFind found what you asked for/);
   assert.doesNotMatch(fateMatch, /START FATEMATCH/);
+});
+
+test('chosen companion travels with synced FateMatches and is visible on the result', () => {
+  assert.match(fateDropId, /export type FateFindCompanionId = 'koru'\|'fenn'\|'oru'\|'nyxen'/);
+  assert.match(fateDropId, /companionId:FateFindCompanionId/);
+  assert.match(fateDropId, /isCompanionId\(match\.companionId\)\?match\.companionId:'koru'/);
+  assert.match(fateMatch, /companionName\(match\.companionId\)/);
+  assert.match(fateMatch, /found this/);
 });
 
 test('Search remains passive database discovery and hands intelligent work to FateFind', () => {
