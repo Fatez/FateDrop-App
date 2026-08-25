@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useCallback, useRef, useState } from 'react';
 import {
-  Animated,
   FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -17,14 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 
-// Beta intentionally uses local frames extracted from the Gemini MP4.
-// There is no runtime video player, network request, audio stream or sound dependency.
-const INTRO_FRAMES = [
-  require('@/assets/stories/intro/frame-01.webp'),
-  require('@/assets/stories/intro/frame-02.webp'),
-  require('@/assets/stories/intro/frame-03.webp'),
-  require('@/assets/stories/intro/frame-04.webp'),
-];
+const INTRO_VIDEO = require('@/assets/stories/intro/gemini_generated_video_BF2DED27.mp4');
 
 const MANGA_PAGES = [
   require('@/assets/stories/manga/page-01.webp'),
@@ -46,46 +39,23 @@ export default function StoriesScreen() {
 }
 
 function StoriesIntro({ onBegin }: { onBegin: () => void }) {
-  const [frameIndex, setFrameIndex] = useState(0);
-  const crossfade = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const run = () => {
-      timer = setTimeout(() => {
-        if (!active) return;
-        crossfade.setValue(0);
-        Animated.timing(crossfade, {
-          toValue: 1,
-          duration: 720,
-          useNativeDriver: true,
-        }).start(({ finished }) => {
-          if (!active || !finished) return;
-          setFrameIndex((current) => (current + 1) % INTRO_FRAMES.length);
-          crossfade.setValue(0);
-          run();
-        });
-      }, 920);
-    };
-
-    run();
-    return () => {
-      active = false;
-      if (timer) clearTimeout(timer);
-      crossfade.stopAnimation();
-    };
-  }, [crossfade]);
-
-  const nextFrame = (frameIndex + 1) % INTRO_FRAMES.length;
+  const player = useVideoPlayer(INTRO_VIDEO, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.play();
+  });
 
   return (
     <View style={styles.introRoot}>
-      <Image source={INTRO_FRAMES[frameIndex]} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: crossfade }]}>
-        <Image source={INTRO_FRAMES[nextFrame]} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />
-      </Animated.View>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+          allowsPictureInPicture={false}
+        />
+      </View>
       <View pointerEvents="none" style={styles.introShade} />
       <View pointerEvents="none" style={styles.introGlow} />
 
