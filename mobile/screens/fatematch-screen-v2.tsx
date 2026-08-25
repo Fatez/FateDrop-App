@@ -15,15 +15,33 @@ const toPence = (value: string) => value.trim() && Number.isFinite(Number(value)
 const toPercent = (value: string) => value.trim() && Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : null;
 
 type RrpPreset = '0' | '5' | '10' | 'custom';
+type CompanionId = 'koru' | 'fenn' | 'oru' | 'nyxen';
+
+const COMPANIONS: { id: CompanionId; name: string; signal: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'koru', name: 'Koru', signal: 'Manifested', icon: 'sparkles-outline' },
+  { id: 'fenn', name: 'Fenn', signal: 'Echo', icon: 'radio-outline' },
+  { id: 'oru', name: 'Oru', signal: 'Whisper', icon: 'ear-outline' },
+  { id: 'nyxen', name: 'Nyxen', signal: 'Vanished', icon: 'moon-outline' },
+];
+
+function companionFromFateFind(item: Record<string, unknown>) {
+  const preferences = item.notificationPreferences;
+  if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) return 'Koru';
+  const id = (preferences as Record<string, unknown>).companionId;
+  return COMPANIONS.find((companion) => companion.id === id)?.name ?? 'Koru';
+}
 
 export default function FateMatchScreenV2() {
   const params = useLocalSearchParams<{ query?: string | string[]; maxDelivered?: string | string[]; maxItem?: string | string[]; maxAboveRrp?: string | string[] }>();
   const { snapshot, signedIn, can, refresh, syncing } = useFateDropId();
+  const incomingQuery = first(params.query)?.trim() ?? '';
+  const setupMode = incomingQuery.length > 0;
   const [query, setQuery] = useState('');
   const [maxItem, setMaxItem] = useState('');
   const [maxDelivered, setMaxDelivered] = useState('');
   const [rrpPreset, setRrpPreset] = useState<RrpPreset>('0');
   const [customPercent, setCustomPercent] = useState('');
+  const [companionId, setCompanionId] = useState<CompanionId>('koru');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,16 +64,17 @@ export default function FateMatchScreenV2() {
 
   const premium = can('advanced_fate_match');
   const maxPercentAboveRrp = rrpPreset === 'custom' ? toPercent(customPercent) : Number(rrpPreset);
+  const selectedCompanion = COMPANIONS.find((companion) => companion.id === companionId) ?? COMPANIONS[0];
 
   const activeHunts = useMemo(() => (snapshot?.fateFinds ?? []).filter((item) => item.enabled !== false), [snapshot?.fateFinds]);
-  const recentMatches = useMemo(() => [...(snapshot?.fateMatches ?? [])].sort((a, b) => b.matchedAt - a.matchedAt).slice(0, 6), [snapshot?.fateMatches]);
+  const recentMatches = useMemo(() => [...(snapshot?.fateMatches ?? [])].sort((a, b) => b.matchedAt - a.matchedAt).slice(0, 8), [snapshot?.fateMatches]);
 
   const save = async () => {
     setStatus(null);
     setError(null);
-    if (!query.trim()) return setError('Tell FateDrop which product to watch.');
+    if (!query.trim()) return setError('Tell FateDrop which product to find.');
     if (!signedIn) return setError('Sign in to FateDrop ID first.');
-    if (!premium) return setError('Hosted FateMatch monitoring is a Premium capability.');
+    if (!premium) return setError('Hosted FateFind monitoring is a Premium capability.');
     if (maxPercentAboveRrp == null) return setError('Enter a valid maximum percentage above RRP.');
 
     try {
@@ -70,12 +89,13 @@ export default function FateMatchScreenV2() {
           website: true,
           app: true,
           discord: snapshot?.notificationPreferences.discord === true,
+          companionId,
         },
       });
       await refresh();
-      setStatus('FateMatch is watching in FateDrop Cloud. You do not need to keep the app open.');
+      setStatus(`FateFind active. ${selectedCompanion.name} will bring you the alert when a qualifying result becomes a FateMatch.`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'FateMatch could not be saved.');
+      setError(cause instanceof Error ? cause.message : 'FateFind could not be saved.');
     }
   };
 
@@ -88,114 +108,144 @@ export default function FateMatchScreenV2() {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
 
-        <FateDropHeader title="FateMatch" subtitle="HUNT · WATCH · MATCH" />
+        <FateDropHeader title={setupMode ? 'FateFind' : 'FateMatches'} subtitle={setupMode ? 'FIND · WATCH · MATCH' : 'FOUND FOR YOU'} />
 
-        <View style={styles.hero}>
-          <View style={styles.heroOrnament} />
-          <Text style={styles.eyebrow}>WAIT FOR THE RIGHT MOMENT</Text>
-          <Text style={styles.heroTitle}>Set the deal you will actually accept.</Text>
-          <Text style={styles.heroCopy}>FateDrop watches live stock and price evidence until an offer satisfies your rules. When it qualifies, the hunt becomes FATEMATCH — LIVE NOW.</Text>
-        </View>
-
-        <View style={styles.identity}>
-          <View style={styles.flex}>
-            <Text style={styles.identityLabel}>FATEDROP ID</Text>
-            <Text style={styles.identityValue}>{signedIn ? `${snapshot?.user.fateId} · ${snapshot?.entitlement.effectiveTier.toUpperCase()}` : 'Not connected'}</Text>
-            <Text style={styles.identitySub}>{signedIn ? (premium ? 'Cloud monitoring capability confirmed.' : 'Account connected; hosted monitoring remains locked.') : 'Sign in so the hunt can run outside this device.'}</Text>
-          </View>
-          <Pressable onPress={() => router.push('/account')}>
-            <Text style={styles.identityAction}>{signedIn ? 'MANAGE' : 'SIGN IN'}</Text>
-          </Pressable>
-        </View>
-
-        {!premium && signedIn ? (
-          <View style={styles.premium}>
-            <Ionicons name="sparkles-outline" color={FateDropColors.goldBright} size={20} />
-            <View style={styles.flex}>
-              <Text style={styles.premiumTitle}>Hosted FateMatch is Premium</Text>
-              <Text style={styles.premiumText}>Membership truth comes from the backend. Upgrade on the website and the capability syncs back to the app.</Text>
+        {setupMode ? (
+          <>
+            <View style={styles.hero}>
+              <View style={styles.heroOrnament} />
+              <Text style={styles.eyebrow}>KEEP FATEFIND SEARCHING</Text>
+              <Text style={styles.heroTitle}>Tell FateDrop what counts as the right deal.</Text>
+              <Text style={styles.heroCopy}>FateFind checks the network now and keeps hunting if nothing qualifies. When an observed offer satisfies your rules, that successful result becomes a FateMatch.</Text>
             </View>
-            <Pressable onPress={() => void Linking.openURL(`${website}/subscriptions`)}>
-              <Text style={styles.upgrade}>PLANS ↗</Text>
+
+            <View style={styles.identity}>
+              <View style={styles.flex}>
+                <Text style={styles.identityLabel}>FATEDROP ID</Text>
+                <Text style={styles.identityValue}>{signedIn ? `${snapshot?.user.fateId} · ${snapshot?.entitlement.effectiveTier.toUpperCase()}` : 'Not connected'}</Text>
+                <Text style={styles.identitySub}>{signedIn ? (premium ? 'Cloud FateFind monitoring confirmed.' : 'Account connected; hosted FateFind monitoring remains locked.') : 'Sign in so FateFind can keep searching when the app is closed.'}</Text>
+              </View>
+              <Pressable onPress={() => router.push('/account')}>
+                <Text style={styles.identityAction}>{signedIn ? 'MANAGE' : 'SIGN IN'}</Text>
+              </Pressable>
+            </View>
+
+            {!premium && signedIn ? (
+              <View style={styles.premium}>
+                <Ionicons name="sparkles-outline" color={FateDropColors.goldBright} size={20} />
+                <View style={styles.flex}>
+                  <Text style={styles.premiumTitle}>Hosted FateFind is Premium</Text>
+                  <Text style={styles.premiumText}>Membership truth comes from the backend. Upgrade on the website and the capability syncs back to the app.</Text>
+                </View>
+                <Pressable onPress={() => void Linking.openURL(`${website}/subscriptions`)}>
+                  <Text style={styles.upgrade}>PLANS ↗</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <View style={styles.form}>
+              <Text style={styles.formEyebrow}>PRODUCT</Text>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="e.g. Destined Rivals ETB"
+                placeholderTextColor={FateDropColors.muted}
+                style={styles.input}
+              />
+
+              <Text style={styles.formEyebrow}>MAX ABOVE RRP</Text>
+              <View style={styles.presetRow}>
+                {(['0', '5', '10', 'custom'] as RrpPreset[]).map((value) => {
+                  const active = rrpPreset === value;
+                  return (
+                    <Pressable key={value} onPress={() => setRrpPreset(value)} style={[styles.preset, active && styles.presetActive]}>
+                      <Text style={[styles.presetText, active && styles.presetTextActive]}>{value === 'custom' ? 'CUSTOM' : `${value}%`}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {rrpPreset === 'custom' ? (
+                <TextInput
+                  value={customPercent}
+                  onChangeText={setCustomPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="Custom % above RRP"
+                  placeholderTextColor={FateDropColors.muted}
+                  style={styles.input}
+                />
+              ) : null}
+
+              <Text style={styles.ruleExplainer}>
+                {maxPercentAboveRrp === 0
+                  ? '0% means below RRP and at RRP qualify; anything above RRP is blocked.'
+                  : maxPercentAboveRrp == null
+                    ? 'Enter the highest premium above RRP you are willing to accept.'
+                    : `Up to +${maxPercentAboveRrp}% above RRP may qualify. Anything higher is blocked.`}
+              </Text>
+
+              <View style={styles.row}>
+                <TextInput
+                  value={maxItem}
+                  onChangeText={setMaxItem}
+                  keyboardType="decimal-pad"
+                  placeholder="Max item £"
+                  placeholderTextColor={FateDropColors.muted}
+                  style={styles.input}
+                />
+                <TextInput
+                  value={maxDelivered}
+                  onChangeText={setMaxDelivered}
+                  keyboardType="decimal-pad"
+                  placeholder="Max True Price £"
+                  placeholderTextColor={FateDropColors.muted}
+                  style={styles.input}
+                />
+              </View>
+
+              <Text style={styles.helper}>RRP percentage uses the item price against the verified value baseline. True Price shows the full known cost to buy, including mandatory delivery/fees. Unknown delivery never becomes £0.</Text>
+
+              <Text style={styles.formEyebrow}>WHO SHOULD BRING YOU THE FATEMATCH?</Text>
+              <View style={styles.companionGrid}>
+                {COMPANIONS.map((companion) => {
+                  const active = companion.id === companionId;
+                  return (
+                    <Pressable key={companion.id} onPress={() => setCompanionId(companion.id)} style={[styles.companion, active && styles.companionActive]}>
+                      <Ionicons name={companion.icon} size={18} color={active ? FateDropColors.goldBright : FateDropColors.secondary} />
+                      <Text style={[styles.companionName, active && styles.companionNameActive]}>{companion.name}</Text>
+                      <Text style={styles.companionSignal}>{companion.signal}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.helper}>This chooses the companion who delivers your personal FateFind result. Their network roles stay unchanged: Oru = Whisper, Fenn = Echo, Koru = Manifested, Nyxen = Vanished.</Text>
+
+              <Pressable disabled={syncing || !premium} onPress={() => void save()} style={[styles.save, (!premium || syncing) && styles.disabled]}>
+                <Ionicons name="telescope-outline" size={17} color={FateDropColors.ink} />
+                <Text style={styles.saveText}>{syncing ? 'Syncing…' : 'START FATEFIND'}</Text>
+              </Pressable>
+
+              {status ? <Text style={styles.success}>{status}</Text> : null}
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+            </View>
+          </>
+        ) : (
+          <View style={styles.hero}>
+            <View style={styles.heroOrnament} />
+            <Text style={styles.eyebrow}>FATEFIND RESULTS</Text>
+            <Text style={styles.heroTitle}>A FateMatch means FateFind found what you asked for.</Text>
+            <Text style={styles.heroCopy}>FateMatch is an outcome, not another watchlist. Create the hunt in FateFind; this screen shows what is still searching and the qualifying offers FateDrop has found for you.</Text>
+            <Pressable onPress={() => router.push('/fatefind')} style={styles.heroAction}>
+              <Ionicons name="telescope-outline" size={16} color={FateDropColors.ink} />
+              <Text style={styles.heroActionText}>RUN FATEFIND</Text>
             </Pressable>
           </View>
-        ) : null}
-
-        <View style={styles.form}>
-          <Text style={styles.formEyebrow}>PRODUCT</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="e.g. Destined Rivals ETB"
-            placeholderTextColor={FateDropColors.muted}
-            style={styles.input}
-          />
-
-          <Text style={styles.formEyebrow}>MAX ABOVE RRP</Text>
-          <View style={styles.presetRow}>
-            {(['0', '5', '10', 'custom'] as RrpPreset[]).map((value) => {
-              const active = rrpPreset === value;
-              return (
-                <Pressable key={value} onPress={() => setRrpPreset(value)} style={[styles.preset, active && styles.presetActive]}>
-                  <Text style={[styles.presetText, active && styles.presetTextActive]}>{value === 'custom' ? 'CUSTOM' : `${value}%`}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {rrpPreset === 'custom' ? (
-            <TextInput
-              value={customPercent}
-              onChangeText={setCustomPercent}
-              keyboardType="decimal-pad"
-              placeholder="Custom % above RRP"
-              placeholderTextColor={FateDropColors.muted}
-              style={styles.input}
-            />
-          ) : null}
-
-          <Text style={styles.ruleExplainer}>
-            {maxPercentAboveRrp === 0
-              ? '0% means below RRP and at RRP qualify; anything above RRP is blocked.'
-              : maxPercentAboveRrp == null
-                ? 'Enter the highest premium above RRP you are willing to accept.'
-                : `Up to +${maxPercentAboveRrp}% above RRP may qualify. Anything higher is blocked.`}
-          </Text>
-
-          <View style={styles.row}>
-            <TextInput
-              value={maxItem}
-              onChangeText={setMaxItem}
-              keyboardType="decimal-pad"
-              placeholder="Max item £"
-              placeholderTextColor={FateDropColors.muted}
-              style={styles.input}
-            />
-            <TextInput
-              value={maxDelivered}
-              onChangeText={setMaxDelivered}
-              keyboardType="decimal-pad"
-              placeholder="Max True Price £"
-              placeholderTextColor={FateDropColors.muted}
-              style={styles.input}
-            />
-          </View>
-
-          <Text style={styles.helper}>RRP percentage is calculated against item price. True Price stays separate and only includes delivery when FateDrop actually knows it. Unknown postage never becomes £0.</Text>
-
-          <Pressable disabled={syncing || !premium} onPress={() => void save()} style={[styles.save, (!premium || syncing) && styles.disabled]}>
-            <Ionicons name="radio-outline" size={17} color={FateDropColors.ink} />
-            <Text style={styles.saveText}>{syncing ? 'Syncing…' : 'START FATEMATCH'}</Text>
-          </Pressable>
-
-          {status ? <Text style={styles.success}>{status}</Text> : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-        </View>
+        )}
 
         <View style={styles.sectionHead}>
           <View>
-            <Text style={styles.sectionEyebrow}>WATCHING NOW</Text>
-            <Text style={styles.sectionTitle}>Active hunts</Text>
+            <Text style={styles.sectionEyebrow}>SEARCHING NOW</Text>
+            <Text style={styles.sectionTitle}>Active FateFinds</Text>
           </View>
           <Pressable onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { view: 'matches' } })}>
             <Text style={styles.sectionAction}>OPEN ALERTS →</Text>
@@ -203,39 +253,36 @@ export default function FateMatchScreenV2() {
         </View>
 
         {activeHunts.length ? activeHunts.map((item) => {
-          const queryText = String(item.query || item.queryText || 'FateMatch');
+          const queryText = String(item.query || item.queryText || 'FateFind');
           const percent = typeof item.maxPercentAboveRrp === 'number' ? item.maxPercentAboveRrp : null;
+          const companion = companionFromFateFind(item as Record<string, unknown>);
           return (
             <View key={item.id} style={styles.huntCard}>
-              <View style={styles.huntIcon}><Ionicons name="radio" size={18} color={FateDropColors.goldBright} /></View>
+              <View style={styles.huntIcon}><Ionicons name="telescope" size={18} color={FateDropColors.goldBright} /></View>
               <View style={styles.flex}>
                 <Text style={styles.huntTitle}>{queryText}</Text>
-                <Text style={styles.huntMeta}>Watching in Cloud{percent != null ? ` · max +${percent}% vs RRP` : ''}</Text>
+                <Text style={styles.huntMeta}>FateFind active · {companion}{percent != null ? ` · max +${percent}% vs RRP` : ''}</Text>
               </View>
               <View style={styles.liveDot} />
             </View>
           );
-        }) : <Text style={styles.empty}>{signedIn ? 'No active FateMatch hunts yet.' : 'Sign in to load your hunts.'}</Text>}
+        }) : <Text style={styles.empty}>{signedIn ? 'No active FateFinds yet.' : 'Sign in to load your FateFinds.'}</Text>}
 
-        {recentMatches.length ? (
-          <>
-            <Text style={styles.sectionEyebrow}>RECENT MATCHES</Text>
-            {recentMatches.map((match) => (
-              <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
-                <View style={styles.flex}>
-                  <Text style={styles.matchLive}>FATEMATCH — LIVE NOW</Text>
-                  <Text style={styles.matchTitle}>{match.title}</Text>
-                  <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
-                  <Text style={styles.matchPrice}>
-                    {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
-                    {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
-                  </Text>
-                </View>
-                <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
-              </Pressable>
-            ))}
-          </>
-        ) : null}
+        <Text style={styles.sectionEyebrow}>RECENT FATEMATCHES</Text>
+        {recentMatches.length ? recentMatches.map((match) => (
+          <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
+            <View style={styles.flex}>
+              <Text style={styles.matchLive}>FATEMATCH — LIVE NOW</Text>
+              <Text style={styles.matchTitle}>{match.title}</Text>
+              <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
+              <Text style={styles.matchPrice}>
+                {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
+                {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
+          </Pressable>
+        )) : <Text style={styles.empty}>No FateMatches yet. A match appears here only when an active FateFind genuinely qualifies.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -251,6 +298,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, lineHeight: 31, fontWeight: '700', marginTop: 7, maxWidth: 330 },
   heroCopy: { color: FateDropColors.secondary, fontSize: 14, lineHeight: 20, marginTop: 8 },
+  heroAction: { flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 7, marginTop: 16, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 13, backgroundColor: FateDropColors.goldBright },
+  heroActionText: { color: FateDropColors.ink, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
   identity: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 14, borderRadius: 17, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft, marginBottom: 12 },
   identityLabel: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   identityValue: { color: FateDropColors.ivory, fontWeight: '900', marginTop: 3 },
@@ -271,6 +320,12 @@ const styles = StyleSheet.create({
   ruleExplainer: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17 },
   row: { flexDirection: 'row', gap: 8 },
   helper: { color: FateDropColors.muted, fontSize: 11, lineHeight: 16 },
+  companionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  companion: { width: '48%', minHeight: 82, justifyContent: 'center', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
+  companionActive: { borderColor: FateDropColors.gold, backgroundColor: `${FateDropColors.gold}12` },
+  companionName: { color: FateDropColors.secondary, fontSize: 13, fontWeight: '900', marginTop: 5 },
+  companionNameActive: { color: FateDropColors.goldBright },
+  companionSignal: { color: FateDropColors.muted, fontSize: 9, fontWeight: '700', marginTop: 2, textTransform: 'uppercase' },
   save: { flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center', padding: 14, borderRadius: 14, backgroundColor: FateDropColors.goldBright },
   disabled: { opacity: 0.42 },
   saveText: { color: FateDropColors.ink, fontWeight: '900', letterSpacing: 0.5 },
@@ -290,6 +345,6 @@ const styles = StyleSheet.create({
   matchTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
   matchMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   matchPrice: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '800', marginTop: 5 },
-  empty: { color: FateDropColors.muted, fontSize: 12 },
+  empty: { color: FateDropColors.muted, fontSize: 12, lineHeight: 18 },
   flex: { flex: 1 },
 });
