@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image as NativeImage, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -63,7 +63,7 @@ export default function TabLayout() {
         }} />
         <Tabs.Screen name="tools" options={{
           title: '', tabBarLabel: () => null,
-          tabBarButton: () => <Pressable accessibilityRole="button" accessibilityLabel="Open FateDrop tools" onPress={() => setToolboxOpen(true)} style={({ pressed }) => [styles.emblemButton, pressed && styles.pressed]}><Image source={require('../../assets/images/fatedrop-center-emblem.png')} style={styles.emblemImage} contentFit="contain" /></Pressable>,
+          tabBarButton: () => <Pressable accessibilityRole="button" accessibilityLabel="Open FateDrop tools" onPress={() => setToolboxOpen(true)} style={({ pressed }) => [styles.emblemButton, pressed && styles.pressed]}><NativeImage source={require('../../assets/images/fatedrop-center-emblem.png')} style={styles.emblemImage} resizeMode="contain" /></Pressable>,
         }} />
         <Tabs.Screen name="network" options={{ title: 'Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
         <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={21} color={color} /> }} />
