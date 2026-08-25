@@ -53,8 +53,6 @@ export default function HomeScreenV3() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Image source={require('../assets/images/home-koru-hero.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
-          <View style={styles.heroFadeUpper} />
-          <View style={styles.heroFadeLower} />
           <Image source={require('../assets/images/fatedrop-wordmark.png')} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
@@ -126,18 +124,18 @@ function Action({ title, detail, icon, onPress }: { title: string; detail: strin
   return <Pressable onPress={onPress} style={styles.action}><View style={styles.actionIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} /></Pressable>;
 }
 
+const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } as const;
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
   hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background, marginBottom: 18 },
-  heroFadeUpper: { position: 'absolute', left: 0, right: 0, top: 0, height: 72, backgroundColor: 'rgba(4,5,11,.26)' },
-  heroFadeLower: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 100, backgroundColor: 'rgba(4,5,11,.72)' },
   wordmark: { position: 'absolute', left: 18, width: 150, height: 44 },
   profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.58)', borderWidth: 1, borderColor: FateDropColors.border },
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 },
-  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35 },
-  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700', maxWidth: 330, marginTop: 5 },
-  heroSubtitle: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 19, maxWidth: 340, marginTop: 7 },
+  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, ...heroShadow },
+  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700', maxWidth: 330, marginTop: 5, ...heroShadow },
+  heroSubtitle: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 19, maxWidth: 340, marginTop: 7, ...heroShadow },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 18, marginTop: 6, marginBottom: 10 },
   sectionEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.25, paddingHorizontal: 18, marginBottom: 7 },
   sectionTitle: { color: FateDropColors.ivory, fontSize: 20, fontWeight: '900', marginTop: 2 },
