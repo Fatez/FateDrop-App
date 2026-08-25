@@ -20,7 +20,6 @@ export function ProfileWallpaperArt({ wallpaperId, characterScale = 1 }: { wallp
         source={profileAvatarSources[wallpaperId]}
         style={[styles.character, { transform: [{ scale: characterScale }] }]}
         contentFit="contain"
-        contentPosition="center bottom"
       />
     </View>
   );
