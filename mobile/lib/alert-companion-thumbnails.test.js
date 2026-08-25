@@ -4,17 +4,30 @@ const path = require('node:path');
 const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
-const screen = fs.readFileSync(path.join(root, 'screens', 'alerts-screen-v3.tsx'), 'utf8');
+const screen = fs.readFileSync(path.join(root, 'screens', 'alerts-screen-v4.tsx'), 'utf8');
+const route = fs.readFileSync(path.join(root, 'app', '(tabs)', 'alerts.tsx'), 'utf8');
 
-test('mobile Alerts maps each canonical lifecycle to the correct companion thumbnail', () => {
-  assert.match(screen, /WHISPER: .*companion: 'Oru'.*alert-oru\.webp/);
-  assert.match(screen, /ECHO: .*companion: 'Fenn'.*alert-fenn\.webp/);
-  assert.match(screen, /MANIFESTED: .*companion: 'Koru'.*alert-koru\.webp/);
-  assert.match(screen, /VANISHED: .*companion: 'Nyxen'.*alert-nyxen\.webp/);
+test('mobile Alerts maps each canonical lifecycle to the correct companion hero artwork', () => {
+  assert.match(route, /alerts-screen-v4/);
+  assert.match(screen, /WHISPER:[\s\S]*companion: 'Oru'[\s\S]*alert-oru-hero-final\.webp/);
+  assert.match(screen, /ECHO:[\s\S]*companion: 'Fenn'[\s\S]*alert-fenn-hero-final\.webp/);
+  assert.match(screen, /MANIFESTED:[\s\S]*companion: 'Koru'[\s\S]*alert-koru-hero-final\.webp/);
+  assert.match(screen, /VANISHED:[\s\S]*companion: 'Nyxen'[\s\S]*alert-nyxen-hero-final\.webp/);
+  assert.doesNotMatch(screen, /alert-(?:oru|fenn|koru|nyxen)\.webp/);
 });
 
-test('companion thumbnails are app-only presentation, not alert semantics', () => {
-  assert.match(screen, /fetchCanonicalAlerts\(50\)/);
-  assert.match(screen, /alert\.fateStage === filter/);
-  assert.match(screen, /meta\.companion\.toUpperCase\(\).*meta\.label\.toUpperCase\(\)/s);
+test('companion artwork remains presentation over canonical lifecycle alerts', () => {
+  assert.match(screen, /fetchCanonicalAlerts\(100\)/);
+  assert.match(screen, /alert\.fateStage === stage/);
+  assert.match(screen, /active\.companion\.toUpperCase\(\).*active\.label\.toUpperCase\(\)/s);
+});
+
+test('active Alerts explains FateFind and FateMatch as hunt and successful result', () => {
+  assert.match(screen, /FATEFIND → FATEMATCH/);
+  assert.match(screen, /A FateFind stays active while it searches/);
+  assert.match(screen, /successful result becomes a FateMatch/);
+  assert.match(screen, /NEW FATEFIND/);
+  assert.match(screen, /FATEMATCH — LIVE NOW/);
+  assert.doesNotMatch(screen, /FateMatch watches/);
+  assert.doesNotMatch(screen, /NEW FATEMATCH/);
 });

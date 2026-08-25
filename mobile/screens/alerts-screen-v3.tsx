@@ -1,29 +1,60 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
-import { FateDropColors } from '@/constants/theme';
+import { FateDropColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 
-type Filter = 'ALL' | CanonicalAlertStage;
+const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
+type AlertView = 'signals' | 'matches';
 
-const stageMeta: Record<CanonicalAlertStage, { color: string; companion: string; image: number; label: string }> = {
-  WHISPER: { color: FateDropColors.cyan, companion: 'Oru', image: require('../assets/images/alert-oru.webp'), label: 'Whisper' },
-  ECHO: { color: FateDropColors.violetLight, companion: 'Fenn', image: require('../assets/images/alert-fenn.webp'), label: 'Echo' },
-  MANIFESTED: { color: FateDropColors.mint, companion: 'Koru', image: require('../assets/images/alert-koru.webp'), label: 'Manifested' },
-  VANISHED: { color: FateDropColors.coral, companion: 'Nyxen', image: require('../assets/images/alert-nyxen.webp'), label: 'Vanished' },
+const stageMeta: Record<CanonicalAlertStage, {
+  color: string;
+  companion: string;
+  label: string;
+  hero: number;
+  thumbnail: number;
+}> = {
+  WHISPER: {
+    color: FateDropColors.whisper,
+    companion: 'Oru',
+    label: 'Whisper',
+    hero: require('../assets/images/alert-oru-hero-final.webp'),
+    thumbnail: require('../assets/images/alert-oru.webp'),
+  },
+  ECHO: {
+    color: FateDropColors.echo,
+    companion: 'Fenn',
+    label: 'Echo',
+    hero: require('../assets/images/alert-fenn-hero-final.webp'),
+    thumbnail: require('../assets/images/alert-fenn.webp'),
+  },
+  MANIFESTED: {
+    color: FateDropColors.manifested,
+    companion: 'Koru',
+    label: 'Manifested',
+    hero: require('../assets/images/alert-koru-hero-final.webp'),
+    thumbnail: require('../assets/images/alert-koru.webp'),
+  },
+  VANISHED: {
+    color: FateDropColors.vanished,
+    companion: 'Nyxen',
+    label: 'Vanished',
+    hero: require('../assets/images/alert-nyxen-hero-final.webp'),
+    thumbnail: require('../assets/images/alert-nyxen.webp'),
+  },
 };
 
-function pounds(pence: number | null | undefined) {
-  return pence == null ? null : `£${(pence / 100).toFixed(2)}`;
-}
+const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+const pounds = (pence: number | null | undefined) => pence == null ? null : `£${(pence / 100).toFixed(2)}`;
 
-function ago(value: string) {
-  const timestamp = new Date(value).getTime();
+function ago(value: string | number) {
+  const timestamp = typeof value === 'number' ? value * (value < 10_000_000_000 ? 1000 : 1) : new Date(value).getTime();
   if (!Number.isFinite(timestamp)) return 'Recent';
   const mins = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
   if (mins < 1) return 'Just now';
@@ -32,72 +63,27 @@ function ago(value: string) {
   return `${Math.floor(mins / 1440)}d ago`;
 }
 
-function priceLine(alert: CanonicalMobileAlert) {
-  const item = pounds(alert.product.pricePence);
-  const delivered = pounds(alert.product.deliveredPricePence);
-  const rrp = pounds(alert.priceIntelligence.rrpPence ?? alert.product.rrpPence);
-  const delta = alert.priceIntelligence.rrpDeltaPercent;
-  const parts: string[] = [];
-  if (item) parts.push(item);
-  if (delivered && delivered !== item) parts.push(`${delivered} delivered`);
-  if (rrp) parts.push(delta == null ? `RRP ${rrp}` : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}% vs RRP ${rrp}`);
-  return parts.join(' · ');
-}
-
-function deliveryLabel(alert: CanonicalMobileAlert) {
-  const delivery = alert.delivery?.discord;
-  if (!delivery) return { label: 'Alert recorded', color: FateDropColors.secondary };
-  if (delivery.status === 'sent') return { label: 'Discord sent', color: FateDropColors.mint };
-  return { label: 'Discord issue', color: FateDropColors.amber };
-}
-
-function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
-  const meta = stageMeta[alert.fateStage];
-  const delivery = deliveryLabel(alert);
-  const price = priceLine(alert);
-  const open = () => {
-    if (alert.productUrl) void Linking.openURL(alert.productUrl);
-  };
-
-  return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
-      <View style={styles.alertTop}>
-        <View style={[styles.stageIcon, { backgroundColor: `${meta.color}18`, borderColor: `${meta.color}45` }]}>
-          <Image source={meta.image} style={styles.stageImage} resizeMode="cover" />
-        </View>
-        <View style={styles.alertTopCopy}>
-          <View style={styles.alertMetaRow}>
-            <Text style={[styles.stageLabel, { color: meta.color }]}>{meta.companion.toUpperCase()} · {meta.label.toUpperCase()}</Text>
-            <Text style={styles.time}>{ago(alert.detectedAt)}</Text>
-          </View>
-          <Text style={styles.alertTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.retailer}>{alert.retailer}</Text>
-      {price ? <Text style={styles.price}>{price}</Text> : null}
-      <Text style={styles.reason} numberOfLines={2}>{alert.message}</Text>
-
-      <View style={styles.alertFooter}>
-        <View style={styles.deliveryPill}>
-          <View style={[styles.deliveryDot, { backgroundColor: delivery.color }]} />
-          <Text style={[styles.deliveryText, { color: delivery.color }]}>{delivery.label}</Text>
-        </View>
-        <View style={styles.openAction}>
-          <Text style={styles.openText}>{alert.fateStage === 'MANIFESTED' ? 'VIEW PRODUCT' : 'INSPECT'}</Text>
-          <Ionicons name="arrow-forward" size={14} color={FateDropColors.text} />
-        </View>
-      </View>
-    </Pressable>
-  );
+function percentText(delta: number | null | undefined) {
+  if (delta == null || !Number.isFinite(delta)) return null;
+  if (Math.abs(delta) < 0.05) return 'AT RRP';
+  return delta < 0 ? `${Math.abs(delta).toFixed(1)}% BELOW RRP` : `${delta.toFixed(1)}% ABOVE RRP`;
 }
 
 export default function AlertsScreenV3() {
-  const { signedIn } = useFateDropId();
+  const params = useLocalSearchParams<{ stage?: string | string[]; view?: string | string[] }>();
+  const { signedIn, snapshot, refresh } = useFateDropId();
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
-  const [filter, setFilter] = useState<Filter>('ALL');
+  const [stage, setStage] = useState<CanonicalAlertStage>('ECHO');
+  const [view, setView] = useState<AlertView>('signals');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const incomingStage = first(params.stage)?.toUpperCase();
+    const incomingView = first(params.view)?.toLowerCase();
+    if (incomingStage && stages.includes(incomingStage as CanonicalAlertStage)) setStage(incomingStage as CanonicalAlertStage);
+    if (incomingView === 'matches' || incomingView === 'fatmatch' || incomingView === 'fatematch') setView('matches');
+  }, [params.stage, params.view]);
 
   const load = useCallback(async () => {
     if (!signedIn) {
@@ -108,133 +94,383 @@ export default function AlertsScreenV3() {
     setLoading(true);
     setError(null);
     try {
-      setAlerts(await fetchCanonicalAlerts(50));
+      const [nextAlerts] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
+      setAlerts(nextAlerts);
     } catch (cause) {
       setAlerts([]);
       setError(cause instanceof Error ? cause.message : 'Alert inbox is unavailable.');
     } finally {
       setLoading(false);
     }
-  }, [signedIn]);
+  }, [refresh, signedIn]);
 
   useFocusEffect(useCallback(() => {
     void load();
   }, [load]));
 
-  const filtered = useMemo(() => filter === 'ALL' ? alerts : alerts.filter((alert) => alert.fateStage === filter), [alerts, filter]);
-  const sent = alerts.filter((alert) => alert.delivery?.discord?.status === 'sent').length;
-  const issues = alerts.filter((alert) => alert.delivery?.discord && alert.delivery.discord.status !== 'sent').length;
+  const counts = useMemo(
+    () => Object.fromEntries(stages.map((value) => [value, alerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>,
+    [alerts],
+  );
+  const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage), [alerts, stage]);
+  const activeMeta = stageMeta[stage];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
       <ScrollView
-        style={styles.scroll}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.violetLight} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
         showsVerticalScrollIndicator={false}
       >
         <FateDropHeader
           title="Alerts"
-          subtitle="CANONICAL SIGNAL INBOX"
-          rightAction={<Pressable onPress={() => router.push('/notification-preferences')} style={styles.headerButton}><Ionicons name="options-outline" size={18} color={FateDropColors.text} /></Pressable>}
+          subtitle="SIGNALS & YOUR FATEMATCH HUNTS"
+          rightAction={
+            <Pressable onPress={() => router.push('/notification-preferences')} style={styles.headerButton}>
+              <Ionicons name="options-outline" size={18} color={FateDropColors.ivory} />
+            </Pressable>
+          }
         />
 
-        <View style={styles.hero}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.eyebrow}>ONE ALERT · EVERY SURFACE</Text>
-          <Text style={styles.heroTitle}>The signal that reached Discord lives here too.</Text>
-          <Text style={styles.heroCopy}>This inbox uses the same persisted alert IDs as FateDrop delivery telemetry. Background detections and policy-suppressed noise are kept separate.</Text>
-          <View style={styles.heroStats}>
-            <View><Text style={styles.heroStatValue}>{signedIn ? alerts.length : '—'}</Text><Text style={styles.heroStatLabel}>RECENT ALERTS</Text></View>
-            <View><Text style={styles.heroStatValue}>{signedIn ? sent : '—'}</Text><Text style={styles.heroStatLabel}>DISCORD SENT</Text></View>
-            <View><Text style={[styles.heroStatValue, issues > 0 && styles.issueValue]}>{signedIn ? issues : '—'}</Text><Text style={styles.heroStatLabel}>DELIVERY ISSUES</Text></View>
+        {view === 'signals' ? (
+          <View style={styles.signalHero}>
+            <Image
+              source={activeMeta.hero}
+              style={styles.signalHeroImage}
+              contentFit="cover"
+              contentPosition="center"
+              transition={160}
+            />
           </View>
+        ) : null}
+
+        <View style={styles.viewSwitch}>
+          <Pressable onPress={() => setView('signals')} style={[styles.viewOption, view === 'signals' && styles.viewOptionActive]}>
+            <Text style={[styles.viewOptionText, view === 'signals' && styles.viewOptionTextActive]}>SIGNALS</Text>
+          </Pressable>
+          <Pressable onPress={() => setView('matches')} style={[styles.viewOption, view === 'matches' && styles.viewOptionActive]}>
+            <Text style={[styles.viewOptionText, view === 'matches' && styles.viewOptionTextActive]}>FATEMATCH</Text>
+          </Pressable>
         </View>
 
-        {!signedIn ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="lock-closed-outline" size={24} color={FateDropColors.violetLight} />
-            <Text style={styles.emptyTitle}>Sign in to your FateDrop ID</Text>
-            <Text style={styles.emptyCopy}>Your canonical alert history follows your FateDrop account across the app, Web and delivery surfaces.</Text>
-            <Pressable onPress={() => router.push('/account')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>SIGN IN</Text></Pressable>
-          </View>
+        {view === 'signals' ? (
+          <SignalInbox signedIn={signedIn} alerts={alerts} filtered={filtered} counts={counts} stage={stage} setStage={setStage} loading={loading} error={error} />
         ) : (
-          <>
-            <View style={styles.filterRow}>
-              {(['ALL', 'WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'] as Filter[]).map((value) => {
-                const active = filter === value;
-                const color = value === 'ALL' ? FateDropColors.violetLight : stageMeta[value].color;
-                return <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filter, active && { borderColor: `${color}80`, backgroundColor: `${color}12` }]}><Text style={[styles.filterText, active && { color }]}>{value}</Text></Pressable>;
-              })}
-            </View>
-
-            <View style={styles.sectionHead}>
-              <View><Text style={styles.sectionEyebrow}>LIVE HISTORY</Text><Text style={styles.sectionTitle}>{filter === 'ALL' ? 'Recent alerts' : `${stageMeta[filter].label} alerts`}</Text></View>
-              <Pressable onPress={() => router.push('/fatefind')}><Text style={styles.sectionAction}>FateFind →</Text></Pressable>
-            </View>
-
-            {error ? <View style={styles.errorCard}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber} /><View style={styles.flex}><Text style={styles.errorTitle}>Canonical inbox unavailable</Text><Text style={styles.errorCopy}>{error}</Text></View></View> : null}
-
-            <View style={styles.alertList}>
-              {filtered.map((alert) => <AlertCard key={alert.id} alert={alert} />)}
-              {!loading && !error && !filtered.length ? <View style={styles.emptyState}><Ionicons name="radio-outline" size={24} color={FateDropColors.secondary} /><Text style={styles.emptyTitle}>No matching alerts</Text><Text style={styles.emptyCopy}>FateDrop will leave this empty rather than filling the inbox with demo or raw background detections.</Text></View> : null}
-            </View>
-          </>
+          <FateMatchInbox signedIn={signedIn} snapshot={snapshot} />
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function SignalInbox({
+  signedIn,
+  filtered,
+  counts,
+  stage,
+  setStage,
+  loading,
+  error,
+}: {
+  signedIn: boolean;
+  alerts: CanonicalMobileAlert[];
+  filtered: CanonicalMobileAlert[];
+  counts: Record<CanonicalAlertStage, number>;
+  stage: CanonicalAlertStage;
+  setStage: (stage: CanonicalAlertStage) => void;
+  loading: boolean;
+  error: string | null;
+}) {
+  const meta = stageMeta[stage];
+
+  return (
+    <>
+      <View style={styles.tabs}>
+        {stages.map((value) => {
+          const item = stageMeta[value];
+          const active = value === stage;
+          return (
+            <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, active && { borderColor: `${item.color}88`, backgroundColor: `${item.color}10` }]}>
+              <Text style={[styles.tabLabel, active && { color: item.color }]}>{item.label.toUpperCase()}</Text>
+              <Text style={[styles.tabCount, active && { color: FateDropColors.ivory }]}>{signedIn ? counts[value] : '—'}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {!signedIn ? (
+        <SignInState />
+      ) : (
+        <>
+          <View style={styles.sectionHead}>
+            <View>
+              <Text style={[styles.sectionEyebrow, { color: meta.color }]}>{meta.companion.toUpperCase()} IS WATCHING</Text>
+              <Text style={styles.sectionTitle}>{meta.label} alerts</Text>
+            </View>
+            <Pressable onPress={() => router.push('/fatefind')}>
+              <Text style={styles.sectionAction}>FATEFIND →</Text>
+            </Pressable>
+          </View>
+
+          {error ? (
+            <View style={styles.errorCard}>
+              <Ionicons name="warning-outline" size={18} color={FateDropColors.warning} />
+              <View style={styles.flex}>
+                <Text style={styles.errorTitle}>Canonical inbox unavailable</Text>
+                <Text style={styles.errorCopy}>{error}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.alertList}>
+            {filtered.map((alert) => <AlertCard key={alert.id} alert={alert} />)}
+            {!loading && !error && !filtered.length ? (
+              <View style={styles.emptyState}>
+                <Image source={meta.thumbnail} style={styles.emptyCompanion} contentFit="cover" />
+                <Text style={styles.emptyTitle}>No {meta.label.toLowerCase()} alerts right now</Text>
+                <Text style={styles.emptyCopy}>FateDrop leaves the feed quiet when nothing has met the policy for this signal stage.</Text>
+              </View>
+            ) : null}
+          </View>
+        </>
+      )}
+    </>
+  );
+}
+
+function FateMatchInbox({ signedIn, snapshot }: { signedIn: boolean; snapshot: ReturnType<typeof useFateDropId>['snapshot'] }) {
+  if (!signedIn) return <SignInState />;
+
+  const hunts = (snapshot?.fateFinds ?? []).filter((item) => item.enabled !== false);
+  const matches = [...(snapshot?.fateMatches ?? [])].sort((a, b) => b.matchedAt - a.matchedAt);
+
+  return (
+    <>
+      <View style={styles.matchHero}>
+        <View style={styles.matchHeroIcon}><Ionicons name="radio-outline" size={28} color={FateDropColors.goldBright} /></View>
+        <Text style={styles.matchHeroEyebrow}>YOUR LIVE HUNTS</Text>
+        <Text style={styles.matchHeroTitle}>Wait for the deal you actually want.</Text>
+        <Text style={styles.matchHeroCopy}>FateMatch watches in FateDrop Cloud. A hunt stays here while it is waiting and becomes LIVE NOW when stock and price satisfy your rules.</Text>
+        <Pressable onPress={() => router.push('/fate-match')} style={styles.createMatch}>
+          <Ionicons name="add" size={17} color={FateDropColors.ink} />
+          <Text style={styles.createMatchText}>NEW FATEMATCH</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionHead}>
+        <View>
+          <Text style={styles.sectionEyebrowGold}>WATCHING</Text>
+          <Text style={styles.sectionTitle}>Waiting for a match</Text>
+        </View>
+        <Text style={styles.countText}>{hunts.length}</Text>
+      </View>
+
+      {hunts.length ? hunts.map((hunt) => {
+        const query = String(hunt.query || hunt.queryText || 'FateMatch');
+        const maxPercent = typeof hunt.maxPercentAboveRrp === 'number' ? hunt.maxPercentAboveRrp : null;
+        const maxItem = typeof hunt.maxItemPricePence === 'number' ? pounds(hunt.maxItemPricePence) : null;
+        const maxTrue = typeof hunt.maxTruePricePence === 'number' ? pounds(hunt.maxTruePricePence) : null;
+        return (
+          <View key={hunt.id} style={styles.huntCard}>
+            <View style={styles.huntPulse}><View style={styles.huntPulseDot} /></View>
+            <View style={styles.flex}>
+              <Text style={styles.huntTitle}>{query}</Text>
+              <Text style={styles.huntMeta}>
+                {maxPercent != null ? `max +${maxPercent}% vs RRP` : 'RRP threshold not shown'}
+                {maxItem ? ` · item ≤ ${maxItem}` : ''}
+                {maxTrue ? ` · True Price ≤ ${maxTrue}` : ''}
+              </Text>
+              <Text style={styles.huntCloud}>Watching in Cloud</Text>
+            </View>
+            <Ionicons name="cloud-done-outline" size={18} color={FateDropColors.success} />
+          </View>
+        );
+      }) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="radio-outline" size={24} color={FateDropColors.gold} />
+          <Text style={styles.emptyTitle}>No FateMatch hunts yet</Text>
+          <Text style={styles.emptyCopy}>Create one when a product is not live yet or when you only want it at a price that fits your rules.</Text>
+        </View>
+      )}
+
+      <View style={styles.sectionHead}>
+        <View>
+          <Text style={styles.sectionEyebrowLive}>MATCHED</Text>
+          <Text style={styles.sectionTitle}>FATEMATCH — LIVE NOW</Text>
+        </View>
+        <Text style={styles.countText}>{matches.length}</Text>
+      </View>
+
+      {matches.length ? matches.slice(0, 20).map((match) => (
+        <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.liveMatchCard}>
+          <View style={styles.flex}>
+            <Text style={styles.liveMatchLabel}>FATEMATCH — LIVE NOW</Text>
+            <Text style={styles.liveMatchTitle}>{match.title}</Text>
+            <Text style={styles.liveMatchRetailer}>{match.retailerName} · {match.stockStatus}</Text>
+            <View style={styles.matchMetrics}>
+              <MatchMetric label="ITEM" value={pounds(match.itemPricePence) ?? 'Unknown'} />
+              <MatchMetric label="RRP" value={pounds(match.rrpPence) ?? '—'} />
+              <MatchMetric label="TRUE PRICE" value={pounds(match.deliveredPricePence) ?? 'Delivery unknown'} />
+            </View>
+            {match.percentAboveRrp != null ? (
+              <Text style={[styles.matchDelta, { color: match.percentAboveRrp <= 0 ? FateDropColors.success : FateDropColors.warning }]}>
+                {percentText(match.percentAboveRrp)}
+              </Text>
+            ) : null}
+            <Text style={styles.liveMatchTime}>Matched {ago(match.matchedAt)}</Text>
+          </View>
+          <Ionicons name="bag-handle-outline" size={20} color={FateDropColors.manifested} />
+        </Pressable>
+      )) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="hourglass-outline" size={24} color={FateDropColors.secondary} />
+          <Text style={styles.emptyTitle}>Nothing has qualified yet</Text>
+          <Text style={styles.emptyCopy}>When one of your hunts meets its stock and price rules, the live result will appear here.</Text>
+        </View>
+      )}
+    </>
+  );
+}
+
+function AlertCard({ alert }: { alert: CanonicalMobileAlert }) {
+  const meta = stageMeta[alert.fateStage];
+  const itemPrice = pounds(alert.product.pricePence);
+  const rrp = pounds(alert.priceIntelligence.rrpPence ?? alert.product.rrpPence);
+  const truePrice = pounds(alert.product.deliveredPricePence);
+  const delta = percentText(alert.priceIntelligence.rrpDeltaPercent);
+  const buyNow = alert.fateStage === 'MANIFESTED' && Boolean(alert.productUrl);
+
+  return (
+    <Pressable onPress={() => alert.productUrl ? void Linking.openURL(alert.productUrl) : undefined} style={({ pressed }) => [styles.alertCard, { borderColor: `${meta.color}38` }, pressed && styles.pressed]}>
+      <View style={styles.alertTop}>
+        {alert.product.imageUrl ? (
+          <Image source={{ uri: alert.product.imageUrl }} style={styles.productImage} contentFit="cover" />
+        ) : (
+          <View style={[styles.productFallback, { borderColor: `${meta.color}44` }]}>
+            <Ionicons name="cube-outline" size={24} color={meta.color} />
+          </View>
+        )}
+
+        <View style={styles.alertTopCopy}>
+          <View style={styles.alertMetaRow}>
+            <Text style={[styles.stageLabel, { color: meta.color }]}>{meta.companion.toUpperCase()} · {meta.label.toUpperCase()}</Text>
+            <Text style={styles.time}>{ago(alert.detectedAt)}</Text>
+          </View>
+          <Text style={styles.alertTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
+          <Text style={styles.retailer}>{alert.retailer}</Text>
+        </View>
+      </View>
+
+      <View style={styles.priceGrid}>
+        <MatchMetric label="ITEM" value={itemPrice ?? 'Unknown'} />
+        <MatchMetric label="RRP / REF" value={rrp ?? 'Unavailable'} />
+        <MatchMetric label="TRUE PRICE" value={truePrice ?? 'Delivery unknown'} />
+      </View>
+
+      {delta ? <Text style={[styles.deltaText, { color: meta.color }]}>{delta}</Text> : null}
+      <Text style={styles.reason}>{alert.message}</Text>
+
+      <View style={styles.alertFooter}>
+        <Text style={styles.inspectText}>{buyNow ? 'BUY NOW' : 'INSPECT'}</Text>
+        <Ionicons name={buyNow ? 'bag-handle-outline' : 'arrow-forward'} size={14} color={FateDropColors.ivory} />
+      </View>
+    </Pressable>
+  );
+}
+
+function MatchMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.priceMetric}>
+      <Text style={styles.priceLabel}>{label}</Text>
+      <Text style={styles.priceValue}>{value}</Text>
+    </View>
+  );
+}
+
+function SignInState() {
+  return (
+    <View style={styles.emptyState}>
+      <Ionicons name="lock-closed-outline" size={24} color={FateDropColors.gold} />
+      <Text style={styles.emptyTitle}>Sign in to FateDrop ID</Text>
+      <Text style={styles.emptyCopy}>Your canonical alert history and FateMatch hunts follow your account across FateDrop.</Text>
+      <Pressable onPress={() => router.push('/account')} style={styles.signInButton}>
+        <Text style={styles.signInText}>SIGN IN</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
-  scroll: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
-  headerButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(17,19,29,.8)' },
-  hero: { position: 'relative', overflow: 'hidden', padding: 22, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(168,85,247,.24)', backgroundColor: 'rgba(9,10,17,.94)', marginBottom: 18 },
-  heroGlow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, right: -90, top: -110, backgroundColor: 'rgba(124,58,237,.16)' },
-  eyebrow: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
-  heroTitle: { color: FateDropColors.text, fontSize: 28, lineHeight: 31, letterSpacing: -0.8, fontWeight: '900', maxWidth: 330, marginTop: 9 },
-  heroCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 10, maxWidth: 350 },
-  heroStats: { flexDirection: 'row', marginTop: 20, borderTopWidth: 1, borderTopColor: FateDropColors.border, paddingTop: 14 },
-  heroStatValue: { color: FateDropColors.text, fontWeight: '900', fontSize: 20 },
-  issueValue: { color: FateDropColors.amber },
-  heroStatLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.8, marginTop: 3 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 20 },
-  filter: { borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(17,19,29,.66)', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999 },
-  filterText: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 },
-  sectionEyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  sectionTitle: { color: FateDropColors.text, fontSize: 21, fontWeight: '900', letterSpacing: -0.4, marginTop: 3 },
-  sectionAction: { color: FateDropColors.violetLight, fontSize: 10, fontWeight: '900' },
+  headerButton: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
+  signalHero: { height: 232, marginHorizontal: -18, marginTop: -4, marginBottom: 4, overflow: 'hidden', backgroundColor: 'transparent' },
+  signalHeroImage: { ...StyleSheet.absoluteFillObject, opacity: 0.96, transform: [{ scale: 1.025 }] },
+  viewSwitch: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 10 },
+  viewOption: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 11 },
+  viewOptionActive: { backgroundColor: `${FateDropColors.gold}12`, borderWidth: 1, borderColor: `${FateDropColors.gold}45` },
+  viewOptionText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  viewOptionTextActive: { color: FateDropColors.goldBright },
+  tabs: { flexDirection: 'row', gap: 6, marginBottom: 14 },
+  tab: { flex: 1, minHeight: 53, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
+  tabLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.35 },
+  tabCount: { color: FateDropColors.secondary, fontSize: 13, fontWeight: '900', marginTop: 2 },
+  matchHero: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 18 },
+  matchHeroIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0E`, borderWidth: 1, borderColor: `${FateDropColors.gold}35`, marginBottom: 12 },
+  matchHeroEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  matchHeroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 26, lineHeight: 29, fontWeight: '700', marginTop: 5 },
+  matchHeroCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 19, marginTop: 7 },
+  createMatch: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, alignSelf: 'flex-start', marginTop: 14, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: FateDropColors.goldBright },
+  createMatchText: { color: FateDropColors.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10, marginTop: 4 },
+  sectionEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  sectionEyebrowGold: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  sectionEyebrowLive: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700', marginTop: 3 },
+  sectionAction: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900' },
+  countText: { color: FateDropColors.goldBright, fontSize: 18, fontWeight: '900' },
   alertList: { gap: 10 },
-  alertCard: { padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.92)' },
+  alertCard: { padding: 14, borderRadius: 18, borderWidth: 1, backgroundColor: FateDropColors.surface },
   alertTop: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
-  stageIcon: { width: 44, height: 44, borderRadius: 13, borderWidth: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  stageImage: { width: '100%', height: '100%' },
+  productImage: { width: 68, height: 68, borderRadius: 12, backgroundColor: FateDropColors.card },
+  productFallback: { width: 68, height: 68, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, backgroundColor: FateDropColors.card },
   alertTopCopy: { flex: 1 },
   alertMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  stageLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  time: { color: FateDropColors.muted, fontSize: 8 },
-  alertTitle: { color: FateDropColors.text, fontSize: 14, lineHeight: 18, fontWeight: '900', marginTop: 3 },
-  retailer: { color: FateDropColors.secondary, fontSize: 10, fontWeight: '800', marginTop: 11 },
-  price: { color: FateDropColors.text, fontSize: 11, fontWeight: '800', marginTop: 3 },
-  reason: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, marginTop: 7 },
-  alertFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: FateDropColors.border, marginTop: 13, paddingTop: 11 },
-  deliveryPill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  deliveryDot: { width: 6, height: 6, borderRadius: 3 },
-  deliveryText: { fontSize: 8, fontWeight: '900' },
-  openAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  openText: { color: FateDropColors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  emptyState: { alignItems: 'center', padding: 28, borderRadius: 20, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.82)' },
-  emptyTitle: { color: FateDropColors.text, fontSize: 15, fontWeight: '900', marginTop: 10 },
-  emptyCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 6, maxWidth: 300 },
-  primaryButton: { marginTop: 16, backgroundColor: FateDropColors.violet, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12 },
-  primaryButtonText: { color: FateDropColors.text, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  errorCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 13, marginBottom: 10, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.amber}50`, backgroundColor: `${FateDropColors.amber}0C` },
-  errorTitle: { color: FateDropColors.amber, fontSize: 10, fontWeight: '900' },
-  errorCopy: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 3 },
+  stageLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 0.75 },
+  time: { color: FateDropColors.muted, fontSize: 11 },
+  alertTitle: { color: FateDropColors.ivory, fontSize: 16, lineHeight: 20, fontWeight: '900', marginTop: 4 },
+  retailer: { color: FateDropColors.secondary, fontSize: 12, fontWeight: '800', marginTop: 5 },
+  priceGrid: { flexDirection: 'row', gap: 7, marginTop: 13 },
+  priceMetric: { flex: 1, minHeight: 58, padding: 9, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
+  priceLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.4 },
+  priceValue: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 15, fontWeight: '900', marginTop: 4 },
+  deltaText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, marginTop: 9 },
+  reason: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, marginTop: 8 },
+  alertFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6, borderTopWidth: 1, borderTopColor: FateDropColors.borderSoft, marginTop: 12, paddingTop: 11 },
+  inspectText: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '900', letterSpacing: 0.6 },
+  huntCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 8 },
+  huntPulse: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}50`, backgroundColor: `${FateDropColors.gold}0C` },
+  huntPulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: FateDropColors.success },
+  huntTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
+  huntMeta: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  huntCloud: { color: FateDropColors.success, fontSize: 10, fontWeight: '800', marginTop: 5 },
+  liveMatchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface, marginBottom: 9 },
+  liveMatchLabel: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  liveMatchTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900', marginTop: 4 },
+  liveMatchRetailer: { color: FateDropColors.secondary, fontSize: 12, marginTop: 3 },
+  matchMetrics: { flexDirection: 'row', gap: 7, marginTop: 10 },
+  matchDelta: { fontSize: 10, fontWeight: '900', marginTop: 8 },
+  liveMatchTime: { color: FateDropColors.muted, fontSize: 10, marginTop: 5 },
+  emptyState: { alignItems: 'center', padding: 26, borderRadius: 20, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 12 },
+  emptyCompanion: { width: 62, height: 62, borderRadius: 18 },
+  emptyTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900', marginTop: 10 },
+  emptyCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 5, maxWidth: 310 },
+  signInButton: { marginTop: 15, borderWidth: 1, borderColor: FateDropColors.gold, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12, backgroundColor: `${FateDropColors.gold}16` },
+  signInText: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  errorCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 13, marginBottom: 10, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.warning}50`, backgroundColor: `${FateDropColors.warning}0C` },
+  errorTitle: { color: FateDropColors.warning, fontSize: 13, fontWeight: '900' },
+  errorCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   flex: { flex: 1 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
 });

@@ -92,8 +92,7 @@ function ProductResult({ group, saved, onToggle }: { group: ProductGroup; saved:
     })}</View>
 
     <View style={styles.productActions}>
-      <Pressable onPress={() => router.push({ pathname: '/true-price', params: { query: group.title } })} style={styles.secondary}><Ionicons name="swap-horizontal-outline" size={14} color={FateDropColors.cyan} /><Text style={styles.secondaryText}>COMPARE TRUE PRICE</Text></Pressable>
-      <Pressable onPress={() => router.push({ pathname: '/fatefind', params: { query: group.title } })} style={styles.secondary}><Ionicons name="telescope-outline" size={14} color={FateDropColors.violetLight} /><Text style={styles.secondaryText}>CREATE FATEFIND</Text></Pressable>
+      <Pressable onPress={() => router.push({ pathname: '/fatefind', params: { query: group.title } })} style={styles.secondary}><Ionicons name="telescope-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.secondaryText}>RUN FATEFIND</Text></Pressable>
     </View>
   </View>;
 }
@@ -120,16 +119,16 @@ export default function SearchScreenV2() {
       setSavedProducts((current) => current.filter((id) => id !== group.id));
       return;
     }
-    await wishlist.save({ id: storageId, targetType: 'PRODUCT', targetId: group.id, label: group.title, alertsEnabled: true, createdAt: new Date().toISOString() });
+    await wishlist.save({ id: storageId, targetType: 'PRODUCT', targetId: group.id, label: group.title, alertsEnabled: false, createdAt: new Date().toISOString() });
     setSavedProducts((current) => [...current, group.id]);
   };
 
   const header = <>
-    <FateDropHeader title="Search" subtitle="DISCOVER · COMPARE · BUY DIRECT" rightAction={<Pressable onPress={() => router.push('/true-price')} style={styles.headerButton}><Ionicons name="pricetags-outline" size={18} color={FateDropColors.cyan} /></Pressable>} />
+    <FateDropHeader title="Search" subtitle="DISCOVER · STOCK · LIVE OFFERS" rightAction={<Pressable onPress={() => router.push('/fatefind')} style={styles.headerButton}><Ionicons name="telescope-outline" size={18} color={FateDropColors.goldBright} /></Pressable>} />
     <View style={styles.hero}>
       <Text style={styles.heroEyebrow}>FATEDROP NETWORK SEARCH</Text>
-      <Text style={styles.heroTitle}>Find the product. Then find the fairest route to it.</Text>
-      <Text style={styles.heroCopy}>Search connected retailer evidence first, then compare item price, known delivery and RRP without pretending missing costs are free.</Text>
+      <Text style={styles.heroTitle}>Find the product. Then let FateFind judge the deal.</Text>
+      <Text style={styles.heroCopy}>Search is catalogue discovery. It shows connected retailer evidence and known purchase costs without pretending missing delivery is free; FateFind owns the intelligent value verdict and persistent hunt.</Text>
     </View>
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Product, set, SKU…" placeholderTextColor={FateDropColors.muted} style={styles.input} autoCapitalize="none" /></View>
     <FlatList horizontal data={categories} keyExtractor={(item) => item.label} renderItem={({ item }) => <FilterChip label={item.label} active={category === item.value} onPress={() => setCategory(item.value)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />

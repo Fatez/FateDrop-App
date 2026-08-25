@@ -1,1 +1,1 @@
-export { default } from '@/screens/fatefind-screen-v2';
+export { default } from '@/screens/fatefind-live-screen-v2';
