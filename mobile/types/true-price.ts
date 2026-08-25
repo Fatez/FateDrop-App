@@ -26,7 +26,7 @@ export interface TruePriceGroup {
   valueFamilyKey?: string;
   rrpGbp?: number;
   rrpSource?: string;
-  rrpKind?: 'official' | 'component_reference' | 'pack_reference';
+  rrpKind?: 'official' | 'component_reference' | 'pack_reference' | 'source_market_msrp' | 'source_market_component_reference';
   rrpObservedAt?: string;
   rrpReferenceBasis?: string;
   unitCount?: number;
