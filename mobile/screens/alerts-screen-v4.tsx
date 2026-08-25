@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
+import { fetchCanonicalAlerts, markCanonicalAlertsSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 
 const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
 type AlertView = 'signals' | 'matches';
@@ -43,10 +43,15 @@ export default function AlertsScreenV4() {
   const load = useCallback(async () => {
     if (!signedIn) { setAlerts([]); setError(null); return; }
     setLoading(true); setError(null);
-    try { const [next] = await Promise.all([fetchCanonicalAlerts(100), refresh()]); setAlerts(next); }
+    try {
+      const [next, syncedSnapshot] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
+      setAlerts(next);
+      const userId = syncedSnapshot?.user?.id ?? snapshot?.user?.id;
+      if (userId) await markCanonicalAlertsSeen(userId, next);
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Alert inbox unavailable.'); }
     finally { setLoading(false); }
-  }, [refresh, signedIn]);
+  }, [refresh, signedIn, snapshot?.user?.id]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, alerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [alerts]);
