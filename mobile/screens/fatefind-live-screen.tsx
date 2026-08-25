@@ -17,6 +17,7 @@ import type {
   FateVerdictResponse,
   TruePriceGroup,
   TruePriceOffer,
+  TruePriceResponse,
 } from '@/types/true-price';
 
 type SortMode = 'item' | 'delivered';
@@ -52,6 +53,16 @@ async function requestCloudVerdict(query: string, leftId?: string, rightId?: str
   return data;
 }
 
+async function requestLiveComparisonGroups(query: string) {
+  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/true-price?q=${encodeURIComponent(query)}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error('fatefind-live-comparison-unavailable');
+  const data = await response.json() as TruePriceResponse;
+  if (data.success !== true || !Array.isArray(data.groups)) throw new Error('fatefind-live-comparison-invalid');
+  return data.groups;
+}
+
 export default function FateFindLiveScreen() {
   const params = useLocalSearchParams<{ query?: string | string[] }>();
   const incomingQuery = firstParam(params.query) || '';
@@ -63,6 +74,8 @@ export default function FateFindLiveScreen() {
   const [pairError, setPairError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cloudNotice, setCloudNotice] = useState('');
+  const [canonicalAvailable, setCanonicalAvailable] = useState(true);
   const [sort, setSort] = useState<SortMode>('item');
   const [saved, setSaved] = useState<string[]>([]);
   const [compareLeftId, setCompareLeftId] = useState('');
@@ -78,21 +91,35 @@ export default function FateFindLiveScreen() {
       setVerdict(null);
       setPairVerdict(null);
       setError('');
+      setCloudNotice('');
+      setCanonicalAvailable(true);
       return;
     }
     const timer = setTimeout(async () => {
       setLoading(true);
       setError('');
+      setCloudNotice('');
       try {
         const data = await requestCloudVerdict(clean);
         setGroups(data.groups);
         setVerdict(data.verdict);
         setPairVerdict(null);
+        setCanonicalAvailable(true);
       } catch {
-        setGroups([]);
-        setVerdict(null);
-        setPairVerdict(null);
-        setError('FateFind could not load its canonical Fate Verdict from FateDrop Cloud.');
+        try {
+          const liveGroups = await requestLiveComparisonGroups(clean);
+          setGroups(liveGroups);
+          setVerdict(null);
+          setPairVerdict(null);
+          setCanonicalAvailable(false);
+          setCloudNotice('Live FateFind results are available. The canonical Cloud Fate Verdict is temporarily unavailable, so FateDrop will not invent a winner on this device.');
+        } catch {
+          setGroups([]);
+          setVerdict(null);
+          setPairVerdict(null);
+          setCanonicalAvailable(false);
+          setError('FateFind could not reach the live FateDrop comparison feed.');
+        }
       } finally {
         setLoading(false);
       }
@@ -113,7 +140,7 @@ export default function FateFindLiveScreen() {
 
   useEffect(() => {
     const clean = query.trim();
-    if (clean.length < 2 || !compareLeftId || !compareRightId || compareLeftId === compareRightId) {
+    if (!canonicalAvailable || clean.length < 2 || !compareLeftId || !compareRightId || compareLeftId === compareRightId) {
       setPairVerdict(null);
       setPairError('');
       setPairLoading(false);
@@ -127,7 +154,7 @@ export default function FateFindLiveScreen() {
       .catch(() => { if (active) { setPairVerdict(null); setPairError('FateDrop Cloud could not return this head-to-head verdict.'); } })
       .finally(() => { if (active) setPairLoading(false); });
     return () => { active = false; };
-  }, [query, compareLeftId, compareRightId]);
+  }, [query, compareLeftId, compareRightId, canonicalAvailable]);
 
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const toggleProduct = async (group: TruePriceGroup) => {
@@ -143,8 +170,9 @@ export default function FateFindLiveScreen() {
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
     <Text style={styles.disclaimer}>RRP/reference percentage shows whether the item price is fair against the verified value baseline. True Price shows what you will actually pay when mandatory delivery/fees are known. Unknown delivery never becomes £0. FateDrop Cloud owns the ranking and Fate Verdict.</Text>
-    <CloudVerdictSummary groups={displayed} verdict={verdict} />
-    <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} result={pairVerdict} loading={pairLoading} error={pairError} />
+    {cloudNotice ? <View style={styles.cloudNotice}><Ionicons name="cloud-offline-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.cloudNoticeText}>{cloudNotice}</Text></View> : null}
+    {canonicalAvailable ? <CloudVerdictSummary groups={displayed} verdict={verdict} /> : null}
+    {canonicalAvailable ? <MobileValueCompare groups={displayed} leftId={compareLeftId} rightId={compareRightId} onLeft={setCompareLeftId} onRight={setCompareRightId} result={pairVerdict} loading={pairLoading} error={pairError} /> : null}
   </>;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground /><FlatList data={displayed} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} ListHeaderComponent={header} ListEmptyComponent={loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{error || 'Search at least two characters to run FateFind across the live database.'}</Text>} renderItem={({ item }) => <ComparisonGroup group={item} saved={saved.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
@@ -228,6 +256,7 @@ function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; sa
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingHorizontal: 20, paddingBottom: 80 }, back: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 12 }, backText: { color: FateDropColors.text, fontWeight: '800' },
   search: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: 18, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, input: { flex: 1, color: FateDropColors.text }, label: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' }, sorts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginVertical: 10 }, disclaimer: { color: FateDropColors.muted, fontSize: 11, lineHeight: 17, marginBottom: 14 }, state: { color: FateDropColors.muted, textAlign: 'center', margin: 40 },
+  cloudNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: `${FateDropColors.gold}0B`, marginBottom: 14 }, cloudNoticeText: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 15 },
   comparePanel: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: `${FateDropColors.violetLight}33`, marginBottom: 14 }, compareHead: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' }, compareEyebrow: { color: FateDropColors.violetLight, fontSize: 8, fontWeight: '900', letterSpacing: 1 }, compareTitle: { color: FateDropColors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }, compareCopy: { color: FateDropColors.muted, fontSize: 10, lineHeight: 15, marginTop: 4 }, selector: { marginTop: 12 }, selectorLabel: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', marginBottom: 6 }, selectorRow: { gap: 7, paddingRight: 8 }, selectorChip: { maxWidth: 220, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated }, selectorChipActive: { maxWidth: 220, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: `${FateDropColors.violetLight}88`, backgroundColor: `${FateDropColors.violet}55` }, selectorChipText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '700' }, selectorChipTextActive: { color: FateDropColors.text, fontSize: 9, fontWeight: '900' }, compareCards: { gap: 8, marginTop: 12 }, valueCard: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated }, valueCardWinner: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: `${FateDropColors.mint}66`, backgroundColor: `${FateDropColors.mint}0A` }, valueBasis: { color: FateDropColors.violetLight, fontSize: 7, fontWeight: '900', letterSpacing: .8 }, valueTitle: { color: FateDropColors.text, fontSize: 13, fontWeight: '900', marginTop: 4, marginBottom: 8 }, valueMetric: { marginTop: 6 }, valueMetricLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, valueMetricValue: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 2 }, valueMetricNote: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 }, valueReference: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 9 }, verdict: { marginTop: 10, marginBottom: 14, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.border }, verdictWinner: { marginTop: 10, marginBottom: 14, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.mint}55` }, verdictEyebrow: { color: FateDropColors.mint, fontSize: 7, fontWeight: '900', letterSpacing: .8 }, verdictText: { color: FateDropColors.text, fontSize: 11, fontWeight: '900', lineHeight: 16, marginTop: 4 }, verdictNote: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 5 },
   group: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, groupTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 }, title: { color: FateDropColors.text, fontSize: 16, fontWeight: '900' }, meta: { color: FateDropColors.muted, fontSize: 10, marginTop: 5 }, rrpRow: { marginTop: 8 }, rrp: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' }, rrpBasis: { color: FateDropColors.cyan, fontSize: 9, marginTop: 3 }, rrpSource: { color: FateDropColors.muted, fontSize: 8, marginTop: 2 }, rrpUnknown: { color: FateDropColors.muted, fontSize: 9, marginTop: 7 }, bookmark: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.cardElevated },
   offer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, borderTopWidth: 1, borderTopColor: FateDropColors.border }, retailer: { color: FateDropColors.text, fontWeight: '800' }, itemPrice: { color: FateDropColors.text, fontSize: 11, fontWeight: '800', marginTop: 4 }, delta: { color: FateDropColors.amber, fontSize: 10, fontWeight: '900', marginTop: 3 }, deltaGood: { color: FateDropColors.mint, fontSize: 10, fontWeight: '900', marginTop: 3 }, noDelta: { color: FateDropColors.muted, fontSize: 9, marginTop: 3 }, delivery: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '700', marginTop: 6 }, collection: { color: FateDropColors.mint, fontSize: 9, marginTop: 3 }, buy: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.violet },
