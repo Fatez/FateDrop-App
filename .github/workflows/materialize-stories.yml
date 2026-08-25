@@ -26,7 +26,8 @@ jobs:
           set -euo pipefail
           test -f .story-staging/ready.txt
           test "$(find .story-staging/chunks -type f -name 'chunk-*.txt' | wc -l)" -eq 35
-          cat .story-staging/chunks/chunk-*.txt > /tmp/fatedrop-stories-assets.b64
+          cat .story-staging/chunks/chunk-*.txt | tr -d '[:space:]' > /tmp/fatedrop-stories-assets.b64
+          test "$(wc -c < /tmp/fatedrop-stories-assets.b64)" -eq 620296
           base64 --decode /tmp/fatedrop-stories-assets.b64 > /tmp/fatedrop-stories-assets.tar.gz
           echo "a24abecbec47078336a67686ec9a3d9587291be8f54991c9efb1710e483b24f6  /tmp/fatedrop-stories-assets.tar.gz" | sha256sum --check -
           test "$(stat -c%s /tmp/fatedrop-stories-assets.tar.gz)" -eq 465220
