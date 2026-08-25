@@ -3,6 +3,7 @@ import { getStoredSessionToken } from '@/services/fatedrop-id';
 const DEFAULT_WEB_URL = 'https://fate-drop.com';
 
 export type CanonicalAlertStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED';
+export type ProductAlertCategory = 'SEALED_TCG' | 'SINGLE_CARD' | 'ACCESSORY' | 'MERCHANDISE' | 'UNKNOWN';
 
 export type CanonicalMobileAlert = {
   id: string;
@@ -11,10 +12,18 @@ export type CanonicalMobileAlert = {
   message: string;
   retailer: string;
   detectedAt: string;
+  observedDurationSeconds: number | null;
+  productIntelligence: {
+    category: ProductAlertCategory;
+    subcategory: string;
+    confidence: number;
+    evidence: string[];
+  };
   confidence: number;
   productUrl: string;
   product: {
     title: string;
+    productType: string | null;
     url: string;
     imageUrl: string | null;
     pricePence: number | null;

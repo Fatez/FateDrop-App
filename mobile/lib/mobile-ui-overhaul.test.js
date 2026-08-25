@@ -14,16 +14,23 @@ test('tabs route to the redesigned Home and canonical Alerts screens', () => {
   assert.match(alertsRoute, /alerts-screen-v3/);
 });
 
-test('Home separates network health from canonical alert history', () => {
+test('Home combines live network, canonical alerts, FateMatch and discovery data', () => {
   assert.match(home, /\/api\/status/);
   assert.match(home, /fetchCanonicalAlerts/);
-  assert.match(home, /The network can be active without creating an alert/);
+  assert.match(home, /\/api\/calendar-events/);
+  assert.match(home, /FATEMATCH/);
+  assert.match(home, /Local Radar/);
+  assert.match(home, /Fate Encounters/);
 });
 
-test('Alerts leads with canonical alert and Discord delivery truth', () => {
-  assert.match(alerts, /ONE ALERT · EVERY SURFACE/);
-  assert.match(alerts, /DISCORD SENT/);
-  assert.match(alerts, /DELIVERY ISSUES/);
+test('Alerts separates canonical Signals from personal FateMatch monitoring', () => {
+  assert.match(alerts, /SIGNALS/);
+  assert.match(alerts, /FATEMATCH/);
+  assert.match(alerts, /WHISPER/);
+  assert.match(alerts, /ECHO/);
+  assert.match(alerts, /MANIFESTED/);
+  assert.match(alerts, /VANISHED/);
+  assert.match(alerts, /fetchCanonicalAlerts\(100\)/);
   assert.doesNotMatch(alerts, /fetchNetworkSignals/);
 });
 

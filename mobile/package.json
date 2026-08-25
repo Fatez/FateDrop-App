@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck"
+    "verify": "npm run lint && npm run typecheck",
+    "start:codespaces": "bash ./scripts/start-codespaces.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
