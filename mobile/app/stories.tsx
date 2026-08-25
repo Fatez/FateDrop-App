@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 
 const INTRO_VIDEO = require('@/assets/stories/intro/gemini_generated_video_BF2DED27.mp4');
@@ -35,7 +36,12 @@ const MANGA_PAGES = [
 export default function StoriesScreen() {
   const [started, setStarted] = useState(false);
 
-  return started ? <MangaReader /> : <StoriesIntro onBegin={() => setStarted(true)} />;
+  return (
+    <View style={styles.screenRoot}>
+      <FateDropBackground />
+      {started ? <MangaReader /> : <StoriesIntro onBegin={() => setStarted(true)} />}
+    </View>
+  );
 }
 
 function StoriesIntro({ onBegin }: { onBegin: () => void }) {
@@ -178,6 +184,7 @@ function ReaderButton({ icon, label, disabled, onPress }: { icon: keyof typeof I
 }
 
 const styles = StyleSheet.create({
+  screenRoot: { flex: 1, backgroundColor: '#030407' },
   introRoot: { flex: 1, backgroundColor: '#07090E' },
   introShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,10,.31)' },
   introGlow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%', backgroundColor: 'rgba(4,6,12,.53)' },
