@@ -17,7 +17,7 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="index"/);
   assert.match(tabs, /name="alerts"/);
   assert.match(tabs, /name="tools"/);
-  assert.match(tabs, /fatedrop-center-emblem\.png/);
+  assert.match(tabs, /FateDropNavEmblem/);
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /title="FateFind"/);
@@ -26,8 +26,8 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
 });
 
 test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {
-  assert.match(fateFind, /\/api\/fatefind\/matches/);
-  assert.match(fateFind, /mode: 'verdict'/);
+  assert.match(fateFind, /FATEDROP_WEB_URL/);
+  assert.match(fateFind, /\/api\/fatefind\/verdict/);
   assert.match(fateFind, /FATEDROP_CLOUD/);
   assert.doesNotMatch(fateFind, /compareValueGroups/);
   assert.match(fateFind, /True Price shows what you will actually pay/);
@@ -37,7 +37,7 @@ test('FateFind owns live value finding, visible True Price and one Cloud Fate Ve
   assert.match(fateFind, /Compare two items/);
   assert.match(fateFind, /KEEP HUNTING WITH FATEFIND/);
   assert.match(fateFind, /alertsEnabled: false/);
-  assert.doesNotMatch(fateFind, /compareValueGroups/);
+  assert.doesNotMatch(fateFind, /function\s+bestOffer|function\s+valuePosition|function\s+rankGroups/);
 });
 
 test('FateFind owns hosted hunt rules and FateMatch is the successful outcome', () => {
