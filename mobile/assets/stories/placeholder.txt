@@ -1,1 +1,0 @@
-Stories binary assets are being materialized directly.
