@@ -11,11 +11,11 @@ import {
   ageLabel,
   areaFromParams,
   areaParams,
-  confidenceLabel,
+  expectedStockForShop,
   fetchLocalRadar,
+  shopLocalState,
   shopSignal,
   valueLine,
-  type RadarResponse,
   type RadarShop,
 } from '@/services/local-radar-intelligence';
 
@@ -23,12 +23,10 @@ const adapter = new ExpoLocationAdapter();
 type RadarRouteParams = Record<string, string | string[] | undefined>;
 
 function stockStatus(shop: RadarShop) {
-  const signal = shopSignal(shop);
-  if (signal === 'LOCAL MANIFESTED') return { label: 'PHYSICAL STOCK CONFIRMED', color: FateDropColors.mint };
-  if (signal === 'LOCAL ECHO') return { label: 'PREPARATION DETECTED · NOT YET CONFIRMED', color: FateDropColors.cyan };
-  if (signal === 'LOCAL WHISPER') return { label: 'EARLY LOCAL MOVEMENT · NOT YET CONFIRMED', color: FateDropColors.violetLight };
-  if (signal === 'LOCAL VANISHED') return { label: 'PREVIOUS AVAILABILITY DISAPPEARED', color: FateDropColors.coral };
-  return { label: 'NO VERIFIED BRANCH STOCK CURRENTLY', color: FateDropColors.muted };
+  const state = shopLocalState(shop);
+  if (state === 'confirmed') return { label: 'PHYSICAL STOCK CONFIRMED', color: FateDropColors.mint };
+  if (state === 'expected') return { label: 'EXPECTED STOCK · NOT GUARANTEED', color: FateDropColors.cyan };
+  return { label: 'AVAILABILITY UNKNOWN', color: FateDropColors.muted };
 }
 
 export default function LocalRadarStockScreen() {
@@ -39,10 +37,9 @@ export default function LocalRadarStockScreen() {
   const [radius, setRadius] = useState(Number.isFinite(initialRadius) ? initialRadius : 25);
   const [postcode, setPostcode] = useState(initialArea?.postcode || '');
   const [shops, setShops] = useState<RadarShop[]>([]);
-  const [counts, setCounts] = useState<RadarResponse['counts']>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'physical' | 'preparing'>('all');
+  const [filter, setFilter] = useState<'all' | 'confirmed' | 'expected'>('all');
 
   const load = useCallback(async (nextArea: UserArea, nextRadius = radius) => {
     setLoading(true);
@@ -50,11 +47,9 @@ export default function LocalRadarStockScreen() {
     try {
       const payload = await fetchLocalRadar(nextArea, nextRadius, 'shops');
       setShops(payload.shops || []);
-      setCounts(payload.counts || {});
     } catch (reason) {
       setShops([]);
-      setCounts({});
-      setError(reason instanceof Error && reason.message === 'INVALID_POSTCODE' ? 'Enter a valid UK postcode.' : 'Physical Local Radar could not reach the FateDrop branch-intelligence network.');
+      setError(reason instanceof Error && reason.message === 'INVALID_POSTCODE' ? 'Enter a valid UK postcode.' : 'Local Radar could not reach the FateDrop store network.');
     } finally {
       setLoading(false);
     }
@@ -81,29 +76,29 @@ export default function LocalRadarStockScreen() {
   };
 
   const filtered = useMemo(() => shops.filter(shop => {
-    const signal = shopSignal(shop);
-    if (filter === 'physical') return signal === 'LOCAL MANIFESTED';
-    if (filter === 'preparing') return signal === 'LOCAL ECHO' || signal === 'LOCAL WHISPER';
+    const state = shopLocalState(shop);
+    if (filter === 'confirmed') return state === 'confirmed';
+    if (filter === 'expected') return state === 'expected';
     return true;
   }), [filter, shops]);
 
-  const confirmed = (counts?.localInStockBranches || 0) + (counts?.localLowStockBranches || 0);
-  const incoming = counts?.incomingWatchBranches || 0;
+  const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
+  const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Local Radar</Text></Pressable>
-    <AbstractHero eyebrow="Physical In-Store Stock" title="Know which trip may be worth making." subtitle="Nearby Pokémon-selling branches, preparation signals and verified physical availability — never inferred from generic online stock." icon="storefront"/>
+    <AbstractHero eyebrow="Local Stores" title="Know which trip may be worth making." subtitle="Nearby Pokémon-selling stores, honest Expected arrival information and exact-branch Confirmed stock — never inferred from generic online availability." icon="storefront"/>
     <View style={styles.locationCard}>
       <Text style={styles.locationTitle}>Search around you</Text>
-      <Text style={styles.locationCopy}>Use device location or a UK postcode. FateDrop only promotes branch stock when the evidence is branch-level and fresh.</Text>
+      <Text style={styles.locationCopy}>Use device location or a UK postcode. A store can appear simply because it is a known Pokémon retailer; stock stays Unknown unless FateDrop has stronger evidence.</Text>
       <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.primary}><Ionicons name="locate" size={17} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Checking Radar…' : 'Use my location'}</Text></Pressable>
       <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
-    {area ? <View style={styles.summary}><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${incoming} preparing`} color={FateDropColors.cyan}/><StatusBadge label={`${shops.length} nearby`} color={FateDropColors.violetLight}/></View> : null}
+    {area ? <View style={styles.summary}><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/><StatusBadge label={`${shops.length} nearby`} color={FateDropColors.violetLight}/></View> : null}
     {area ? <><Text style={styles.heading}>Radius</Text><View style={styles.filters}>{[5,10,25,50].map(value => <FilterChip key={value} label={`${value} miles`} active={radius === value} onPress={() => setRadius(value)}/>)}</View></> : null}
-    <Text style={styles.heading}>Show</Text><View style={styles.filters}><FilterChip label="All nearby" active={filter === 'all'} onPress={() => setFilter('all')}/><FilterChip label="Confirmed physical" active={filter === 'physical'} onPress={() => setFilter('physical')}/><FilterChip label="Preparing" active={filter === 'preparing'} onPress={() => setFilter('preparing')}/></View>
-    <View style={styles.listHeading}><Text style={styles.heading}>Nearby branches</Text><StatusBadge label={`${filtered.length} results`} color={FateDropColors.cyan}/></View>
+    <Text style={styles.heading}>Show</Text><View style={styles.filters}><FilterChip label="All stores" active={filter === 'all'} onPress={() => setFilter('all')}/><FilterChip label="Confirmed" active={filter === 'confirmed'} onPress={() => setFilter('confirmed')}/><FilterChip label="Expected" active={filter === 'expected'} onPress={() => setFilter('expected')}/></View>
+    <View style={styles.listHeading}><Text style={styles.heading}>Nearby stores</Text><StatusBadge label={`${filtered.length} results`} color={FateDropColors.cyan}/></View>
   </>;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground/><FlatList
@@ -111,24 +106,26 @@ export default function LocalRadarStockScreen() {
     keyExtractor={item => item.id}
     contentContainerStyle={styles.content}
     ListHeaderComponent={header}
-    ListEmptyComponent={<Text style={styles.empty}>{area ? 'No nearby branch intelligence matches this view yet.' : 'Choose a location to search physical stores.'}</Text>}
+    ListEmptyComponent={<Text style={styles.empty}>{area ? 'No nearby stores match this view yet.' : 'Choose a location to search local stores.'}</Text>}
     renderItem={({item}) => {
       const product = item.localStockProducts?.[0];
       const status = stockStatus(item);
-      const signal = shopSignal(item);
+      const expectedStock = expectedStockForShop(item);
+      const state = shopLocalState(item);
       return <Pressable
         style={styles.card}
         onPress={() => router.push({ pathname: '/local-radar-store', params: { id: item.id, ...areaParams(area, radius) } })}
       >
         <View style={[styles.icon, { borderColor: status.color }]}><Ionicons name="storefront" size={20} color={status.color}/></View>
         <View style={styles.flex}>
-          <Text style={[styles.signal, { color: status.color }]}>{signal}</Text>
+          <Text style={[styles.signal, { color: status.color }]}>{shopSignal(item)}</Text>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>{status.label}</Text>
-          {product ? <Text style={styles.product}>{product.title || 'Tracked Pokémon product'}</Text> : null}
-          {product ? <Text style={styles.meta}>{ageLabel(product.freshnessAgeMinutes)} · Confidence {confidenceLabel(product.confidence)}</Text> : null}
-          {product ? <Text style={styles.value}>{valueLine(product.value)}</Text> : null}
+          {state === 'expected' && expectedStock ? <><Text style={styles.product}>Expected stock: {expectedStock.title}</Text>{expectedStock.label ? <Text style={styles.expected}>{expectedStock.label}</Text> : null}</> : null}
+          {state === 'confirmed' && product ? <><Text style={styles.product}>{product.title || 'Pokémon stock'}</Text><Text style={styles.meta}>{ageLabel(product.freshnessAgeMinutes)}</Text></> : null}
+          {product?.value?.priceKnown ? <Text style={styles.value}>{valueLine(product.value)}</Text> : null}
           <Text style={styles.meta}>{item.distanceMiles != null ? `${item.distanceMiles.toFixed(1)} miles · ` : ''}{item.address || item.postcode || 'Location pending'}</Text>
+          {state === 'expected' && expectedStock?.disclaimer ? <Text style={styles.advisory}>{expectedStock.disclaimer}</Text> : null}
         </View>
         <Ionicons name="chevron-forward" size={17} color={FateDropColors.muted}/>
       </Pressable>;
@@ -137,5 +134,5 @@ export default function LocalRadarStockScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:FateDropColors.background},content:{paddingHorizontal:20,paddingBottom:110},back:{flexDirection:'row',gap:8,alignItems:'center',paddingVertical:12},backText:{color:FateDropColors.text,fontWeight:'800'},locationCard:{padding:15,borderRadius:19,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},locationTitle:{color:FateDropColors.text,fontWeight:'900',fontSize:15},locationCopy:{color:FateDropColors.secondary,fontSize:11,lineHeight:17,marginVertical:7},primary:{flexDirection:'row',justifyContent:'center',gap:7,padding:12,borderRadius:13,backgroundColor:FateDropColors.violet},primaryText:{color:FateDropColors.text,fontWeight:'900'},manual:{flexDirection:'row',gap:8,marginTop:9},input:{flex:1,color:FateDropColors.text,padding:11,borderRadius:12,backgroundColor:FateDropColors.cardElevated},setButton:{justifyContent:'center',paddingHorizontal:18,borderRadius:12,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:10,marginTop:8},summary:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},heading:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginVertical:15},filters:{flexDirection:'row',flexWrap:'wrap',gap:8},listHeading:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},card:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:17,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:9},icon:{width:42,height:42,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.cardElevated,borderWidth:1},flex:{flex:1},signal:{fontSize:9,fontWeight:'900',letterSpacing:.75},name:{color:FateDropColors.text,fontWeight:'900',fontSize:14,marginTop:2},meta:{color:FateDropColors.muted,fontSize:10,marginTop:4,lineHeight:14},product:{color:FateDropColors.text,fontSize:11,fontWeight:'800',marginTop:5},value:{color:FateDropColors.goldBright,fontSize:10,fontWeight:'800',marginTop:4},empty:{color:FateDropColors.muted,textAlign:'center',margin:35}
+  safe:{flex:1,backgroundColor:FateDropColors.background},content:{paddingHorizontal:20,paddingBottom:110},back:{flexDirection:'row',gap:8,alignItems:'center',paddingVertical:12},backText:{color:FateDropColors.text,fontWeight:'800'},locationCard:{padding:15,borderRadius:19,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},locationTitle:{color:FateDropColors.text,fontWeight:'900',fontSize:15},locationCopy:{color:FateDropColors.secondary,fontSize:11,lineHeight:17,marginVertical:7},primary:{flexDirection:'row',justifyContent:'center',gap:7,padding:12,borderRadius:13,backgroundColor:FateDropColors.violet},primaryText:{color:FateDropColors.text,fontWeight:'900'},manual:{flexDirection:'row',gap:8,marginTop:9},input:{flex:1,color:FateDropColors.text,padding:11,borderRadius:12,backgroundColor:FateDropColors.cardElevated},setButton:{justifyContent:'center',paddingHorizontal:18,borderRadius:12,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:10,marginTop:8},summary:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},heading:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginVertical:15},filters:{flexDirection:'row',flexWrap:'wrap',gap:8},listHeading:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},card:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:17,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:9},icon:{width:42,height:42,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.cardElevated,borderWidth:1},flex:{flex:1},signal:{fontSize:9,fontWeight:'900',letterSpacing:.75},name:{color:FateDropColors.text,fontWeight:'900',fontSize:14,marginTop:2},meta:{color:FateDropColors.muted,fontSize:10,marginTop:4,lineHeight:14},product:{color:FateDropColors.text,fontSize:11,fontWeight:'800',marginTop:5},expected:{color:FateDropColors.cyan,fontSize:10,fontWeight:'900',marginTop:4},value:{color:FateDropColors.goldBright,fontSize:10,fontWeight:'800',marginTop:4},advisory:{color:FateDropColors.secondary,fontSize:9,lineHeight:13,marginTop:6},empty:{color:FateDropColors.muted,textAlign:'center',margin:35}
 });
