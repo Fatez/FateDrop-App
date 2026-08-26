@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader, FilterChip, ProductCard } from '@/components/fatedrop-ui';
@@ -84,8 +84,9 @@ function relative(epoch: number | null) {
 function RetailerCard({ retailer, segment }: { retailer: NetworkRetailer; segment: MarketSegment }) {
   const healthColor = retailer.monitoring.healthy ? FateDropColors.mint : retailer.monitoring.stale ? FateDropColors.amber : FateDropColors.secondary;
   return <Pressable
-    disabled={!retailer.websiteUrl}
-    onPress={() => retailer.websiteUrl ? void Linking.openURL(retailer.websiteUrl) : undefined}
+    accessibilityRole="button"
+    accessibilityLabel={`Open ${retailer.name} retailer profile`}
+    onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: retailer.id } })}
     style={({ pressed }) => [styles.retailerCard, pressed && styles.pressed]}
   >
     <View style={styles.retailerTop}>
@@ -95,7 +96,7 @@ function RetailerCard({ retailer, segment }: { retailer: NetworkRetailer; segmen
         <Text style={styles.retailerClass}>{classLabel(retailer.retailerClass).toUpperCase()} · {retailer.tcgs.map((tcg) => tcg.toUpperCase()).join(' · ')}</Text>
         <Text style={styles.presence}>{presenceLabel(retailer)}</Text>
       </View>
-      <Ionicons name="open-outline" size={15} color={retailer.websiteUrl ? FateDropColors.secondary : FateDropColors.muted} />
+      <Ionicons name="chevron-forward" size={15} color={FateDropColors.secondary} />
     </View>
     {segment === 'major' ? <View style={styles.infoStrip}><Ionicons name="analytics-outline" size={13} color={FateDropColors.cyan} /><Text style={styles.infoStripText}>RRP/reference is FateDrop's comparison baseline — this retailer can still price above or below it.</Text></View> : null}
     <View style={styles.retailerHealth}>
