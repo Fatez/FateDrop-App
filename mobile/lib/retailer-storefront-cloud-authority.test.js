@@ -28,20 +28,30 @@ test('retailer storefront resolves the retailer from the Cloud directory and exc
   assert.match(storefront, /Branch stock is separate and remains unknown unless Local Radar has exact-branch evidence/);
 });
 
-test('Fate Network separates all retailer discovery from independent-store discovery without a second data source', () => {
+test('Fate Network exposes one Retailers entry rather than a competing independent-store tool', () => {
   assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /title="Support Independent Stores"/);
-  assert.match(tabs, /openRetailers\('all'\)/);
-  assert.match(tabs, /openRetailers\('independent'\)/);
-  assert.match(retailers, /useLocalSearchParams<\{ view\?: string \}>/);
-  assert.match(retailers, /\['independent', 'regional', 'specialist'\]/);
+  assert.match(tabs, /Browse major retailers, TCG specialists and independent or local storefronts/);
+  assert.doesNotMatch(tabs, /title="Support Independent Stores"/);
+  assert.match(tabs, /openTool\('\/\(tabs\)\/indies'\)/);
+});
+
+test('Retailers categorises the same Cloud directory into major, specialist and independent-local views', () => {
+  assert.match(retailers, /type RetailerView = 'all' \| 'major' \| 'specialist' \| 'local'/);
+  assert.match(retailers, /retailer\.retailerClass === 'national'/);
+  assert.match(retailers, /retailer\.retailerClass === 'specialist'/);
+  assert.match(retailers, /\['independent', 'regional'\]\.includes\(retailer\.retailerClass\)/);
+  assert.match(retailers, /title="Major Retailers"/);
+  assert.match(retailers, /title="TCG Specialists"/);
+  assert.match(retailers, /title="Independent & Local Stores"/);
   assert.match(retailers, /fetchRetailerDirectory/);
   assert.doesNotMatch(retailers, /@\/constants\/retailers/);
 });
 
-test('Retailers stays business-first and leaves cross-retailer product discovery to FateFind', () => {
+test('Retailers stays business-first and sends product discovery to FateFind', () => {
   assert.match(retailers, /Search retailer or TCG/);
-  assert.match(retailers, /FateFind still owns product comparison across the full market/);
+  assert.match(retailers, /Every connected catalogue still feeds FateFind/);
+  assert.match(retailers, /router\.push\('\/fatefind'\)/);
+  assert.match(retailers, /same comparison pool/);
   assert.match(retailers, /localeCompare/);
   assert.match(retailers, /NO RANKING/);
   assert.doesNotMatch(retailers, /useCatalogue/);
