@@ -8,15 +8,17 @@ import 'react-native-reanimated';
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { safeExternalHttpsUrl } from '@/lib/safe-external-url';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const safeMessage = __DEV__ && error.message ? error.message : 'FateDrop could not load this page.';
   return <View style={errorStyles.screen}>
     <Text style={errorStyles.title}>The signal was interrupted</Text>
-    <Text style={errorStyles.message}>{error.message || 'FateDrop could not load this page.'}</Text>
+    <Text style={errorStyles.message}>{safeMessage}</Text>
     <Pressable onPress={retry} style={errorStyles.primary}><Text style={errorStyles.primaryText}>Try again</Text></Pressable>
     <Pressable onPress={() => router.replace('/')} style={errorStyles.secondary}><Text style={errorStyles.secondaryText}>Return home</Text></Pressable>
   </View>;
@@ -33,8 +35,8 @@ export default function RootLayout() {
       .then((Notifications) => {
         if (!active) return;
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          const productUrl = response.notification.request.content.data?.productUrl;
-          if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
+          const productUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
+          if (productUrl) void Linking.openURL(productUrl);
         });
       })
       .catch(() => {
