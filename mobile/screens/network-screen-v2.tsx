@@ -107,7 +107,7 @@ export default function NetworkScreenV2() {
             <Text style={styles.sectionEyebrow}>RETAILER MONITORS</Text>
             <Text style={styles.sectionTitle}>Live source health</Text>
           </View>
-          <Pressable onPress={() => router.push('/indies')}><Text style={styles.link}>INDIES →</Text></Pressable>
+          <Pressable onPress={() => router.push('/indies')}><Text style={styles.link}>STORES →</Text></Pressable>
         </View>
 
         {error ? (
