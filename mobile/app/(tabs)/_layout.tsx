@@ -63,9 +63,14 @@ export default function TabLayout() {
     };
   }, [refreshAlertCount, signedIn, userId]);
 
-  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies') => {
+  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar') => {
     setToolboxOpen(false);
     router.push(path);
+  };
+
+  const openRetailers = (view: 'all' | 'independent') => {
+    setToolboxOpen(false);
+    router.push({ pathname: '/(tabs)/indies', params: { view } });
   };
 
   return (
@@ -124,7 +129,8 @@ export default function TabLayout() {
             <ToolChoice icon="notifications-outline" title="FateMatch" copy="Monitor products and the conditions you care about." onPress={() => openTool('/fate-match')} />
             <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Manage HAVE / WANT trade intentions and compatible collector opportunities." onPress={() => openTool('/fate-trader')} />
             <ToolChoice icon="navigate-outline" title="Local Radar" copy="See what is happening physically around you, including branch intelligence and events." onPress={() => openTool('/local-radar')} />
-            <ToolChoice icon="storefront-outline" title="Stores" copy="Discover retailers, what they sell and where to find them." onPress={() => openTool('/(tabs)/indies')} />
+            <ToolChoice icon="storefront-outline" title="Retailers" copy="Browse connected retailer storefronts and the TCGs they support." onPress={() => openRetailers('all')} />
+            <ToolChoice icon="heart-outline" title="Support Independent Stores" copy="Discover independent and specialist TCG businesses across the Fate Network." onPress={() => openRetailers('independent')} />
           </Pressable>
         </Pressable>
       </Modal>
