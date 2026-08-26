@@ -69,7 +69,7 @@ export default function LocalRadarScreen() {
 
   useEffect(() => { if (area) void load(area, radius); }, [area, radius, load]);
 
-  const useDevice = async () => {
+  const handleDeviceLocation = async () => {
     setLoading(true);
     setError('');
     try { setArea(await adapter.requestCurrentArea()); }
@@ -79,7 +79,7 @@ export default function LocalRadarScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const handlePostcodeSearch = async () => {
     setError('');
     try { setArea(await adapter.fromPostcode(postcode)); }
     catch { setError('Enter a valid UK postcode.'); }
@@ -99,8 +99,8 @@ export default function LocalRadarScreen() {
     </View>
 
     <View style={styles.searchCard}>
-      <Pressable onPress={() => void useDevice()} disabled={loading} style={styles.locate}><Ionicons name="locate" size={16} color={FateDropColors.text}/><Text style={styles.locateText}>{loading ? 'Scanning…' : 'Use my location'}</Text></Pressable>
-      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void usePostcode()} style={styles.setButton}><Text style={styles.locateText}>Set</Text></Pressable></View>
+      <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.locate}><Ionicons name="locate" size={16} color={FateDropColors.text}/><Text style={styles.locateText}>{loading ? 'Scanning…' : 'Use my location'}</Text></Pressable>
+      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.locateText}>Set</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
     </View>
