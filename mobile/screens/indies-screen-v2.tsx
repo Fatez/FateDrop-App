@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +10,10 @@ import { fetchRetailerDirectory, type NetworkRetailer } from '@/services/retaile
 
 function hasRetailerStorefront(retailer: NetworkRetailer) {
   return retailer.retailerClass !== 'event_vendor';
+}
+
+function isIndependentDiscovery(retailer: NetworkRetailer) {
+  return ['independent', 'regional', 'specialist'].includes(retailer.retailerClass);
 }
 
 function classLabel(value: string) {
@@ -75,6 +79,8 @@ function RetailerCard({ retailer }: { retailer: NetworkRetailer }) {
 }
 
 export default function IndiesScreenV2() {
+  const params = useLocalSearchParams<{ view?: string }>();
+  const independentView = params.view === 'independent';
   const [directory, setDirectory] = useState<NetworkRetailer[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [directoryLoading, setDirectoryLoading] = useState(false);
@@ -100,8 +106,10 @@ export default function IndiesScreenV2() {
   }, [loadDirectory]));
 
   const storefrontRetailers = useMemo(
-    () => [...directory].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
-    [directory],
+    () => [...directory]
+      .filter((retailer) => !independentView || isIndependentDiscovery(retailer))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    [directory, independentView],
   );
 
   const tcgOptions = useMemo(() => [...new Set(
@@ -117,6 +125,13 @@ export default function IndiesScreenV2() {
     });
   }, [query, selectedTcg, storefrontRetailers]);
 
+  const pageTitle = independentView ? 'Support Independent Stores' : 'Retailers';
+  const pageSubtitle = independentView ? 'SUPPORT THE BUSINESSES BEHIND THE HOBBY' : 'DISCOVER THE STORES BEHIND THE HOBBY';
+  const heroTitle = independentView ? 'Support the stores growing the hobby.' : 'Discover the stores behind the hobby.';
+  const heroCopy = independentView
+    ? 'Discover independent, regional and specialist TCG businesses across the Fate Network. See which games they support, find physical-store options and open their storefronts.'
+    : 'Browse connected retailer storefronts across the Fate Network. Search by business or by the trading card games they support.';
+
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <FateDropBackground />
     <FlatList
@@ -125,18 +140,23 @@ export default function IndiesScreenV2() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={directoryLoading} onRefresh={() => void loadDirectory()} tintColor={FateDropColors.violetLight} />}
       ListHeaderComponent={<>
-        <FateDropHeader title="Retailers" subtitle="SUPPORT THE STORES BEHIND THE HOBBY" />
+        <FateDropHeader title={pageTitle} subtitle={pageSubtitle} />
         <View style={styles.hero}>
           <View style={styles.heroGlow} />
-          <Text style={styles.eyebrow}>FATE NETWORK · RETAILERS</Text>
-          <Text style={styles.heroTitle}>Discover the stores behind the hobby.</Text>
-          <Text style={styles.heroCopy}>Browse retailer storefronts across the Fate Network, including independent and specialist shops. Search by business or the trading card games they support.</Text>
-          <View style={styles.neutralNote}><Ionicons name="list-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.neutralText}>Storefronts are shown A–Z. No retailer rankings and no product comparison here — FateFind owns product discovery.</Text></View>
+          <Text style={styles.eyebrow}>FATE NETWORK · {independentView ? 'INDEPENDENT STORES' : 'RETAILERS'}</Text>
+          <Text style={styles.heroTitle}>{heroTitle}</Text>
+          <Text style={styles.heroCopy}>{heroCopy}</Text>
+          <View style={styles.neutralNote}><Ionicons name="git-compare-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.neutralText}>FateFind still owns product comparison across the full market. Connected retailer products flow into FateFind; this page exists to discover the businesses themselves.</Text></View>
+        </View>
+
+        <View style={styles.viewSwitch}>
+          <FilterChip label="All Retailers" active={!independentView} onPress={() => router.setParams({ view: 'all' })} />
+          <FilterChip label="Support Independents" active={independentView} onPress={() => router.setParams({ view: 'independent' })} />
         </View>
 
         <Pressable onPress={() => router.push('/local-radar')} style={({ pressed }) => [styles.localCard, pressed && styles.pressed]}>
           <View style={styles.localIcon}><Ionicons name="location-outline" size={22} color={FateDropColors.goldBright} /></View>
-          <View style={styles.localCopy}><Text style={styles.localTitle}>Find physical stores near you</Text><Text style={styles.localText}>Use Local Radar to discover known branches around your location. A store pin does not imply physical stock.</Text></View>
+          <View style={styles.localCopy}><Text style={styles.localTitle}>{independentView ? 'Find local TCG stores near you' : 'Find physical stores near you'}</Text><Text style={styles.localText}>Use Local Radar to discover known branches around your location. A store pin does not imply physical stock.</Text></View>
           <Ionicons name="chevron-forward" size={16} color={FateDropColors.secondary} />
         </Pressable>
 
@@ -161,7 +181,7 @@ export default function IndiesScreenV2() {
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>{shownRetailers.length} storefront{shownRetailers.length === 1 ? '' : 's'}</Text>
-          <Text style={styles.sectionMeta}>A–Z</Text>
+          <Text style={styles.sectionMeta}>A–Z · NO RANKING</Text>
         </View>
 
         {directoryError ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber} /><Text style={styles.errorText}>{directoryError}</Text></View> : null}
@@ -186,6 +206,7 @@ const styles = StyleSheet.create({
   heroCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 8 },
   neutralNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: FateDropColors.border },
   neutralText: { flex: 1, color: FateDropColors.secondary, fontSize: 9, lineHeight: 14 },
+  viewSwitch: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 10 },
   localCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.gold}22`, backgroundColor: `${FateDropColors.gold}08`, marginBottom: 10 },
   localIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}12` },
   localCopy: { flex: 1 },
