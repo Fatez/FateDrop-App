@@ -39,18 +39,34 @@ export type FateTraderCard = {
   verifiedAt: number | null;
 };
 
+export type FateTraderBinder = {
+  id: string;
+  tcgId: string;
+  name: string;
+  visibility: 'private' | 'network' | string;
+  status: 'active' | 'paused' | string;
+  localTradeAllowed: boolean;
+  postalTradeAllowed: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type FateTraderBinderItem = {
+  id: string;
+  fateCardId: string;
+  status: string;
+  effectiveAvailable?: boolean;
+  staleReason?: string | null;
+  tradeMode?: string;
+  visibility?: string;
+  localTradeAllowed?: boolean;
+  postalTradeAllowed?: boolean;
+  revision?: number;
+};
+
 export type FateTraderBinderSnapshot = {
-  items?: Array<{
-    id: string;
-    fateCardId: string;
-    status: string;
-    effectiveAvailable?: boolean;
-    tradeMode?: string;
-    visibility?: string;
-    localTradeAllowed?: boolean;
-    postalTradeAllowed?: boolean;
-  }>;
-  settings?: Record<string, unknown>;
+  binder?: FateTraderBinder | null;
+  items?: FateTraderBinderItem[];
 };
 
 export type FateTraderWantsSnapshot = {
@@ -67,6 +83,42 @@ export type FateTraderCollectionItem = {
   id: string;
   revision: number;
   fateCardId?: string;
+};
+
+export type FateTraderFinderCard = {
+  fateCardId: string;
+  name: string | null;
+  collectorNumber: string | null;
+  variantCode: string | null;
+  languageCode: string | null;
+  setName: string | null;
+};
+
+export type FateTraderOpportunity = {
+  id: string;
+  opportunityClass: 'exact' | 'strong' | 'potential' | string;
+  headline: string;
+  score: number;
+  scoreBreakdown?: Record<string, number>;
+  targetRelation?: string;
+  verifiedReciprocal?: boolean;
+  compatibleReciprocal?: boolean;
+  fateTradeFoundEligible?: boolean;
+  targetQuantitySatisfied?: boolean;
+  evidence?: string[];
+  commonTradeMethods?: string[];
+  targetCardId?: string;
+  offeredTargetCardId?: string;
+  candidateOfferId?: string | null;
+  reciprocalMatchCount?: number;
+  card?: FateTraderFinderCard | null;
+};
+
+export type FateTraderFinderSnapshot = {
+  opportunities: FateTraderOpportunity[];
+  count: number;
+  searchedWants: number;
+  networkOffersConsidered: number;
 };
 
 export type FateTraderEnvelope<T> = {
@@ -164,8 +216,25 @@ export function fetchTraderBinder() {
   return traderRequest<FateTraderBinderSnapshot>('binder?tcg=pokemon');
 }
 
+export function patchTraderBinderSettings(input: {
+  visibility?: 'private' | 'network';
+  status?: 'active' | 'paused';
+  localTradeAllowed?: boolean;
+  postalTradeAllowed?: boolean;
+}) {
+  return traderRequest<{ binder: FateTraderBinder }>('binder?tcg=pokemon', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
 export function fetchTraderStructuredWants() {
   return traderRequest<FateTraderWantsSnapshot>('structured-wants');
+}
+
+export function fetchTraderFinder(limit = 50) {
+  const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
+  return traderRequest<FateTraderFinderSnapshot>(`finder?limit=${safeLimit}`);
 }
 
 export function createTraderCollectionItem(input: Record<string, unknown>) {
@@ -182,7 +251,7 @@ export function deleteTraderCollectionItem(itemId: string, expectedRevision: num
 }
 
 export function createTraderBinderItem(input: Record<string, unknown>) {
-  return traderRequest<{ item: { id: string } }>('binder/items', {
+  return traderRequest<{ item: FateTraderBinderItem }>('binder/items', {
     method: 'POST',
     body: JSON.stringify(input),
   });
