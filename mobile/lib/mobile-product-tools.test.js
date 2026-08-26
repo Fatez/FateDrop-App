@@ -22,8 +22,11 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /title="FateFind"/);
-  assert.match(tabs, /title="FateMatches"/);
-  assert.match(tabs, /title="Search live database"/);
+  assert.match(tabs, /title="FateMatch"/);
+  assert.match(tabs, /title="Fate Trader"/);
+  assert.match(tabs, /title="Local Radar"/);
+  assert.match(tabs, /title="Stores"/);
+  assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
 });
 
 test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {
