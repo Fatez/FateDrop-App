@@ -80,11 +80,11 @@ export default function NetworkScreenV2() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
         showsVerticalScrollIndicator={false}
       >
-        <FateDropHeader title="Network" subtitle="LIVE EVIDENCE & MONITOR HEALTH" />
+        <FateDropHeader title="Live Network" subtitle="RETAILER COVERAGE & MONITOR HEALTH" />
 
         <View style={styles.hero}>
           <View style={styles.heroOrnament} />
-          <Text style={styles.eyebrow}>FATEDROP NETWORK</Text>
+          <Text style={styles.eyebrow}>FATEDROP LIVE NETWORK</Text>
           <Text style={styles.title}>{networkHealthy ? 'The network is listening.' : 'Network coverage needs attention.'}</Text>
           <Text style={styles.copy}>Real monitor state only. FateDrop does not present blocked, stale or unfinished sources as healthy coverage.</Text>
           <View style={styles.statusLine}>
