@@ -1,50 +1,92 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
-import { FateDropColors, FateDropTypography, Fonts } from '@/constants/theme';
+import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
+import { profileAvatarSources, profileCompanionMeta } from '@/constants/profile-customisation';
+import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import {
+  DEFAULT_PROFILE_CUSTOMISATION,
+  loadProfileCustomisation,
+  type ProfileAvatarId,
+  type ProfileCustomisation,
+} from '@/services/profile-customisation';
 
-const companionRows = [
-  { name: 'Oru', stage: 'Whisper', image: require('../assets/images/alert-oru.webp'), color: FateDropColors.whisper },
-  { name: 'Fenn', stage: 'Echo', image: require('../assets/images/alert-fenn.webp'), color: FateDropColors.echo },
-  { name: 'Koru', stage: 'Manifested', image: require('../assets/images/alert-koru.webp'), color: FateDropColors.manifested },
-  { name: 'Nyxen', stage: 'Vanished', image: require('../assets/images/alert-nyxen.webp'), color: FateDropColors.vanished },
-] as const;
+const companionIds = ['oru', 'fenn', 'koru', 'nyxen'] as const;
+
+const companionColors = {
+  oru: FateDropColors.whisper,
+  fenn: FateDropColors.echo,
+  koru: FateDropColors.manifested,
+  nyxen: FateDropColors.vanished,
+} as const;
 
 export default function ProfileScreenV2() {
-  const { snapshot, signedIn, syncing } = useFateDropId();
+  const { snapshot, signedIn } = useFateDropId();
   const displayName = snapshot?.user.displayName || snapshot?.user.handle || 'Seeker';
   const tier = snapshot?.entitlement.effectiveTier?.toUpperCase() || 'FREE';
-  const fateMatchHuntCount = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
-  const fateMatchCount = snapshot?.fateMatches?.length ?? 0;
-  const wishlistCount = snapshot?.wishlist?.length ?? 0;
+  const identity = snapshot?.user.fateId || 'guest';
+  const [customisation, setCustomisation] = useState<ProfileCustomisation>(DEFAULT_PROFILE_CUSTOMISATION);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void loadProfileCustomisation(identity).then((next) => {
+        if (active) setCustomisation(next);
+      });
+      return () => {
+        active = false;
+      };
+    }, [identity]),
+  );
+
+  const membershipLabel = tier === 'FREE' ? 'FREE MEMBER' : 'PREMIUM MEMBER';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <FateDropHeader title="Profile" subtitle="YOUR FATEDROP ID" />
+        <FateDropHeader title="Profile" rightAction={<MembershipPill label={membershipLabel} />} />
 
         <View style={styles.hero}>
-          <Image source={require('../assets/images/alert-fenn.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <ProfileWallpaperArt wallpaperId={customisation.wallpaperId} characterScale={1.08} />
           <View style={styles.heroShade} />
-          <View style={styles.heroContent}>
-            <View style={styles.avatar}><Ionicons name={signedIn ? 'person' : 'person-outline'} size={22} color={FateDropColors.goldBright} /></View>
+          <View style={styles.heroTopGlow} />
+
+          <View style={styles.heroAvatarWrap}>
+            <AvatarVisual avatarId={customisation.avatarId} size={116} />
+            <Pressable onPress={() => openCustomisation('avatar')} style={styles.avatarEditButton} accessibilityLabel="Edit profile avatar">
+              <Ionicons name="pencil" size={15} color={FateDropColors.ivory} />
+            </Pressable>
+          </View>
+
+          <View style={styles.heroActions}>
+            <HeroAction icon="image-outline" label="Change wallpaper" onPress={() => openCustomisation('wallpapers')} />
+            <HeroAction icon="pencil-outline" label="Edit avatar" onPress={() => openCustomisation('avatar')} />
+          </View>
+
+          <View style={styles.heroIdentity}>
             <Text style={styles.heroEyebrow}>{signedIn ? `FATEDROP ID · ${tier}` : 'FATEDROP ID'}</Text>
             <Text style={styles.heroTitle}>{displayName}</Text>
-            <Text style={styles.heroSub}>{signedIn ? `${snapshot?.user.fateId || 'ID synced'} · ${syncing ? 'syncing now' : 'synced across FateDrop'}` : 'Connect one identity across app, Web and notification preferences.'}</Text>
-            <Pressable onPress={() => router.push('/account')} style={styles.manageButton}><Text style={styles.manageText}>{signedIn ? 'MANAGE ID' : 'SIGN IN'}</Text><Ionicons name="arrow-forward" size={14} color={FateDropColors.ivory} /></Pressable>
+            <Pressable onPress={() => router.push('/account')} style={styles.fateIdPill}>
+              <Text style={styles.fateIdText}>{signedIn ? snapshot?.user.fateId || 'ID SYNCED' : 'SIGN IN TO SYNC'}</Text>
+              <Ionicons name={signedIn ? 'copy-outline' : 'arrow-forward'} size={13} color={FateDropColors.secondary} />
+            </Pressable>
           </View>
         </View>
 
-        <View style={styles.stats}>
-          <Stat value={signedIn ? String(fateMatchHuntCount) : '—'} label="HUNTS" />
-          <Stat value={signedIn ? String(fateMatchCount) : '—'} label="MATCHES" />
-          <Stat value={signedIn ? String(wishlistCount) : '—'} label="SAVED" />
+        <SectionTitle label="CUSTOMISATION" />
+        <View style={styles.customisationRow}>
+          <CustomisationTile icon="person" title="Avatar" detail="Change profile image" onPress={() => openCustomisation('avatar')} />
+          <CustomisationTile icon="image" title="Wallpapers" detail="Pick your backdrop" onPress={() => openCustomisation('wallpapers')} />
+          <CustomisationTile icon="paw" title="Companions" detail="Manage & preview" onPress={() => openCustomisation('companions')} />
         </View>
 
         <SectionTitle label="PREFERENCES" />
@@ -60,40 +102,80 @@ export default function ProfileScreenV2() {
           <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
         </View>
 
-        <SectionTitle label="ALERT COMPANIONS" />
-        <Text style={styles.sectionCopy}>The four lifecycle voices are fixed to the signal they represent, so a push alert and the in-app alert always speak the same language.</Text>
-
-        <View style={styles.companions}>
-          {companionRows.map((item) => (
-            <View key={item.name} style={[styles.companion, { borderColor: `${item.color}55` }]}>
-              <Image source={item.image} style={styles.companionImage} contentFit="cover" />
-              <View style={styles.companionShade} />
-              <View style={styles.companionCopy}>
-                <Text style={styles.companionName}>{item.name}</Text>
-                <Text style={[styles.companionStage, { color: item.color }]}>{item.stage.toUpperCase()}</Text>
-              </View>
-            </View>
-          ))}
+        <View style={styles.companionHeadingRow}>
+          <SectionTitle label="ALERT COMPANIONS" compact />
+          <Pressable onPress={() => openCustomisation('companions')} style={styles.lifecycleInfo}>
+            <Ionicons name="information-circle-outline" size={14} color={FateDropColors.secondary} />
+            <Text style={styles.lifecycleInfoText}>About the lifecycle voices</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.note}>
-          <Ionicons name="sparkles-outline" size={20} color={FateDropColors.gold} />
-          <View style={styles.flex}>
-            <Text style={styles.noteTitle}>Progression can wait.</Text>
-            <Text style={styles.noteCopy}>Profile is currently about identity, preferences and companions. Levels, XP or collector progression stay out until they have a real product purpose.</Text>
-          </View>
+        <View style={styles.companions}>
+          {companionIds.map((id) => {
+            const item = profileCompanionMeta[id];
+            const color = companionColors[id];
+            return (
+              <Pressable key={id} onPress={() => openCustomisation('companions')} style={({ pressed }) => [styles.companion, pressed && styles.pressed]}>
+                <View style={[styles.companionGlow, { borderColor: `${color}66`, backgroundColor: `${color}12` }]} />
+                <Image source={profileAvatarSources[id]} style={styles.companionImage} contentFit="contain" />
+                <Text style={styles.companionName}>{item.name}</Text>
+                <Text style={[styles.companionStage, { color }]}>{item.stage.toUpperCase()}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
-  return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
+function openCustomisation(tab: 'avatar' | 'wallpapers' | 'companions') {
+  router.push(`/profile-customisation?tab=${tab}`);
 }
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionLabel}>{label}</Text>;
+function MembershipPill({ label }: { label: string }) {
+  return (
+    <View style={styles.membershipPill}>
+      <Ionicons name="diamond-outline" size={13} color={FateDropColors.goldBright} />
+      <Text style={styles.membershipText}>{label}</Text>
+    </View>
+  );
+}
+
+function AvatarVisual({ avatarId, size }: { avatarId: ProfileAvatarId; size: number }) {
+  return (
+    <View style={[styles.avatarFrame, { width: size, height: size, borderRadius: size / 2 }]}>
+      {avatarId === 'mark' ? (
+        <FateDropNavEmblem size={Math.round(size * 0.58)} />
+      ) : (
+        <Image source={profileAvatarSources[avatarId]} style={{ width: size * 0.92, height: size * 0.92 }} contentFit="contain" />
+      )}
+    </View>
+  );
+}
+
+function HeroAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.heroAction, pressed && styles.pressed]}>
+      <Ionicons name={icon} size={14} color={FateDropColors.goldBright} />
+      <Text style={styles.heroActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CustomisationTile({ icon, title, detail, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.customisationTile, pressed && styles.pressed]}>
+      <View style={styles.customisationIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View>
+      <Text style={styles.customisationTitle}>{title}</Text>
+      <Text style={styles.customisationDetail}>{detail}</Text>
+      <Ionicons name="chevron-forward" size={14} color={FateDropColors.muted} />
+    </Pressable>
+  );
+}
+
+function SectionTitle({ label, compact = false }: { label: string; compact?: boolean }) {
+  return <Text style={[styles.sectionLabel, compact && styles.sectionLabelCompact]}>{label}</Text>;
 }
 
 function Divider() {
@@ -112,38 +194,45 @@ function Preference({ icon, title, detail, onPress }: { icon: keyof typeof Ionic
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
-  content: { paddingHorizontal: 18, paddingBottom: 120 },
-  hero: { height: 300, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 10 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,9,12,.48)' },
-  heroContent: { flex: 1, justifyContent: 'flex-end', padding: 20 },
-  avatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}88`, backgroundColor: 'rgba(8,14,20,.72)', marginBottom: 10 },
-  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 32, fontWeight: '700', marginTop: 3 },
-  heroSub: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 18, marginTop: 4 },
-  manageButton: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 11, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.72)' },
-  manageText: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', letterSpacing: .7 },
-  stats: { flexDirection: 'row', gap: 8, marginBottom: 22 },
-  stat: { flex: 1, padding: 13, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, alignItems: 'center' },
-  statValue: { color: FateDropColors.ivory, fontSize: 21, fontWeight: '900' },
-  statLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .7, marginTop: 3 },
-  sectionLabel: { color: FateDropColors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 8 },
-  panel: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, overflow: 'hidden', marginBottom: 22 },
+  content: { paddingHorizontal: 18, paddingBottom: 124 },
+  membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.82)' },
+  membershipText: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .9 },
+  hero: { height: 388, borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: FateDropColors.surface, marginBottom: 20 },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.18)' },
+  heroTopGlow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(5,11,18,.76)' },
+  heroAvatarWrap: { position: 'absolute', top: 70, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
+  avatarFrame: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.82)', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: .35, shadowRadius: 14, elevation: 8 },
+  avatarEditButton: { position: 'absolute', right: -4, bottom: 4, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(8,14,20,.96)' },
+  heroActions: { position: 'absolute', top: 205, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  heroAction: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: 'rgba(8,14,20,.78)' },
+  heroActionText: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800' },
+  heroIdentity: { position: 'absolute', left: 18, right: 18, bottom: 18, alignItems: 'center' },
+  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35 },
+  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, lineHeight: 34, textAlign: 'center', fontWeight: '700', marginTop: 4 },
+  fateIdPill: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 11, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(8,14,20,.7)' },
+  fateIdText: { color: FateDropColors.secondary, fontSize: 11, fontWeight: '800', letterSpacing: .45 },
+  sectionLabel: { color: FateDropColors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.35, marginBottom: 9 },
+  sectionLabelCompact: { marginBottom: 0 },
+  customisationRow: { flexDirection: 'row', gap: 8, marginBottom: 23 },
+  customisationTile: { flex: 1, minHeight: 96, padding: 10, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.9)', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  customisationIcon: { width: 37, height: 37, borderRadius: 18.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}40`, backgroundColor: `${FateDropColors.gold}0D` },
+  customisationTitle: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900', textAlign: 'center' },
+  customisationDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 12, textAlign: 'center' },
+  panel: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 22 },
   preference: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13 },
-  preferenceIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0F`, borderWidth: 1, borderColor: `${FateDropColors.gold}26` },
+  preferenceIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0F`, borderWidth: 1, borderColor: `${FateDropColors.gold}32` },
   preferenceTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
-  preferenceDetail: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  preferenceDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
   divider: { height: 1, backgroundColor: FateDropColors.borderSoft, marginLeft: 62 },
-  sectionCopy: { color: FateDropColors.secondary, fontSize: 13, lineHeight: 19, marginBottom: 11 },
-  companions: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  companion: { flex: 1, aspectRatio: .78, borderRadius: 15, overflow: 'hidden', borderWidth: 1, backgroundColor: FateDropColors.card },
-  companionImage: { width: '100%', height: '100%' },
-  companionShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,10,.26)' },
-  companionCopy: { position: 'absolute', left: 8, right: 8, bottom: 8 },
-  companionName: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },
-  companionStage: { fontSize: 9, fontWeight: '900', letterSpacing: .6, marginTop: 2 },
-  note: { flexDirection: 'row', gap: 11, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
-  noteTitle: { color: FateDropColors.ivory, fontSize: FateDropTypography.body, fontWeight: '900' },
-  noteCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  companionHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 },
+  lifecycleInfo: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lifecycleInfoText: { color: FateDropColors.secondary, fontSize: 9.5 },
+  companions: { flexDirection: 'row', gap: 5, marginBottom: 10 },
+  companion: { flex: 1, minWidth: 0, alignItems: 'center', paddingTop: 2, paddingBottom: 5 },
+  companionGlow: { position: 'absolute', bottom: 34, width: '84%', height: 18, borderRadius: 999, borderWidth: 1 },
+  companionImage: { width: '100%', aspectRatio: .78 },
+  companionName: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900', marginTop: -3 },
+  companionStage: { fontSize: 7.5, fontWeight: '900', letterSpacing: .75, marginTop: 1 },
   flex: { flex: 1 },
-  pressed: { opacity: .75 },
+  pressed: { opacity: .72 },
 });
