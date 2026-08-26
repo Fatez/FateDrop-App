@@ -14,13 +14,14 @@ export default function ToolsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.brand}>
           <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} contentFit="contain" />
-          <Text style={styles.eyebrow}>FATEDROP TOOLS</Text>
+          <Text style={styles.eyebrow}>FATE NETWORK</Text>
           <Text style={styles.title}>What do you want FateDrop to do?</Text>
-          <Text style={styles.copy}>Choose the job. Search discovers, Wishlist remembers, FateFind hunts and FateMatch is the successful result.</Text>
+          <Text style={styles.copy}>FateFind finds the strongest qualifying place to buy now. FateMatch keeps watching for the conditions you want. Local Radar handles physical and local intelligence. Search and Wishlist remain global utilities.</Text>
         </View>
-        <Tool icon="telescope-outline" title="FateFind" detail="Find the best qualifying offer now or keep hunting under your rules." onPress={() => router.push('/fatefind')} />
-        <Tool icon="sparkles-outline" title="FateMatches" detail="See successful FateFind results and the active finds still searching." onPress={() => router.push('/fate-match')} />
-        <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting a hunt." onPress={() => router.push('/(tabs)/search')} />
+        <Tool icon="telescope-outline" title="FateFind" detail="Find the strongest qualifying place to buy this product now." onPress={() => router.push('/fatefind')} />
+        <Tool icon="sparkles-outline" title="FateMatch" detail="Keep watching for the conditions you want." onPress={() => router.push('/fate-match')} />
+        <Tool icon="navigate-outline" title="Local Radar" detail="See what is happening at physical stores near you and explore nearby collector events." onPress={() => router.push('/local-radar')} />
+        <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting monitoring." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />
       </ScrollView>
     </SafeAreaView>
