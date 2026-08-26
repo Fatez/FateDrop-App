@@ -175,7 +175,7 @@ export default function IndiesScreenV2() {
           <View style={styles.heroGlow} />
           <Text style={styles.eyebrow}>FATE NETWORK · RETAILERS</Text>
           <Text style={styles.heroTitle}>One retailer network. Different reasons to shop.</Text>
-          <Text style={styles.heroCopy}>Browse major retailers, TCG specialists and independent or local stores. Every connected catalogue still feeds FateFind, so product discovery stays in one place.</Text>
+          <Text style={styles.heroCopy}>Browse major retailers, TCG specialists and independent or local stores. Every connected retailer catalogue feeds the same FateFind offer pool, so product discovery stays in one place.</Text>
         </View>
 
         <Pressable onPress={() => router.push('/fatefind')} style={({ pressed }) => [styles.fateFindBridge, pressed && styles.pressed]}>
