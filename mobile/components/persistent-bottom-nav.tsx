@@ -7,7 +7,7 @@ import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors } from '@/constants/theme';
 
 const ROOT_DOCK_PREFIXES = [
-  '/fatefind', '/fate-match', '/local-radar', '/encounters', '/retailers/',
+  '/fatefind', '/fate-match', '/fate-trader', '/local-radar', '/encounters', '/retailers/',
   '/notification-preferences', '/dashboard', '/stories', '/demo', '/tools',
 ];
 
