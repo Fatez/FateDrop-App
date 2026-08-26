@@ -90,7 +90,7 @@ export default function LocalRadarScreen() {
     }
   }, []);
 
-  const useDevice = async () => {
+  const handleDeviceLocation = async () => {
     try {
       await load(await locationAdapter.requestCurrentArea());
     } catch (reason) {
@@ -100,7 +100,7 @@ export default function LocalRadarScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const handlePostcodeScan = async () => {
     try {
       await load(await locationAdapter.fromPostcode(postcode));
     } catch {
@@ -131,12 +131,12 @@ export default function LocalRadarScreen() {
       <View style={styles.locationCard}>
         <Text style={styles.locationTitle}>Set your area</Text>
         <Text style={styles.locationText}>Use your device location or a postcode. FateDrop uses it only to calculate nearby Local Radar results.</Text>
-        <Pressable onPress={() => void useDevice()} disabled={loading} style={styles.primaryButton}>
+        <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.primaryButton}>
           <Ionicons name="locate" size={18} color={FateDropColors.text}/><Text style={styles.primaryButtonText}>{loading ? 'Scanning…' : 'Use my location'}</Text>
         </Pressable>
         <View style={styles.postcodeRow}>
           <TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.postcodeInput}/>
-          <Pressable onPress={() => void usePostcode()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Scan</Text></Pressable>
+          <Pressable onPress={() => void handlePostcodeScan()} style={styles.postcodeButton}><Text style={styles.postcodeButtonText}>Scan</Text></Pressable>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
