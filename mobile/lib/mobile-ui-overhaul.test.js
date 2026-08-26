@@ -1,4 +1,5 @@
 // Regression guards for the physically approved Fate Network integration shell.
+// Verification marker only: no production behaviour changes.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
