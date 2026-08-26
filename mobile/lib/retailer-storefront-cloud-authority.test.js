@@ -49,7 +49,7 @@ test('Retailers categorises the same Cloud directory into major, specialist and 
 
 test('Retailers stays business-first and sends product discovery to FateFind', () => {
   assert.match(retailers, /Search retailer or TCG/);
-  assert.match(retailers, /Every connected catalogue still feeds FateFind/);
+  assert.match(retailers, /Every connected retailer catalogue feeds the same FateFind offer pool/);
   assert.match(retailers, /router\.push\('\/fatefind'\)/);
   assert.match(retailers, /same comparison pool/);
   assert.match(retailers, /localeCompare/);
