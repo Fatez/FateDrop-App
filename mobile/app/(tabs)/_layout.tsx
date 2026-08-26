@@ -63,7 +63,7 @@ export default function TabLayout() {
     };
   }, [refreshAlertCount, signedIn, userId]);
 
-  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies') => {
+  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/(tabs)/search') => {
     setToolboxOpen(false);
     router.push(path);
   };
@@ -116,15 +116,14 @@ export default function TabLayout() {
               <View style={styles.toolboxBrandCopy}>
                 <Text style={styles.toolboxEyebrow}>FATE NETWORK</Text>
                 <Text style={styles.toolboxTitle}>What do you want FateDrop to do?</Text>
-                <Text style={styles.toolboxCopy}>Value finder, monitoring, trading, local intelligence and retailer discovery — one network, one Cloud truth.</Text>
+                <Text style={styles.toolboxCopy}>Search discovers. FateFind hunts. FateMatch confirms. Fate Trader connects collectors.</Text>
               </View>
               <Pressable accessibilityLabel="Close Fate Network" onPress={() => setToolboxOpen(false)} style={styles.close}><Ionicons name="close" size={18} color={FateDropColors.ivory} /></Pressable>
             </View>
-            <ToolChoice icon="telescope-outline" title="FateFind" copy="Find the strongest qualifying place to buy this product." onPress={() => openTool('/fatefind')} />
-            <ToolChoice icon="notifications-outline" title="FateMatch" copy="Monitor products and the conditions you care about." onPress={() => openTool('/fate-match')} />
-            <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Manage HAVE / WANT trade intentions and compatible collector opportunities." onPress={() => openTool('/fate-trader')} />
-            <ToolChoice icon="navigate-outline" title="Local Radar" copy="See what is happening physically around you, including branch intelligence and events." onPress={() => openTool('/local-radar')} />
-            <ToolChoice icon="storefront-outline" title="Stores" copy="Discover retailers, what they sell and where to find them." onPress={() => openTool('/(tabs)/indies')} />
+            <ToolChoice icon="telescope-outline" title="FateFind" copy="Find the right deal now or keep hunting under your conditions. Verified RRP, visible True Price and one Cloud Fate Verdict." onPress={() => openTool('/fatefind')} />
+            <ToolChoice icon="sparkles-outline" title="FateMatches" copy="Successful results from your FateFinds, plus the active finds still searching for you." onPress={() => openTool('/fate-match')} />
+            <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Create structured wants and offers, then surface compatible collector trades through the Fate Network." onPress={() => openTool('/fate-trader')} />
+            <ToolChoice icon="search-outline" title="Search live database" copy="Browse current catalogue and retailer offers without starting a hunt." onPress={() => openTool('/(tabs)/search')} />
           </Pressable>
         </Pressable>
       </Modal>
