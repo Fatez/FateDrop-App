@@ -79,7 +79,9 @@ function ProductResult({ group, saved, onToggle, retailerNames }: { group: Produ
       return <View key={offer.id} style={styles.offerRow}>
         <View style={[styles.rank, index === 0 && styles.rankBest]}><Text style={[styles.rankText, index === 0 && styles.rankTextBest]}>{index + 1}</Text></View>
         <View style={styles.offerCopy}>
-          <Text style={styles.retailer}>{retailerNames.get(offer.retailerId) || offer.retailerId}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Open ${retailerNames.get(offer.retailerId) || offer.retailerId} retailer profile`} onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: offer.retailerId } })}>
+            <Text style={styles.retailer}>{retailerNames.get(offer.retailerId) || offer.retailerId}</Text>
+          </Pressable>
           <Text style={styles.offerDetail}>{offer.priceGbp === undefined ? 'Item price unavailable' : `£${offer.priceGbp.toFixed(2)} item`} · {delivery === undefined ? 'delivery unknown' : `£${delivery.toFixed(2)} delivery`}</Text>
         </View>
         <View style={styles.offerRight}>
