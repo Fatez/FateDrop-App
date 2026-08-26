@@ -101,7 +101,6 @@ export default function HomeScreenV3() {
         <View style={styles.actions}>
           <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
           <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push('/fatefind')} />
-          <Action title="Local Radar" detail="Find shops and events near you" icon="navigate-outline" onPress={() => router.push('/local-radar')} />
           <Action title="How FateDrop works" detail="See the whole flow" icon="play-circle-outline" onPress={() => router.push('/demo')} />
         </View>
 

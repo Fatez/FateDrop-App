@@ -55,11 +55,10 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen name="companion" options={{ headerShown: false }} />
+          <Stack.Screen name="companion/index" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen name="tools" options={{ headerShown: false }} />
           <Stack.Screen name="demo" options={{ headerShown: false }} />
-          <Stack.Screen name="stories" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
@@ -68,7 +67,11 @@ export default function RootLayout() {
           <Stack.Screen name="true-price" options={{ headerShown: false }} />
           <Stack.Screen name="fatefind" options={{ headerShown: false }} />
           <Stack.Screen name="fate-match" options={{ headerShown: false }} />
+          <Stack.Screen name="fate-trader" options={{ headerShown: false }} />
           <Stack.Screen name="local-radar" options={{ headerShown: false }} />
+          <Stack.Screen name="local-radar-stock" options={{ headerShown: false }} />
+          <Stack.Screen name="local-radar-events" options={{ headerShown: false }} />
+          <Stack.Screen name="local-radar-store" options={{ headerShown: false }} />
           <Stack.Screen name="notification-preferences" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ headerShown: false }} />
           <Stack.Screen name="event-vendors" options={{ headerShown: false }} />

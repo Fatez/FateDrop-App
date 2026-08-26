@@ -24,7 +24,8 @@ test('human audit repair routes Home and Alerts through the vNext screens', () =
 
 test('Home uses the shared seven-day network lifecycle pulse', () => {
   assert.match(home, /fetchNetworkPulse\(7\)/);
-  assert.match(signalService, /\/api\/signal-health\?days=/);
+  assert.match(signalService, /\/api\/mobile\/signal-health\?days=/);
+  assert.doesNotMatch(signalService, /SIGNAL_ENGINE_URL}\/api\/signal-health/);
   for (const state of ['whisper', 'echo', 'manifested', 'vanished']) {
     assert.match(signalService, new RegExp(state));
   }
