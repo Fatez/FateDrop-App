@@ -144,7 +144,7 @@ async function fetchSignedInCanonicalAlerts(limit: number): Promise<NetworkSigna
 
 export async function fetchNetworkPulse(days = 7): Promise<NetworkPulse> {
   const safeDays = Math.min(30, Math.max(2, Math.trunc(days)));
-  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signal-health?days=${safeDays}`, {
+  const response = await fetch(`${webBaseUrl()}/api/mobile/signal-health?days=${safeDays}`, {
     headers: { accept: 'application/json' },
   });
   const data = await response.json().catch(() => null) as SignalHealthResponse | null;
