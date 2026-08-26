@@ -18,6 +18,8 @@ import {
   type RadarStockProduct,
 } from '@/services/local-radar-intelligence';
 
+type RadarRouteParams = Record<string, string | string[] | undefined>;
+
 function productState(product: RadarStockProduct) {
   const lifecycle = String(product.lifecycleState || '').toLowerCase();
   if (lifecycle === 'manifested') return { label: 'PHYSICAL STOCK CONFIRMED', color: FateDropColors.mint };
@@ -28,7 +30,7 @@ function productState(product: RadarStockProduct) {
 }
 
 export default function LocalRadarStoreScreen() {
-  const params = useLocalSearchParams<Record<string, string | string[] | undefined>>();
+  const params = useLocalSearchParams() as RadarRouteParams;
   const id = typeof params.id === 'string' ? params.id : '';
   const area = useMemo(() => areaFromParams(params), [params]);
   const radius = typeof params.radiusMiles === 'string' && Number.isFinite(Number(params.radiusMiles)) ? Number(params.radiusMiles) : 25;
