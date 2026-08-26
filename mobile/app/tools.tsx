@@ -16,13 +16,14 @@ export default function ToolsScreen() {
           <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} contentFit="contain" />
           <Text style={styles.eyebrow}>FATE NETWORK</Text>
           <Text style={styles.title}>What do you want FateDrop to do?</Text>
-          <Text style={styles.copy}>The connected collector hub: discover, hunt, match, remember, trade and explore what is happening around you.</Text>
+          <Text style={styles.copy}>One network, five clear jobs: FateFind finds value, FateMatch monitors, Fate Trader handles trading, Local Radar watches the physical world and Stores helps you discover retailers.</Text>
         </View>
-        <Tool icon="telescope-outline" title="FateFind" detail="Find the best qualifying offer now or keep hunting under your rules." onPress={() => router.push('/fatefind')} />
-        <Tool icon="sparkles-outline" title="FateMatches" detail="See successful FateFind results and the active finds still searching." onPress={() => router.push('/fate-match')} />
-        <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Add verified cards to your Trade Binder and Wants; Finder only surfaces real compatibility when the network phase is live." onPress={() => router.push('/fate-trader')} />
-        <Tool icon="navigate-outline" title="Local Radar" detail="Explore nearby shops and events now; local stock intelligence appears only when FateDrop has credible location-level evidence." onPress={() => router.push('/local-radar')} />
-        <Tool icon="search-outline" title="Search live database" detail="Browse the current retailer network without starting a hunt." onPress={() => router.push('/(tabs)/search')} />
+        <Tool icon="telescope-outline" title="FateFind" detail="Find the strongest qualifying place to buy this product." onPress={() => router.push('/fatefind')} />
+        <Tool icon="notifications-outline" title="FateMatch" detail="Monitor the products and conditions you care about." onPress={() => router.push('/fate-match')} />
+        <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Manage structured HAVE / WANT trading intentions and compatible trade opportunities." onPress={() => router.push('/fate-trader')} />
+        <Tool icon="navigate-outline" title="Local Radar" detail="Explore nearby physical-store intelligence and collector events." onPress={() => router.push('/local-radar')} />
+        <Tool icon="storefront-outline" title="Stores" detail="Discover the retailer network, including major retailers and independents." onPress={() => router.push('/(tabs)/indies')} />
+        <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting monitoring." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />
       </ScrollView>
     </SafeAreaView>
