@@ -51,7 +51,9 @@ test('Retailers categorises the same Cloud directory into major, specialist and 
 test('Retailers mirrors the approved premium discovery mockup without hard-coded retailer examples', () => {
   assert.match(retailers, /retailerHeroUri/);
   assert.match(retailerHero, /data:image\/webp;base64/);
-  assert.match(retailers, /Discover the\{`\\n`\}stores behind/);
+  assert.match(retailers, /Discover the/);
+  assert.match(retailers, /stores behind/);
+  assert.match(retailers, /the hobby\./);
   assert.match(retailers, /Retailer storefronts/);
   assert.match(retailers, /A–Z · NO RANKING/);
   assert.doesNotMatch(retailers, /Smyths Toys/);
