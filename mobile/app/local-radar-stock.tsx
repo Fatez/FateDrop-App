@@ -24,6 +24,13 @@ type RadarStockProduct = {
   confidence?: number | null;
   freshnessAgeMinutes?: number | null;
   contradictionCount?: number | null;
+  advisory?: boolean | null;
+  scope?: string | null;
+  expectedFrom?: string | null;
+  expectedTo?: string | null;
+  note?: string | null;
+  sourceLabel?: string | null;
+  sourceType?: string | null;
   value?: RadarValue | null;
 };
 
@@ -43,6 +50,13 @@ type RadarShop = {
     confidence?: number | null;
     freshnessAgeMinutes?: number | null;
     verifiedBranchStock?: boolean | null;
+    advisory?: boolean | null;
+    scope?: string | null;
+    expectedFrom?: string | null;
+    expectedTo?: string | null;
+    note?: string | null;
+    sourceLabel?: string | null;
+    sourceType?: string | null;
   } | null;
   localStockProducts?: RadarStockProduct[] | null;
 };
@@ -78,6 +92,24 @@ function ageLabel(minutes?: number | null) {
   if (minutes < 60) return `Observed ${Math.round(minutes)} min ago`;
   const hours = Math.round(minutes / 60);
   return `Observed ${hours} hr${hours === 1 ? '' : 's'} ago`;
+}
+
+function dateLabel(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function expectedWindow(product?: RadarStockProduct | null) {
+  if (!product) return null;
+  const from = dateLabel(product.expectedFrom);
+  const to = dateLabel(product.expectedTo);
+  if (from && to && from === to) return from;
+  if (from && to) return `${from} – ${to}`;
+  if (from) return `From ${from}`;
+  if (to) return `By ${to}`;
+  return null;
 }
 
 function valueLine(value?: RadarValue | null) {
@@ -226,6 +258,7 @@ export default function LocalRadarStockScreen() {
       renderItem={({ item }) => {
         const signal = signalLabel(item);
         const product = item.localStockProducts?.[0];
+        const products = item.localStockProducts || [];
         const verified = signal === 'LOCAL MANIFESTED';
         const preparing = signal === 'LOCAL ECHO' || signal === 'LOCAL WHISPER';
         const selected = selectedStoreId === item.id;
@@ -235,10 +268,7 @@ export default function LocalRadarStockScreen() {
             ? 'Incoming / preparation intelligence · NOT YET CONFIRMED'
             : 'No verified branch stock currently';
         return <Pressable
-          onPress={() => {
-            setSelectedStoreId(item.id);
-            if (item.retailerId) router.push({ pathname: '/retailers/[id]', params: { id: item.retailerId } });
-          }}
+          onPress={() => setSelectedStoreId(selected ? null : item.id)}
           style={[styles.card, selected ? styles.cardSelected : null]}
         >
           <View style={styles.icon}><Ionicons name="storefront" size={21} color={verified ? FateDropColors.mint : preparing ? FateDropColors.cyan : FateDropColors.violetLight}/></View>
@@ -250,8 +280,30 @@ export default function LocalRadarStockScreen() {
             {product ? <Text style={styles.value}>{valueLine(product.value)}</Text> : null}
             <Text style={styles.meta}>{item.distanceMiles !== null && item.distanceMiles !== undefined ? `${item.distanceMiles.toFixed(1)} miles · ` : ''}{item.address || item.postcode || 'Location pending'}</Text>
             {(product?.contradictionCount || 0) > 0 ? <Text style={styles.warning}>{product?.contradictionCount} recent contradiction{product?.contradictionCount === 1 ? '' : 's'} reflected in confidence</Text> : null}
+
+            {selected ? <View style={styles.intelPanel}>
+              <Text style={styles.intelHeading}>STORE INTELLIGENCE</Text>
+              {products.length ? products.map((entry, index) => {
+                const window = expectedWindow(entry);
+                const advisory = entry.advisory === true;
+                const entryVerified = entry.lifecycleState === 'manifested' && !advisory;
+                return <View key={`${entry.productIdentityId || entry.title || 'product'}:${index}`} style={styles.productIntel}>
+                  <View style={styles.productIntelHeader}>
+                    <Text style={[styles.productState, entryVerified ? styles.manifested : styles.echo]}>{entryVerified ? 'VERIFIED PHYSICAL STOCK' : advisory ? 'LOCAL INTEL · UNCONFIRMED' : `LOCAL ${String(entry.lifecycleState || 'WATCH').toUpperCase()}`}</Text>
+                    <Text style={styles.confidence}>{confidenceLabel(entry.confidence)}</Text>
+                  </View>
+                  <Text style={styles.productTitle}>{entry.title || 'Trading card product'}</Text>
+                  {window ? <Text style={styles.expected}>Expected window · {window}</Text> : null}
+                  <Text style={styles.productMeta}>{ageLabel(entry.freshnessAgeMinutes)}{entry.sourceLabel || entry.sourceType ? ` · Source: ${entry.sourceLabel || entry.sourceType}` : ''}</Text>
+                  <Text style={styles.value}>{valueLine(entry.value)}</Text>
+                  {entry.note ? <Text style={styles.note}>{entry.note}</Text> : null}
+                  {advisory ? <Text style={styles.advisory}>Not confirmed at this exact branch. Check with the store before travelling.</Text> : null}
+                </View>;
+              }) : <Text style={styles.productMeta}>No current product-specific stock intelligence for this store.</Text>}
+              {item.retailerId ? <Pressable onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: item.retailerId! } })} style={styles.retailerButton}><Text style={styles.retailerButtonText}>View retailer details</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.text}/></Pressable> : null}
+            </View> : null}
           </View>
-          {item.retailerId ? <Ionicons name="chevron-forward" size={17} color={FateDropColors.muted}/> : null}
+          <Ionicons name={selected ? 'chevron-up' : 'chevron-down'} size={17} color={FateDropColors.muted}/>
         </Pressable>;
       }}
     />
@@ -265,5 +317,6 @@ const styles = StyleSheet.create({
   locationCard:{padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},primaryButton:{flexDirection:'row',justifyContent:'center',alignItems:'center',gap:8,padding:12,borderRadius:13,backgroundColor:FateDropColors.violet},primaryText:{color:FateDropColors.text,fontWeight:'900'},postcodeRow:{flexDirection:'row',gap:8,marginTop:8},postcodeInput:{flex:1,color:FateDropColors.text,padding:11,borderRadius:12,backgroundColor:FateDropColors.cardElevated},postcodeButton:{justifyContent:'center',paddingHorizontal:18,borderRadius:12,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:10,marginTop:7},
   mapShell:{height:390,borderRadius:22,overflow:'hidden',marginTop:14,borderWidth:1,borderColor:FateDropColors.border,backgroundColor:FateDropColors.cardElevated},map:{...StyleSheet.absoluteFillObject},mapOverlay:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',padding:34,backgroundColor:'rgba(8,8,18,0.86)'},mapOverlayTitle:{color:FateDropColors.text,fontSize:17,fontWeight:'900',marginTop:7},mapOverlayText:{color:FateDropColors.secondary,fontSize:10,lineHeight:16,textAlign:'center',marginTop:4},
   stats:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:10},sectionTitle:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginVertical:14},filters:{flexDirection:'row',flexWrap:'wrap',gap:8},truthCard:{flexDirection:'row',gap:9,padding:13,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:15},truthText:{flex:1,color:FateDropColors.secondary,fontSize:10,lineHeight:15},listHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
-  card:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:17,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:9},cardSelected:{borderColor:FateDropColors.cyan},icon:{width:42,height:42,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.cardElevated},signal:{color:FateDropColors.muted,fontSize:9,fontWeight:'900',letterSpacing:.7,marginBottom:3},manifested:{color:FateDropColors.mint},echo:{color:FateDropColors.cyan},storeName:{color:FateDropColors.text,fontWeight:'900'},meta:{color:FateDropColors.muted,fontSize:10,marginTop:4,lineHeight:15},value:{color:FateDropColors.secondary,fontSize:10,fontWeight:'800',marginTop:5},warning:{color:FateDropColors.coral,fontSize:9,marginTop:4},empty:{color:FateDropColors.muted,textAlign:'center',margin:35,lineHeight:18}
+  card:{flexDirection:'row',alignItems:'flex-start',gap:11,padding:14,borderRadius:17,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:9},cardSelected:{borderColor:FateDropColors.cyan},icon:{width:42,height:42,borderRadius:13,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.cardElevated},signal:{color:FateDropColors.muted,fontSize:9,fontWeight:'900',letterSpacing:.7,marginBottom:3},manifested:{color:FateDropColors.mint},echo:{color:FateDropColors.cyan},storeName:{color:FateDropColors.text,fontWeight:'900'},meta:{color:FateDropColors.muted,fontSize:10,marginTop:4,lineHeight:15},value:{color:FateDropColors.secondary,fontSize:10,fontWeight:'800',marginTop:5},warning:{color:FateDropColors.coral,fontSize:9,marginTop:4},empty:{color:FateDropColors.muted,textAlign:'center',margin:35,lineHeight:18},
+  intelPanel:{marginTop:13,paddingTop:12,borderTopWidth:1,borderTopColor:FateDropColors.border},intelHeading:{color:FateDropColors.text,fontSize:11,fontWeight:'900',letterSpacing:1,marginBottom:8},productIntel:{padding:11,borderRadius:13,backgroundColor:FateDropColors.cardElevated,marginBottom:8},productIntelHeader:{flexDirection:'row',justifyContent:'space-between',gap:8},productState:{fontSize:8,fontWeight:'900',letterSpacing:.6},confidence:{color:FateDropColors.muted,fontSize:8,fontWeight:'900'},productTitle:{color:FateDropColors.text,fontSize:12,fontWeight:'900',marginTop:5},expected:{color:FateDropColors.cyan,fontSize:10,fontWeight:'900',marginTop:6},productMeta:{color:FateDropColors.muted,fontSize:9,lineHeight:14,marginTop:5},note:{color:FateDropColors.secondary,fontSize:9,lineHeight:14,marginTop:6},advisory:{color:FateDropColors.coral,fontSize:9,fontWeight:'800',lineHeight:14,marginTop:7},retailerButton:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:11,borderRadius:12,backgroundColor:FateDropColors.violet,marginTop:3},retailerButtonText:{color:FateDropColors.text,fontSize:10,fontWeight:'900'}
 });
