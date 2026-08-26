@@ -8,6 +8,7 @@ const homeRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/index.tsx'
 const alertsRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/alerts.tsx'), 'utf8');
 const home = fs.readFileSync(path.join(__dirname, '../screens/home-screen-v3.tsx'), 'utf8');
 const alerts = fs.readFileSync(path.join(__dirname, '../screens/alerts-screen-v4.tsx'), 'utf8');
+const fateNetwork = fs.readFileSync(path.join(__dirname, '../app/tools.tsx'), 'utf8');
 
 test('tabs route to the human-audited Home and canonical Alerts screens', () => {
   assert.match(homeRoute, /home-screen-v3/);
@@ -19,7 +20,8 @@ test('Home combines seven-day lifecycle pulse, personal FateDrop summary and dis
   assert.match(home, /fetchNetworkPulse\(7\)/);
   assert.match(home, /ACTIVE FATEFINDS/);
   assert.match(home, /7D FATEMATCHES/);
-  assert.match(home, /Local Radar/);
+  assert.doesNotMatch(home, /Action title="Local Radar"/);
+  assert.match(fateNetwork, /title="Local Radar"/);
   assert.match(home, /How FateDrop works/);
 });
 
