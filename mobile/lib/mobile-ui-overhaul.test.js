@@ -13,6 +13,7 @@ const home = fs.readFileSync(path.join(__dirname, '../screens/home-screen-v3.tsx
 const alerts = fs.readFileSync(path.join(__dirname, '../screens/alerts-screen-v4.tsx'), 'utf8');
 const fateNetwork = fs.readFileSync(path.join(__dirname, '../app/tools.tsx'), 'utf8');
 const persistentNav = fs.readFileSync(path.join(__dirname, '../components/persistent-bottom-nav.tsx'), 'utf8');
+const networkSignals = fs.readFileSync(path.join(__dirname, '../services/network-signals.ts'), 'utf8');
 
 test('tabs route to the human-audited Home and canonical Alerts screens', () => {
   assert.match(homeRoute, /home-screen-v3/);
@@ -26,6 +27,11 @@ test('Home combines seven-day lifecycle pulse, personal FateDrop summary and dis
   assert.match(home, /7D FATEMATCHES/);
   assert.doesNotMatch(home, /Action title="Local Radar"/);
   assert.match(home, /How FateDrop works/);
+});
+
+test('Home network pulse uses the stable Web gateway rather than direct Railway signal health', () => {
+  assert.match(networkSignals, /webBaseUrl\(\)\}\/api\/mobile\/signal-health/);
+  assert.doesNotMatch(networkSignals, /SIGNAL_ENGINE_URL\}\/api\/signal-health/);
 });
 
 test('Fate Network keeps the physically approved five-job hierarchy and monitoring semantics', () => {
