@@ -151,7 +151,7 @@ export default function LocalRadarStockScreen() {
     if (area) void load(area);
   }, [area, load]);
 
-  const useDevice = async () => {
+  const handleDeviceLocation = async () => {
     try {
       await load(await locationAdapter.requestCurrentArea());
     } catch (reason) {
@@ -161,7 +161,7 @@ export default function LocalRadarStockScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const handlePostcodeScan = async () => {
     try {
       await load(await locationAdapter.fromPostcode(postcode));
     } catch {
@@ -185,8 +185,8 @@ export default function LocalRadarStockScreen() {
     <Text style={styles.subtitle}>Verified collection or branch availability can become Local Manifested. Preparation, expected deliveries and manual/community reports stay clearly labelled until physical stock is verified.</Text>
 
     <View style={styles.locationCard}>
-      <Pressable onPress={() => void useDevice()} disabled={loading} style={styles.primaryButton}><Ionicons name="locate" size={18} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Scanning…' : 'Use my location'}</Text></Pressable>
-      <View style={styles.postcodeRow}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.postcodeInput}/><Pressable onPress={() => void usePostcode()} style={styles.postcodeButton}><Text style={styles.primaryText}>Scan</Text></Pressable></View>
+      <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.primaryButton}><Ionicons name="locate" size={18} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Scanning…' : 'Use my location'}</Text></Pressable>
+      <View style={styles.postcodeRow}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.postcodeInput}/><Pressable onPress={() => void handlePostcodeScan()} style={styles.postcodeButton}><Text style={styles.primaryText}>Scan</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
 
