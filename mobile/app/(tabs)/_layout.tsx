@@ -63,7 +63,7 @@ export default function TabLayout() {
     };
   }, [refreshAlertCount, signedIn, userId]);
 
-  const openTool = (path: '/fatefind' | '/fate-match' | '/(tabs)/search') => {
+  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies') => {
     setToolboxOpen(false);
     router.push(path);
   };
@@ -100,7 +100,7 @@ export default function TabLayout() {
             tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={48} /></View>,
           }}
         />
-        <Tabs.Screen name="network" options={{ title: 'Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
+        <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
         <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={21} color={color} /> }} />
         <Tabs.Screen name="search" options={{ href: null }} />
         <Tabs.Screen name="indies" options={{ href: null }} />
@@ -114,15 +114,17 @@ export default function TabLayout() {
             <View style={styles.toolboxBrand}>
               <Image source={require('../../assets/images/fatedrop-center-emblem.png')} style={styles.toolboxEmblem} contentFit="contain" />
               <View style={styles.toolboxBrandCopy}>
-                <Text style={styles.toolboxEyebrow}>FATEDROP TOOLS</Text>
+                <Text style={styles.toolboxEyebrow}>FATE NETWORK</Text>
                 <Text style={styles.toolboxTitle}>What do you want FateDrop to do?</Text>
-                <Text style={styles.toolboxCopy}>Search discovers. Wishlist remembers. FateFind hunts. FateMatch means it was found.</Text>
+                <Text style={styles.toolboxCopy}>Value finder, monitoring, trading, physical intelligence and retailer discovery — one network, one Cloud truth.</Text>
               </View>
-              <Pressable accessibilityLabel="Close tools" onPress={() => setToolboxOpen(false)} style={styles.close}><Ionicons name="close" size={18} color={FateDropColors.ivory} /></Pressable>
+              <Pressable accessibilityLabel="Close Fate Network" onPress={() => setToolboxOpen(false)} style={styles.close}><Ionicons name="close" size={18} color={FateDropColors.ivory} /></Pressable>
             </View>
-            <ToolChoice icon="telescope-outline" title="FateFind" copy="Find the right deal now or keep hunting under your conditions. Verified RRP, visible True Price and one Cloud Fate Verdict." onPress={() => openTool('/fatefind')} />
-            <ToolChoice icon="sparkles-outline" title="FateMatches" copy="Successful results from your FateFinds, plus the active finds still searching for you." onPress={() => openTool('/fate-match')} />
-            <ToolChoice icon="search-outline" title="Search live database" copy="Browse current catalogue and retailer offers without starting a hunt." onPress={() => openTool('/(tabs)/search')} />
+            <ToolChoice icon="telescope-outline" title="FateFind" copy="Find the strongest qualifying place to buy this product now." onPress={() => openTool('/fatefind')} />
+            <ToolChoice icon="notifications-outline" title="FateMatch" copy="Keep watching for the conditions you want." onPress={() => openTool('/fate-match')} />
+            <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Manage structured HAVE / WANT trade intentions and compatible collector opportunities." onPress={() => openTool('/fate-trader')} />
+            <ToolChoice icon="navigate-outline" title="Local Radar" copy="See what is happening at physical stores near you and explore nearby collector events." onPress={() => openTool('/local-radar')} />
+            <ToolChoice icon="storefront-outline" title="Stores" copy="Discover retailers, what they sell and where to find them." onPress={() => openTool('/(tabs)/indies')} />
           </Pressable>
         </Pressable>
       </Modal>
