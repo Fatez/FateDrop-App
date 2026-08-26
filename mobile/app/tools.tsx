@@ -16,11 +16,12 @@ export default function ToolsScreen() {
           <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} contentFit="contain" />
           <Text style={styles.eyebrow}>FATE NETWORK</Text>
           <Text style={styles.title}>What do you want FateDrop to do?</Text>
-          <Text style={styles.copy}>The connected collector hub: discover, hunt, match, remember and prepare structured trades without turning every job into a separate app.</Text>
+          <Text style={styles.copy}>The connected collector hub: discover, hunt, match, remember, trade and explore what is happening around you.</Text>
         </View>
         <Tool icon="telescope-outline" title="FateFind" detail="Find the best qualifying offer now or keep hunting under your rules." onPress={() => router.push('/fatefind')} />
         <Tool icon="sparkles-outline" title="FateMatches" detail="See successful FateFind results and the active finds still searching." onPress={() => router.push('/fate-match')} />
         <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Add verified cards to your Trade Binder and Wants; Finder only surfaces real compatibility when the network phase is live." onPress={() => router.push('/fate-trader')} />
+        <Tool icon="navigate-outline" title="Local Radar" detail="Explore nearby shops and events now; local stock intelligence appears only when FateDrop has credible location-level evidence." onPress={() => router.push('/local-radar')} />
         <Tool icon="search-outline" title="Search live database" detail="Browse the current retailer network without starting a hunt." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />
       </ScrollView>
