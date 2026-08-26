@@ -55,11 +55,10 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="account" options={{ headerShown: false }} />
-          <Stack.Screen name="companion" options={{ headerShown: false }} />
+          <Stack.Screen name="companion/index" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen name="tools" options={{ headerShown: false }} />
           <Stack.Screen name="demo" options={{ headerShown: false }} />
-          <Stack.Screen name="stories" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/index" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/detail" options={{ headerShown: false }} />
           <Stack.Screen name="encounters/[id]" options={{ headerShown: false }} />
