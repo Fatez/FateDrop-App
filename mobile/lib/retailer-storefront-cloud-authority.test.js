@@ -7,7 +7,9 @@ const root = path.resolve(__dirname, '..');
 const search = fs.readFileSync(path.join(root, 'screens', 'search-screen-v2.tsx'), 'utf8');
 const retailers = fs.readFileSync(path.join(root, 'screens', 'indies-screen-v2.tsx'), 'utf8');
 const storefront = fs.readFileSync(path.join(root, 'app', 'retailers', '[id].tsx'), 'utf8');
+const localRadar = fs.readFileSync(path.join(root, 'app', 'local-radar.tsx'), 'utf8');
 const localStore = fs.readFileSync(path.join(root, 'app', 'local-radar-store.tsx'), 'utf8');
+const tabs = fs.readFileSync(path.join(root, 'app', '(tabs)', '_layout.tsx'), 'utf8');
 
 test('Search retailer identity comes from the Cloud retailer directory', () => {
   assert.match(search, /fetchRetailerDirectory/);
@@ -26,23 +28,26 @@ test('retailer storefront resolves the retailer from the Cloud directory and exc
   assert.match(storefront, /Branch stock is separate and remains unknown unless Local Radar has exact-branch evidence/);
 });
 
-test('Retailers is a neutral storefront discovery page rather than a major-vs-indie ranking surface', () => {
-  assert.match(retailers, /FATE NETWORK STOREFRONTS/);
-  assert.match(retailers, /Search a retailer or product/);
-  assert.match(retailers, /This page does not rank shops/);
-  assert.match(retailers, /localeCompare/);
-  assert.doesNotMatch(retailers, /RRP \/ Major/);
-  assert.doesNotMatch(retailers, /Retailer directory/);
-  assert.doesNotMatch(retailers, /Live offers/);
+test('Fate Network separates all retailer discovery from independent-store discovery without a second data source', () => {
+  assert.match(tabs, /title="Retailers"/);
+  assert.match(tabs, /title="Support Independent Stores"/);
+  assert.match(tabs, /openRetailers\('all'\)/);
+  assert.match(tabs, /openRetailers\('independent'\)/);
+  assert.match(retailers, /useLocalSearchParams<\{ view\?: string \}>/);
+  assert.match(retailers, /\['independent', 'regional', 'specialist'\]/);
+  assert.match(retailers, /fetchRetailerDirectory/);
+  assert.doesNotMatch(retailers, /@\/constants\/retailers/);
 });
 
-test('Retailers product search only surfaces storefront retailers with strict in-stock evidence', () => {
-  assert.match(retailers, /retailer\.retailerClass !== 'event_vendor'/);
-  assert.match(retailers, /inStockOnly: true/);
-  assert.match(retailers, /offer\.stockStatus === 'IN_STOCK' && !offer\.preorder/);
-  assert.match(retailers, /offersByRetailer/);
-  assert.match(retailers, /MATCHING IN-STOCK/);
-  assert.match(retailers, /params: matchingOffers\.length > 0 \? \{ id: retailer\.id, q: searchTerm \}/);
+test('Retailers stays business-first and leaves cross-retailer product discovery to FateFind', () => {
+  assert.match(retailers, /Search retailer or TCG/);
+  assert.match(retailers, /FateFind still owns product comparison across the full market/);
+  assert.match(retailers, /localeCompare/);
+  assert.match(retailers, /NO RANKING/);
+  assert.doesNotMatch(retailers, /useCatalogue/);
+  assert.doesNotMatch(retailers, /offersByRetailer/);
+  assert.doesNotMatch(retailers, /MATCHING IN-STOCK/);
+  assert.doesNotMatch(retailers, /Search a retailer or product/);
 });
 
 test('retailer directory cards open the internal Cloud-backed storefront', () => {
@@ -51,11 +56,21 @@ test('retailer directory cards open the internal Cloud-backed storefront', () =>
   assert.doesNotMatch(retailers, /Linking\.openURL\(retailer\.websiteUrl\)/);
 });
 
-test('storefront preserves a retailer product search context without weakening stock truth', () => {
-  assert.match(storefront, /useLocalSearchParams<\{ id\?: string; q\?: string \}>/);
-  assert.match(storefront, /query: productQuery \|\| undefined/);
+test('individual storefront can search its own strict in-stock catalogue and exposes retailer TCGs', () => {
+  assert.match(storefront, /useLocalSearchParams<\{ id\?: string \}>/);
+  assert.match(storefront, /query: cleanCatalogueQuery \|\| undefined/);
   assert.match(storefront, /item\.stockStatus === 'IN_STOCK' && !item\.preorder/);
-  assert.match(storefront, /Showing this storefront's current in-stock matches/);
+  assert.match(storefront, /Search only \{retailer\.name\}'s connected in-stock offers/);
+  assert.match(storefront, /Trading card games/);
+  assert.match(storefront, /retailer\.tcgs\.map\(tcgLabel\)/);
+});
+
+test('storefront deep-links physical retailers into Local Radar by canonical retailer id', () => {
+  assert.match(storefront, /pathname: '\/local-radar'/);
+  assert.match(storefront, /retailerId: retailer\.id/);
+  assert.match(localRadar, /useLocalSearchParams<\{ retailerId\?: string; retailerName\?: string \}>/);
+  assert.match(localRadar, /shop\.retailerId === scopedRetailerId/);
+  assert.match(localRadar, /does not match stores by name or infer physical stock from the retailer's online catalogue/);
 });
 
 test('Local Radar keeps exact-branch physical evidence separate and links back by canonical retailer id', () => {
