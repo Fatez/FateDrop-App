@@ -63,7 +63,7 @@ export default function LocalRadarStockScreen() {
     if (area) void load(area, radius);
   }, [area, radius, load]);
 
-  const useDevice = async () => {
+  const handleDeviceLocation = async () => {
     setLoading(true);
     setError('');
     try { setArea(await adapter.requestCurrentArea()); }
@@ -73,7 +73,7 @@ export default function LocalRadarStockScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const handlePostcodeSearch = async () => {
     setError('');
     try { setArea(await adapter.fromPostcode(postcode)); }
     catch { setError('Enter a valid UK postcode.'); }
@@ -95,8 +95,8 @@ export default function LocalRadarStockScreen() {
     <View style={styles.locationCard}>
       <Text style={styles.locationTitle}>Search around you</Text>
       <Text style={styles.locationCopy}>Use device location or a UK postcode. FateDrop only promotes branch stock when the evidence is branch-level and fresh.</Text>
-      <Pressable onPress={() => void useDevice()} disabled={loading} style={styles.primary}><Ionicons name="locate" size={17} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Checking Radar…' : 'Use my location'}</Text></Pressable>
-      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void usePostcode()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
+      <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.primary}><Ionicons name="locate" size={17} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Checking Radar…' : 'Use my location'}</Text></Pressable>
+      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
     {area ? <View style={styles.summary}><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${incoming} preparing`} color={FateDropColors.cyan}/><StatusBadge label={`${shops.length} nearby`} color={FateDropColors.violetLight}/></View> : null}
