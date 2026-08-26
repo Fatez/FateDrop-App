@@ -68,6 +68,7 @@ export default function RootLayout() {
           <Stack.Screen name="true-price" options={{ headerShown: false }} />
           <Stack.Screen name="fatefind" options={{ headerShown: false }} />
           <Stack.Screen name="fate-match" options={{ headerShown: false }} />
+          <Stack.Screen name="fate-trader" options={{ headerShown: false }} />
           <Stack.Screen name="local-radar" options={{ headerShown: false }} />
           <Stack.Screen name="local-radar-stock" options={{ headerShown: false }} />
           <Stack.Screen name="local-radar-events" options={{ headerShown: false }} />
