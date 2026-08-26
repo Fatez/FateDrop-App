@@ -16,11 +16,16 @@ export default function ToolsScreen() {
           <Image source={require('../assets/images/fatedrop-center-emblem.png')} style={styles.emblem} contentFit="contain" />
           <Text style={styles.eyebrow}>FATE NETWORK</Text>
           <Text style={styles.title}>What do you want FateDrop to do?</Text>
-          <Text style={styles.copy}>FateFind finds the strongest qualifying place to buy now. FateMatch keeps watching for the conditions you want. Local Radar handles physical and local intelligence. Search and Wishlist remain global utilities.</Text>
+          <Text style={styles.copy}>FateFind finds value. FateMatch monitors. Fate Trader handles trading. Local Radar handles physical and local intelligence. Stores is retailer discovery. Search and Wishlist remain global utilities.</Text>
         </View>
         <Tool icon="telescope-outline" title="FateFind" detail="Find the strongest qualifying place to buy this product now." onPress={() => router.push('/fatefind')} />
-        <Tool icon="sparkles-outline" title="FateMatch" detail="Keep watching for the conditions you want." onPress={() => router.push('/fate-match')} />
+        <Tool icon="notifications-outline" title="FateMatch" detail="Keep watching for the conditions you want." onPress={() => router.push('/fate-match')} />
+        <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Manage structured HAVE / WANT trading intentions and compatible collector opportunities." onPress={() => router.push('/fate-trader')} />
         <Tool icon="navigate-outline" title="Local Radar" detail="See what is happening at physical stores near you and explore nearby collector events." onPress={() => router.push('/local-radar')} />
+        <Tool icon="storefront-outline" title="Stores" detail="Discover retailers, what they sell and where to find them." onPress={() => router.push('/(tabs)/indies')} />
+        <View style={styles.utilityHead}>
+          <Text style={styles.utilityEyebrow}>GLOBAL UTILITIES</Text>
+        </View>
         <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting monitoring." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />
       </ScrollView>
@@ -36,6 +41,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, marginTop: 8 },
   title: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 25, fontWeight: '700', textAlign: 'center', marginTop: 4 },
   copy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 18, textAlign: 'center', maxWidth: 340, marginTop: 7 },
+  utilityHead: { marginTop: 10, paddingTop: 8 }, utilityEyebrow: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   tool: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   toolIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}10` },
   toolTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' }, toolDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 3 }, flex: { flex: 1 },
