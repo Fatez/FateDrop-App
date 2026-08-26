@@ -20,6 +20,7 @@ import {
 } from '@/services/local-radar-intelligence';
 
 const adapter = new ExpoLocationAdapter();
+type RadarRouteParams = Record<string, string | string[] | undefined>;
 
 function stockStatus(shop: RadarShop) {
   const signal = shopSignal(shop);
@@ -31,7 +32,7 @@ function stockStatus(shop: RadarShop) {
 }
 
 export default function LocalRadarStockScreen() {
-  const params = useLocalSearchParams<Record<string, string | string[] | undefined>>();
+  const params = useLocalSearchParams() as RadarRouteParams;
   const initialArea = useMemo(() => areaFromParams(params), [params]);
   const initialRadius = typeof params.radiusMiles === 'string' ? Number(params.radiusMiles) : 25;
   const [area, setArea] = useState<UserArea | undefined>(initialArea);
