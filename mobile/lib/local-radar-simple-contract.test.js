@@ -46,7 +46,8 @@ test('Local Stores remains map-first and keeps online stock separate from physic
   assert.match(overview, /<MapView/);
   assert.match(overview, />Local Stores</);
   assert.match(overview, /Online stock remains separate/);
-  assert.match(stores, /exact physical-store evidence/);
+  assert.match(stores, /exact-branch Confirmed stock/);
+  assert.match(stores, /never inferred from generic online availability/);
   assert.match(detail, /does not infer physical stock from an online product page/);
 });
 
