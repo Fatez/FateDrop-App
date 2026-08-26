@@ -16,9 +16,13 @@ export type RadarExpectedWindow = {
   evidenceBasis?: string[] | null;
 };
 
+export type RadarLocalState = 'expected' | 'confirmed' | 'unknown';
+
 export type RadarStockProduct = {
   productIdentityId?: string | null;
   title?: string | null;
+  localState?: RadarLocalState | string | null;
+  expectedLabel?: string | null;
   lifecycleState?: string | null;
   status?: string | null;
   confidence?: number | null;
@@ -38,6 +42,28 @@ export type RadarStockProduct = {
   expectedStockWindow?: RadarExpectedWindow | null;
 };
 
+export type RadarLocalAvailability = {
+  status?: RadarLocalState | string | null;
+  expected?: {
+    title?: string | null;
+    productIdentityId?: string | null;
+    expectedFrom?: string | null;
+    expectedTo?: string | null;
+    expectedLabel?: string | null;
+    advisory?: boolean | null;
+    sourceLabel?: string | null;
+    sourceUrl?: string | null;
+  } | null;
+  confirmed?: {
+    title?: string | null;
+    productIdentityId?: string | null;
+    observedAt?: string | null;
+    sourceLabel?: string | null;
+    sourceUrl?: string | null;
+  } | null;
+  disclaimer?: string | null;
+};
+
 export type RadarShop = {
   id: string;
   name: string;
@@ -50,6 +76,7 @@ export type RadarShop = {
   distanceMiles?: number | null;
   networkStatus?: string | null;
   localStockStatus?: string | null;
+  localAvailability?: RadarLocalAvailability | null;
   localStockEvidence?: {
     lifecycleState?: string | null;
     confidence?: number | null;
@@ -64,6 +91,7 @@ export type RadarShop = {
     scope?: string | null;
     expectedFrom?: string | null;
     expectedTo?: string | null;
+    expectedLabel?: string | null;
     note?: string | null;
   } | null;
   localStockProducts?: RadarStockProduct[] | null;
@@ -101,8 +129,10 @@ export type RadarResponse = {
 
 export type RadarTypes = 'shops' | 'events' | 'shops,events';
 
+export const EXPECTED_STOCK_DISCLAIMER = 'Expected stock information is indicative only and is not guaranteed. Availability, delivery timing and quantities may vary by store. We recommend checking with the retailer before travelling.';
+
 export async function fetchLocalRadar(area: UserArea, radiusMiles = 25, types: RadarTypes = 'shops,events') {
-  const params = new URLSearchParams({ types, radiusMiles: String(radiusMiles) });
+  const params = new URLSearchParams({ types, radiusMiles: String(radiusMiles), tcg: 'pokemon' });
   if (area.source === 'DEVICE' && area.latitude !== undefined && area.longitude !== undefined) {
     params.set('lat', String(area.latitude));
     params.set('lng', String(area.longitude));
@@ -133,11 +163,11 @@ export function confidenceLabel(value?: number | null) {
 }
 
 export function ageLabel(minutes?: number | null) {
-  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return 'Freshness unknown';
-  if (minutes < 1) return 'Observed just now';
-  if (minutes < 60) return `Observed ${Math.round(minutes)} min ago`;
+  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return 'Last checked unknown';
+  if (minutes < 1) return 'Checked just now';
+  if (minutes < 60) return `Checked ${Math.round(minutes)} min ago`;
   const hours = Math.round(minutes / 60);
-  return `Observed ${hours} hr${hours === 1 ? '' : 's'} ago`;
+  return `Checked ${hours} hr${hours === 1 ? '' : 's'} ago`;
 }
 
 export function valueLine(value?: RadarValue | null) {
@@ -152,17 +182,30 @@ export function valueLine(value?: RadarValue | null) {
   return parts.join(' · ');
 }
 
-export function shopSignal(shop: RadarShop) {
+export function shopLocalState(shop: RadarShop): RadarLocalState {
+  const projected = String(shop.localAvailability?.status || '').toLowerCase();
+  if (projected === 'confirmed' || projected === 'expected' || projected === 'unknown') return projected;
+
+  const productState = String(shop.localStockProducts?.[0]?.localState || '').toLowerCase();
+  if (productState === 'confirmed' || productState === 'expected' || productState === 'unknown') return productState;
+
+  // Backward-compatible fail-closed fallback while older Cloud payloads age out.
   const lifecycle = String(shop.localStockEvidence?.lifecycleState || '').toLowerCase();
   const status = String(shop.localStockStatus || '').toLowerCase();
-  if (shop.localStockEvidence?.verifiedBranchStock && lifecycle === 'manifested' && ['in_stock', 'low_stock'].includes(status)) return 'LOCAL MANIFESTED';
-  if (lifecycle === 'echo') return 'LOCAL ECHO';
-  if (lifecycle === 'whisper') return 'LOCAL WHISPER';
-  if (lifecycle === 'vanished' && shop.localStockEvidence?.orphanVanished !== true && status === 'out_of_stock') return 'LOCAL VANISHED';
-  return 'LOCAL DISCOVERY';
+  if (shop.localStockEvidence?.verifiedBranchStock && lifecycle === 'manifested' && ['in_stock', 'low_stock'].includes(status)) return 'confirmed';
+  if (['echo', 'whisper'].includes(lifecycle) && status === 'incoming_watch') return 'expected';
+  return 'unknown';
+}
+
+export function shopSignal(shop: RadarShop) {
+  const state = shopLocalState(shop);
+  if (state === 'confirmed') return 'CONFIRMED';
+  if (state === 'expected') return 'EXPECTED';
+  return 'UNKNOWN';
 }
 
 export function expectedWindowLabel(product?: RadarStockProduct | null) {
+  if (product?.expectedLabel) return product.expectedLabel;
   const window = product?.expectedStockWindow;
   if (window?.label) return window.label;
   const fromValue = window?.from || product?.expectedFrom;
@@ -172,11 +215,34 @@ export function expectedWindowLabel(product?: RadarStockProduct | null) {
   const validFrom = from && !Number.isNaN(from.valueOf()) ? from : null;
   const validTo = to && !Number.isNaN(to.valueOf()) ? to : null;
   if (validFrom && validTo) {
-    return `${validFrom.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} – ${validTo.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+    const fromLabel = validFrom.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const toLabel = validTo.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    return fromLabel === toLabel ? `Expected ${fromLabel}` : `Expected ${fromLabel} – ${toLabel}`;
   }
-  if (validFrom) return `From ${validFrom.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`;
-  if (validTo) return `By ${validTo.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`;
+  if (validFrom) return `Expected from ${validFrom.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`;
+  if (validTo) return `Expected by ${validTo.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`;
   return null;
+}
+
+export function expectedStockForShop(shop: RadarShop) {
+  const projected = shop.localAvailability?.expected;
+  if (projected) {
+    return {
+      title: projected.title || 'Pokémon stock',
+      label: projected.expectedLabel || expectedWindowLabel({ expectedFrom: projected.expectedFrom, expectedTo: projected.expectedTo }),
+      sourceLabel: projected.sourceLabel || null,
+      sourceUrl: projected.sourceUrl || null,
+      disclaimer: shop.localAvailability?.disclaimer || EXPECTED_STOCK_DISCLAIMER,
+    };
+  }
+  const product = (shop.localStockProducts || []).find(item => String(item.localState || '').toLowerCase() === 'expected') || shop.localStockProducts?.[0];
+  return product ? {
+    title: product.title || 'Pokémon stock',
+    label: expectedWindowLabel(product),
+    sourceLabel: product.sourceLabel || null,
+    sourceUrl: product.sourceUrl || null,
+    disclaimer: EXPECTED_STOCK_DISCLAIMER,
+  } : null;
 }
 
 export function areaParams(area: UserArea | undefined, radiusMiles: number) {
