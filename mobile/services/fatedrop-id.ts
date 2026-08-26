@@ -47,8 +47,17 @@ export async function getStoredSessionToken(){
   return legacyToken;
 }
 export async function clearStoredSession(){ await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(LEGACY_TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
-export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{ try{const raw=await AsyncStorage.getItem(SNAPSHOT_KEY);if(!raw)return null;const parsed=JSON.parse(raw) as FateDropSyncSnapshot;return parsed?.contractVersion===1?normalizeSnapshot(parsed):null;}catch{return null;} }
-async function saveSnapshot(snapshot:FateDropSyncSnapshot){const normalized=normalizeSnapshot(snapshot);await AsyncStorage.setItem(SNAPSHOT_KEY,JSON.stringify(normalized));return normalized;}
+
+// Historical builds cached the full identity/sync snapshot in AsyncStorage,
+// including email and collector activity. Security hardening removes that
+// plaintext cache. The opaque bearer remains in SecureStore and canonical user
+// state is reloaded from FateDrop Web after app start.
+export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{
+  await AsyncStorage.removeItem(SNAPSHOT_KEY).catch(()=>null);
+  return null;
+}
+async function saveSnapshot(snapshot:FateDropSyncSnapshot){return normalizeSnapshot(snapshot);}
+
 export async function signInFateDropId(email:string,password:string){const response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,password})});const result=await parseJson<LoginResponse>(response);const entitlement=result.entitlement||result.membership;if(!entitlement)throw new Error('FateDrop sign-in response is missing membership entitlement.');await storeSessionToken(result.sessionToken);await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);return saveSnapshot({contractVersion:1,syncedAt:Math.floor(Date.now()/1000),user:result.user,entitlement,wishlist:result.wishlist||[],fateFinds:result.fateFinds||[],fateMatches:result.fateMatches||[],notificationPreferences:normalizePreferences(result.notificationPreferences),pendingMigrations:result.pendingMigrations||[]});}
 export async function signOutFateDropId(){const token=await getStoredSessionToken();if(token)await fetch(`${baseUrl()}/api/mobile/session`,{method:'DELETE',headers:{authorization:`Bearer ${token}`,accept:'application/json'}}).catch(()=>null);await clearStoredSession();}
 export async function syncFateDropId():Promise<FateDropSyncSnapshot>{const token=await getStoredSessionToken();if(!token)throw new Error('FateDrop ID sign-in required.');const response=await fetch(`${baseUrl()}/api/mobile/sync`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});if(response.status===401){await clearStoredSession();throw new Error('Your FateDrop ID session expired. Please sign in again.');}const result=await parseJson<FateDropSyncSnapshot>(response);return saveSnapshot(normalizeSnapshot(result));}
