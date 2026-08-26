@@ -7,7 +7,7 @@ import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors } from '@/constants/theme';
 
 const ROOT_DOCK_PREFIXES = [
-  '/fatefind', '/fate-match', '/local-radar', '/encounters', '/retailers/',
+  '/fatefind', '/fate-match', '/fate-trader', '/local-radar', '/encounters', '/retailers/',
   '/notification-preferences', '/dashboard', '/stories', '/demo', '/tools',
 ];
 
@@ -29,10 +29,10 @@ export function PersistentBottomNav() {
     <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 13) }]}>
       <DockItem label="Home" icon="home-sharp" onPress={() => router.replace('/')} />
       <DockItem label="Alerts" icon="notifications-outline" onPress={() => router.replace('/(tabs)/alerts')} />
-      <Pressable accessibilityLabel="Open FateDrop tools" onPress={() => router.push('/tools')} style={styles.emblemButton}>
+      <Pressable accessibilityLabel="Open Fate Network" onPress={() => router.push('/tools')} style={styles.emblemButton}>
         <FateDropNavEmblem size={48} />
       </Pressable>
-      <DockItem label="Network" icon="pulse-outline" onPress={() => router.replace('/(tabs)/network')} />
+      <DockItem label="Live Network" icon="pulse-outline" onPress={() => router.replace('/(tabs)/network')} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
     </View>
   );
