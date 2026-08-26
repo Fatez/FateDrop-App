@@ -10,7 +10,7 @@ import { retailerHeroUri } from '@/constants/retailer-hero';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useCatalogue } from '@/hooks/use-catalogue';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
-import { fetchRetailerDirectory, type NetworkRetailer } from '@/services/retailer-directory';
+import { fetchRetailerDirectory, fetchRetailerProfile, type NetworkRetailer } from '@/services/retailer-directory';
 import type { ProductOffer } from '@/types/domain';
 
 function classLabel(value: string) {
@@ -126,8 +126,13 @@ export default function RetailerStorefront() {
       setLoadingRetailer(true);
       setRetailerError('');
       try {
-        const result = await fetchRetailerDirectory();
-        const found = result.retailers.find((item) => item.id === id) || null;
+        let found: NetworkRetailer | null = null;
+        try {
+          found = (await fetchRetailerProfile(id)).retailer;
+        } catch {
+          const result = await fetchRetailerDirectory();
+          found = result.retailers.find((item) => item.id === id) || null;
+        }
         if (!cancelled) {
           setRetailer(found);
           setRetailerError(found ? '' : 'This retailer is not present in the current FateDrop retailer directory.');
@@ -171,7 +176,11 @@ export default function RetailerStorefront() {
         <View style={styles.heroCard}>
           <Image source={{ uri: retailerHeroUri }} style={styles.heroImage} contentFit="cover" contentPosition="right center" />
           <View style={styles.heroShade} />
-          <View style={styles.identityTile}><Text style={styles.identityInitials}>{initials(retailer.name)}</Text></View>
+          <View style={styles.identityTile}>
+            {retailer.logoUrl
+              ? <Image source={{ uri: retailer.logoUrl }} style={styles.identityLogo} contentFit="contain" />
+              : <Text style={styles.identityInitials}>{initials(retailer.name)}</Text>}
+          </View>
           <View style={styles.heroIdentity}>
             <Text style={styles.retailerName} numberOfLines={2}>{retailer.name}</Text>
             <Text style={styles.retailerClass}>{classLabel(retailer.retailerClass).toUpperCase()}</Text>
@@ -191,12 +200,36 @@ export default function RetailerStorefront() {
           ><Ionicons name="location-outline" size={21} color={FateDropColors.ivory} /><Text style={styles.actionText}>Find stores</Text></Pressable> : null}
         </View>
 
+        {retailer.description ? <Text style={styles.description}>{retailer.description}</Text> : null}
+
         <View style={styles.infoPanel}>
           <InfoRow icon="pricetag-outline" label="Retailer type" value={classLabel(retailer.retailerClass)} />
           <InfoRow icon="albums-outline" label="Trading card games" value={retailer.tcgs.length ? retailer.tcgs.map(tcgLabel).join(' · ') : 'Not supplied by FateDrop Cloud'} />
           <InfoRow icon="location-outline" label="Physical presence" value={physicalDetail(retailer)} />
           <InfoRow icon="pulse-outline" label="Monitoring" value={monitoringLabel(retailer)} valueColor={monitoringTone(retailer)} />
         </View>
+
+        {retailer.locations?.length ? <View style={styles.locationsPanel}>
+          <View style={styles.locationsHead}>
+            <View>
+              <Text style={styles.locationsEyebrow}>PHYSICAL LOCATIONS</Text>
+              <Text style={styles.locationsTitle}>Known stores</Text>
+            </View>
+            <Text style={styles.locationsCount}>{retailer.locations.length}</Text>
+          </View>
+          {retailer.locations.map((location) => <View key={location.id} style={styles.locationRow}>
+            <View style={styles.locationPin}><Ionicons name="location-outline" size={18} color={FateDropColors.cyan} /></View>
+            <View style={styles.locationCopy}>
+              <Text style={styles.locationName}>{location.name}</Text>
+              <Text style={styles.locationAddress}>{[location.address, location.postcode].filter(Boolean).join(' · ') || 'Address not supplied by FateDrop Cloud'}</Text>
+              {location.phone ? <Text style={styles.locationPhone}>{location.phone}</Text> : null}
+            </View>
+          </View>)}
+          <Pressable
+            onPress={() => router.push({ pathname: '/local-radar', params: { retailerId: retailer.id, retailerName: retailer.name } })}
+            style={({ pressed }) => [styles.locationsRadar, pressed && styles.pressed]}
+          ><Ionicons name="navigate-outline" size={17} color={FateDropColors.goldBright} /><Text style={styles.locationsRadarText}>VIEW THIS RETAILER IN LOCAL RADAR</Text></Pressable>
+        </View> : null}
 
         <View style={styles.truthPanel}>
           <View style={styles.truthIcon}><Ionicons name="shield-checkmark-outline" size={27} color={FateDropColors.goldBright} /></View>
@@ -266,7 +299,8 @@ const styles = StyleSheet.create({
   heroCard: { height: 220, position: 'relative', overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: `${FateDropColors.bronze}AA`, backgroundColor: '#09101A' },
   heroImage: { ...StyleSheet.absoluteFillObject },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,8,15,.52)' },
-  identityTile: { position: 'absolute', left: 18, top: 28, width: 92, height: 92, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}AA`, backgroundColor: 'rgba(242,233,218,.94)' },
+  identityTile: { position: 'absolute', left: 18, top: 28, width: 92, height: 92, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}AA`, backgroundColor: 'rgba(242,233,218,.94)' },
+  identityLogo: { width: '88%', height: '88%' },
   identityInitials: { color: '#213B32', fontFamily: Fonts?.serif, fontSize: 31, fontWeight: '700' },
   heroIdentity: { position: 'absolute', left: 126, right: 18, top: 34 },
   retailerName: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700' },
@@ -277,11 +311,25 @@ const styles = StyleSheet.create({
   visitButton: { flex: 1, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.violetLight}AA`, backgroundColor: 'rgba(72,49,133,.55)' },
   findButton: { flex: 1, minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.blue}88`, backgroundColor: 'rgba(17,42,74,.66)' },
   actionText: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, fontWeight: '700' },
+  description: { color: FateDropColors.secondary, fontFamily: Fonts?.serif, fontSize: 12, lineHeight: 18, marginTop: 12, paddingHorizontal: 4 },
   infoPanel: { marginTop: 14, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.bronze}88`, backgroundColor: 'rgba(7,14,24,.94)' },
   infoRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: `${FateDropColors.bronze}66`, paddingVertical: 11 },
   infoIcon: { width: 31, alignItems: 'center' },
   infoLabel: { width: 112, color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 13 },
   infoValue: { flex: 1, color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 13, lineHeight: 18 },
+  locationsPanel: { marginTop: 14, padding: 14, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.cyan}44`, backgroundColor: 'rgba(6,17,29,.95)' },
+  locationsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  locationsEyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  locationsTitle: { color: FateDropColors.goldBright, fontFamily: Fonts?.serif, fontSize: 20, marginTop: 2 },
+  locationsCount: { color: FateDropColors.cyan, fontFamily: Fonts?.serif, fontSize: 22 },
+  locationRow: { flexDirection: 'row', gap: 10, paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: `${FateDropColors.cyan}33` },
+  locationPin: { width: 31, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.cyan}0D` },
+  locationCopy: { flex: 1 },
+  locationName: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 14, fontWeight: '700' },
+  locationAddress: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 3 },
+  locationPhone: { color: FateDropColors.cyan, fontSize: 9, marginTop: 3 },
+  locationsRadar: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8, borderRadius: 13, borderWidth: 1, borderColor: `${FateDropColors.goldBright}55`, backgroundColor: `${FateDropColors.goldBright}08` },
+  locationsRadarText: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .9 },
   truthPanel: { marginTop: 14, minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 19, borderWidth: 1, borderColor: `${FateDropColors.goldBright}99`, backgroundColor: 'rgba(8,18,29,.96)' },
   truthIcon: { width: 45, height: 50, alignItems: 'center', justifyContent: 'center' },
   truthText: { flex: 1, color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 12, lineHeight: 18 },
