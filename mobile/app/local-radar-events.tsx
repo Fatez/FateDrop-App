@@ -42,7 +42,7 @@ export default function LocalRadarEventsScreen() {
 
   useEffect(() => { if (area) void load(area, radius); }, [area, radius, load]);
 
-  const useDevice = async () => {
+  const handleDeviceLocation = async () => {
     setLoading(true);
     setError('');
     try { setArea(await adapter.requestCurrentArea()); }
@@ -52,7 +52,7 @@ export default function LocalRadarEventsScreen() {
     }
   };
 
-  const usePostcode = async () => {
+  const handlePostcodeSearch = async () => {
     setError('');
     try { setArea(await adapter.fromPostcode(postcode)); }
     catch { setError('Enter a valid UK postcode.'); }
@@ -76,8 +76,8 @@ export default function LocalRadarEventsScreen() {
     <View style={styles.locationCard}>
       <Text style={styles.locationTitle}>Search nearby events</Text>
       <Text style={styles.locationCopy}>Use device location for distance filtering or enter a UK postcode instead.</Text>
-      <Pressable onPress={() => void useDevice()} disabled={loading} style={styles.primary}><Ionicons name="locate" size={17} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Checking events…' : 'Use my location'}</Text></Pressable>
-      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void usePostcode()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
+      <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.primary}><Ionicons name="locate" size={17} color={FateDropColors.text}/><Text style={styles.primaryText}>{loading ? 'Checking events…' : 'Use my location'}</Text></Pressable>
+      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
     {area ? <><Text style={styles.heading}>Radius</Text><View style={styles.filters}>{[5,10,25,50].map(value => <FilterChip key={value} label={`${value} miles`} active={radius === value} onPress={() => setRadius(value)}/>)}</View></> : null}
