@@ -10,6 +10,7 @@ const storefront = fs.readFileSync(path.join(root, 'app', 'retailers', '[id].tsx
 const localRadar = fs.readFileSync(path.join(root, 'app', 'local-radar.tsx'), 'utf8');
 const localStore = fs.readFileSync(path.join(root, 'app', 'local-radar-store.tsx'), 'utf8');
 const tabs = fs.readFileSync(path.join(root, 'app', '(tabs)', '_layout.tsx'), 'utf8');
+const retailerHero = fs.readFileSync(path.join(root, 'constants', 'retailer-hero.ts'), 'utf8');
 
 test('Search retailer identity comes from the Cloud retailer directory', () => {
   assert.match(search, /fetchRetailerDirectory/);
@@ -40,20 +41,31 @@ test('Retailers categorises the same Cloud directory into major, specialist and 
   assert.match(retailers, /retailer\.retailerClass === 'national'/);
   assert.match(retailers, /retailer\.retailerClass === 'specialist'/);
   assert.match(retailers, /\['independent', 'regional'\]\.includes\(retailer\.retailerClass\)/);
-  assert.match(retailers, /title="Major Retailers"/);
-  assert.match(retailers, /title="TCG Specialists"/);
-  assert.match(retailers, /title="Independent & Local Stores"/);
+  assert.match(retailers, /label="Major Retailers"/);
+  assert.match(retailers, /label="TCG Specialists"/);
+  assert.match(retailers, /label="Independent & Local"/);
   assert.match(retailers, /fetchRetailerDirectory/);
   assert.doesNotMatch(retailers, /@\/constants\/retailers/);
 });
 
+test('Retailers mirrors the approved premium discovery mockup without hard-coded retailer examples', () => {
+  assert.match(retailers, /retailerHeroUri/);
+  assert.match(retailerHero, /data:image\/webp;base64/);
+  assert.match(retailers, /Discover the\{`\\n`\}stores behind/);
+  assert.match(retailers, /Retailer storefronts/);
+  assert.match(retailers, /A–Z · NO RANKING/);
+  assert.doesNotMatch(retailers, /Smyths Toys/);
+  assert.doesNotMatch(retailers, /Chaos Cards/);
+  assert.doesNotMatch(retailers, /Cob & Pip/);
+  assert.doesNotMatch(retailers, /Titan Cards/);
+});
+
 test('Retailers stays business-first and sends product discovery to FateFind', () => {
   assert.match(retailers, /Search retailer or TCG/);
-  assert.match(retailers, /Every connected retailer catalogue feeds the same FateFind offer pool/);
+  assert.match(retailers, /Looking for a product\? Use FateFind\./);
   assert.match(retailers, /router\.push\('\/fatefind'\)/);
   assert.match(retailers, /same comparison pool/);
   assert.match(retailers, /localeCompare/);
-  assert.match(retailers, /NO RANKING/);
   assert.doesNotMatch(retailers, /useCatalogue/);
   assert.doesNotMatch(retailers, /offersByRetailer/);
   assert.doesNotMatch(retailers, /MATCHING IN-STOCK/);
