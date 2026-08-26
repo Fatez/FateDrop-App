@@ -13,6 +13,8 @@ test('Search retailer identity comes from the Cloud retailer directory', () => {
   assert.match(search, /fetchRetailerDirectory/);
   assert.match(search, /retailerDirectory/);
   assert.doesNotMatch(search, /@\/constants\/retailers/);
+  assert.match(search, /pathname: '\/retailers\/\[id\]'/);
+  assert.match(search, /id: offer\.retailerId/);
 });
 
 test('retailer storefront resolves the retailer from the Cloud directory and excludes static demo truth', () => {
