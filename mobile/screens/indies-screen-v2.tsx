@@ -1,130 +1,118 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FateDropBackground, FateDropHeader, FilterChip, ProductCard } from '@/components/fatedrop-ui';
+import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
-import { useCatalogue } from '@/hooks/use-catalogue';
-import { loadWatchlist, toggleWatchlist } from '@/lib/watchlist';
-import { openTrackedRetailerLink } from '@/services/outbound-links';
+import { ApiCatalogueRepository } from '@/services/catalogue';
 import { fetchRetailerDirectory, type NetworkRetailer } from '@/services/retailer-directory';
-import type { ProductCategory } from '@/types/domain';
+import type { ProductOffer } from '@/types/domain';
 
-type Mode = 'retailers' | 'offers';
-type MarketSegment = 'major' | 'indies';
-type Presence = 'all' | 'online' | 'physical';
+type RetailerResult = {
+  retailer: NetworkRetailer;
+  matchingOffers: ProductOffer[];
+};
 
-type SegmentOption = { value: MarketSegment; label: string };
-type PresenceOption = { value: Presence; label: string };
+const catalogueRepository = new ApiCatalogueRepository();
+const MAX_STOCK_SEARCH_PAGES = 5;
 
-const segmentOptions: SegmentOption[] = [
-  { value: 'major', label: 'RRP / Major' },
-  { value: 'indies', label: 'Independents' },
-];
-
-const presenceOptions: PresenceOption[] = [
-  { value: 'all', label: 'All indies' },
-  { value: 'online', label: 'Online' },
-  { value: 'physical', label: 'Physical stores' },
-];
-
-const categories: { label: string; value?: ProductCategory }[] = [
-  { label: 'All' },
-  { label: 'Sealed', value: 'SEALED' },
-  { label: 'Preorders', value: 'PREORDER' },
-  { label: 'Singles', value: 'SINGLE' },
-  { label: 'Accessories', value: 'ACCESSORY' },
-];
-
-function isMajor(retailer: NetworkRetailer) {
-  return retailer.retailerClass === 'national';
-}
-
-function isIndependent(retailer: NetworkRetailer) {
-  return ['independent', 'specialist', 'regional'].includes(retailer.retailerClass);
-}
-
-function matchesPresence(retailer: NetworkRetailer, presence: Presence) {
-  if (presence === 'online') return retailer.online;
-  if (presence === 'physical') return retailer.physicalStores === true;
-  return true;
+function hasRetailerStorefront(retailer: NetworkRetailer) {
+  return retailer.retailerClass !== 'event_vendor';
 }
 
 function classLabel(value: string) {
-  if (value === 'national') return 'Major retail';
-  if (value === 'independent') return 'Independent';
-  if (value === 'specialist') return 'Specialist';
-  if (value === 'regional') return 'Regional';
+  if (value === 'national') return 'Major retailer';
+  if (value === 'independent') return 'Independent retailer';
+  if (value === 'specialist') return 'TCG specialist';
+  if (value === 'regional') return 'Regional retailer';
   return value.replaceAll('_', ' ');
 }
 
 function presenceLabel(retailer: NetworkRetailer) {
   if (retailer.online && retailer.physicalStores === true) {
     return retailer.physicalLocations && retailer.physicalLocations > 0
-      ? `ONLINE + ${retailer.physicalLocations} PHYSICAL LOCATION${retailer.physicalLocations === 1 ? '' : 'S'}`
-      : 'ONLINE + PHYSICAL STORE';
+      ? `Online · ${retailer.physicalLocations} physical location${retailer.physicalLocations === 1 ? '' : 's'}`
+      : 'Online · Physical stores';
   }
-  if (retailer.physicalStores === true) return 'PHYSICAL STORE';
-  if (retailer.online && retailer.physicalStores === false) return 'ONLINE';
-  if (retailer.online) return 'ONLINE · PHYSICAL STATUS UNVERIFIED';
-  return 'PRESENCE UNVERIFIED';
+  if (retailer.physicalStores === true) return 'Physical stores';
+  if (retailer.online && retailer.physicalStores === false) return 'Online';
+  if (retailer.online) return 'Online · Physical status unknown';
+  return 'Retail presence unknown';
 }
 
-function relative(epoch: number | null) {
-  if (!epoch) return 'No successful scan recorded';
-  const mins = Math.max(0, Math.floor((Date.now() - epoch * 1000) / 60_000));
-  if (mins < 1) return 'Updated just now';
-  if (mins < 60) return `Updated ${mins}m ago`;
-  if (mins < 1440) return `Updated ${Math.floor(mins / 60)}h ago`;
-  return `Updated ${Math.floor(mins / 1440)}d ago`;
+function retailerSearchText(retailer: NetworkRetailer) {
+  return `${retailer.name} ${retailer.tcgs.join(' ')} ${classLabel(retailer.retailerClass)}`.toLowerCase();
 }
 
-function RetailerCard({ retailer, segment }: { retailer: NetworkRetailer; segment: MarketSegment }) {
-  const healthColor = retailer.monitoring.healthy ? FateDropColors.mint : retailer.monitoring.stale ? FateDropColors.amber : FateDropColors.secondary;
+function strictInStock(offer: ProductOffer) {
+  return offer.stockStatus === 'IN_STOCK' && !offer.preorder;
+}
+
+function priceLabel(offer: ProductOffer) {
+  return offer.priceGbp === undefined ? 'Price unavailable' : `£${offer.priceGbp.toFixed(2)}`;
+}
+
+function RetailerCard({ result, searchTerm }: { result: RetailerResult; searchTerm: string }) {
+  const { retailer, matchingOffers } = result;
+  const shownOffers = matchingOffers.slice(0, 2);
+  const openStorefront = () => router.push({
+    pathname: '/retailers/[id]',
+    params: matchingOffers.length > 0 ? { id: retailer.id, q: searchTerm } : { id: retailer.id },
+  });
+
   return <Pressable
     accessibilityRole="button"
-    accessibilityLabel={`Open ${retailer.name} retailer profile`}
-    onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: retailer.id } })}
+    accessibilityLabel={`Open ${retailer.name} retailer storefront`}
+    onPress={openStorefront}
     style={({ pressed }) => [styles.retailerCard, pressed && styles.pressed]}
   >
     <View style={styles.retailerTop}>
-      <View style={styles.retailerMark}><Text style={styles.retailerInitials}>{retailer.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</Text></View>
-      <View style={styles.retailerCopy}>
-        <View style={styles.retailerNameRow}><Text style={styles.retailerName}>{retailer.name}</Text>{retailer.verification === 'verified' ? <Ionicons name="checkmark-circle" size={15} color={FateDropColors.mint} /> : null}</View>
-        <Text style={styles.retailerClass}>{classLabel(retailer.retailerClass).toUpperCase()} · {retailer.tcgs.map((tcg) => tcg.toUpperCase()).join(' · ')}</Text>
-        <Text style={styles.presence}>{presenceLabel(retailer)}</Text>
+      <View style={styles.retailerMark}>
+        <Text style={styles.retailerInitials}>{retailer.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={15} color={FateDropColors.secondary} />
+      <View style={styles.retailerCopy}>
+        <View style={styles.retailerNameRow}>
+          <Text style={styles.retailerName}>{retailer.name}</Text>
+          {String(retailer.verification || '').toLowerCase() === 'verified' ? <Ionicons name="checkmark-circle" size={15} color={FateDropColors.mint} /> : null}
+        </View>
+        <Text style={styles.retailerClass}>{classLabel(retailer.retailerClass).toUpperCase()}</Text>
+        <Text style={styles.presence}>{presenceLabel(retailer)}</Text>
+        {retailer.tcgs.length ? <Text style={styles.tcgs}>{retailer.tcgs.map((tcg) => tcg.toUpperCase()).join(' · ')}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={FateDropColors.secondary} />
     </View>
-    {segment === 'major' ? <View style={styles.infoStrip}><Ionicons name="analytics-outline" size={13} color={FateDropColors.cyan} /><Text style={styles.infoStripText}>RRP/reference is FateDrop's comparison baseline — this retailer can still price above or below it.</Text></View> : null}
-    <View style={styles.retailerHealth}>
-      <View style={styles.healthText}><View style={[styles.healthDot, { backgroundColor: healthColor }]} /><Text style={[styles.healthLabel, { color: healthColor }]}>{retailer.monitoring.healthy ? 'MONITOR HEALTHY' : retailer.monitoring.stale ? 'MONITOR STALE' : 'MONITOR CHECK'}</Text></View>
-      <Text style={styles.healthMeta}>{retailer.monitoring.productsSeen == null ? 'Product count unavailable' : `${retailer.monitoring.productsSeen.toLocaleString()} products seen`} · {relative(retailer.monitoring.lastSuccessAt)}</Text>
-    </View>
+
+    {matchingOffers.length > 0 ? <View style={styles.stockBlock}>
+      <View style={styles.stockHead}>
+        <Ionicons name="checkmark-circle-outline" size={15} color={FateDropColors.mint} />
+        <Text style={styles.stockHeadText}>{matchingOffers.length} MATCHING IN-STOCK {matchingOffers.length === 1 ? 'PRODUCT' : 'PRODUCTS'}</Text>
+      </View>
+      {shownOffers.map((offer) => <View key={offer.id} style={styles.offerRow}>
+        <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+        <Text style={styles.offerPrice}>{priceLabel(offer)}</Text>
+      </View>)}
+      {matchingOffers.length > shownOffers.length ? <Text style={styles.moreMatches}>+{matchingOffers.length - shownOffers.length} more matching in-stock {matchingOffers.length - shownOffers.length === 1 ? 'product' : 'products'} in this storefront</Text> : null}
+    </View> : null}
   </Pressable>;
 }
 
 export default function IndiesScreenV2() {
-  const [mode, setMode] = useState<Mode>('retailers');
-  const [segment, setSegment] = useState<MarketSegment>('major');
-  const [presence, setPresence] = useState<Presence>('all');
   const [directory, setDirectory] = useState<NetworkRetailer[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [offerQuery, setOfferQuery] = useState('');
-  const [category, setCategory] = useState<ProductCategory>();
-  const [retailerId, setRetailerId] = useState<string>();
-  const [watched, setWatched] = useState<string[]>([]);
+  const [stockOffers, setStockOffers] = useState<ProductOffer[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockError, setStockError] = useState('');
 
   const loadDirectory = useCallback(async () => {
     setDirectoryLoading(true);
     setDirectoryError(null);
     try {
       const result = await fetchRetailerDirectory();
-      setDirectory(result.retailers.filter((retailer) => isMajor(retailer) || isIndependent(retailer)));
+      setDirectory(result.retailers.filter(hasRetailerStorefront));
     } catch (cause) {
       setDirectory([]);
       setDirectoryError(cause instanceof Error ? cause.message : 'Retailer network is unavailable.');
@@ -135,104 +123,142 @@ export default function IndiesScreenV2() {
 
   useFocusEffect(useCallback(() => {
     void loadDirectory();
-    void loadWatchlist().then(setWatched);
   }, [loadDirectory]));
 
-  const majorRetailers = useMemo(() => directory.filter(isMajor), [directory]);
-  const independentRetailers = useMemo(() => directory.filter(isIndependent), [directory]);
-  const segmentRetailers = useMemo(() => {
-    const source = segment === 'major' ? majorRetailers : independentRetailers;
-    return segment === 'indies' ? source.filter((retailer) => matchesPresence(retailer, presence)) : source;
-  }, [independentRetailers, majorRetailers, presence, segment]);
+  const storefrontRetailers = useMemo(() => [...directory].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })), [directory]);
+  const storefrontIds = useMemo(() => new Set(storefrontRetailers.map((retailer) => retailer.id)), [storefrontRetailers]);
+  const storefrontIdsKey = useMemo(() => storefrontRetailers.map((retailer) => retailer.id).join('|'), [storefrontRetailers]);
+  const searchTerm = query.trim();
+  const stockSearchActive = searchTerm.length >= 2;
 
-  const shownRetailers = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return segmentRetailers;
-    return segmentRetailers.filter((retailer) => `${retailer.name} ${retailer.tcgs.join(' ')} ${classLabel(retailer.retailerClass)}`.toLowerCase().includes(term));
-  }, [query, segmentRetailers]);
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const selectSegment = useCallback((next: MarketSegment) => {
-    setSegment(next);
-    setRetailerId(undefined);
-    if (next === 'major') setPresence('all');
-  }, []);
+    setStockOffers([]);
+    setStockError('');
 
-  const catalogue = useCatalogue({
-    query: offerQuery,
-    category,
-    retailerId,
-    inStockOnly: true,
-    limit: 50,
-  });
-  const allowedRetailerIds = useMemo(() => new Set(segmentRetailers.map((retailer) => retailer.id)), [segmentRetailers]);
-  const visibleOffers = useMemo(() => catalogue.offers.filter((offer) => allowedRetailerIds.has(offer.retailerId)), [allowedRetailerIds, catalogue.offers]);
+    if (!stockSearchActive || storefrontRetailers.length === 0) {
+      setStockLoading(false);
+      return () => { cancelled = true; };
+    }
 
-  const activeLabel = segment === 'major' ? 'RRP / MAJOR RETAILERS' : presence === 'physical' ? 'INDEPENDENT PHYSICAL STORES' : presence === 'online' ? 'INDEPENDENT ONLINE RETAILERS' : 'INDEPENDENT RETAILERS';
-  const heroCopy = segment === 'major'
-    ? 'Major and national retailers are kept separate from the independent network. RRP/reference is used to judge value; it is not a promise that these shops sell at RRP.'
-    : 'Support independent and specialist retailers without losing stock intelligence. Online and physical presence come from FateDrop retailer evidence rather than being guessed from a website.';
+    timer = setTimeout(() => {
+      void (async () => {
+        setStockLoading(true);
+        try {
+          const collected: ProductOffer[] = [];
+          const seenOfferIds = new Set<string>();
+          const matchedRetailerIds = new Set<string>();
+          let cursor: string | undefined;
+          let pages = 0;
 
-  const header = <>
-    <FateDropHeader title="Retailers" subtitle="MAJOR RRP COMPARISON + INDEPENDENT DISCOVERY" />
-    <View style={styles.hero}>
-      <View style={styles.heroGlow} />
-      <Text style={styles.eyebrow}>{activeLabel}</Text>
-      <Text style={styles.heroTitle}>{segment === 'major' ? 'Compare the big retailers properly.' : 'Find the independent shops worth knowing.'}</Text>
-      <Text style={styles.heroCopy}>{heroCopy}</Text>
-      <View style={styles.heroStats}>
-        <View><Text style={styles.statValue}>{majorRetailers.length || '—'}</Text><Text style={styles.statLabel}>RRP / MAJOR</Text></View>
-        <View><Text style={styles.statValue}>{independentRetailers.length || '—'}</Text><Text style={styles.statLabel}>INDEPENDENTS</Text></View>
-        <View><Text style={styles.statValue}>{independentRetailers.filter((item) => item.physicalStores === true).length || '—'}</Text><Text style={styles.statLabel}>PHYSICAL</Text></View>
-      </View>
-    </View>
-    <View style={styles.segmentRow}>{segmentOptions.map((item) => <FilterChip key={item.value} label={item.label} active={segment === item.value} onPress={() => selectSegment(item.value)} />)}</View>
-    {segment === 'indies' ? <View style={styles.presenceRow}>{presenceOptions.map((item) => <FilterChip key={item.value} label={item.label} active={presence === item.value} onPress={() => { setPresence(item.value); setRetailerId(undefined); }} />)}</View> : null}
-    <View style={styles.modeRow}><FilterChip label="Retailer directory" active={mode === 'retailers'} onPress={() => setMode('retailers')} /><FilterChip label="Live offers" active={mode === 'offers'} onPress={() => setMode('offers')} /></View>
-  </>;
+          do {
+            const page = await catalogueRepository.list({
+              query: searchTerm,
+              inStockOnly: true,
+              limit: 100,
+              cursor,
+            });
+            for (const offer of page.offers) {
+              if (!storefrontIds.has(offer.retailerId) || !strictInStock(offer) || seenOfferIds.has(offer.id)) continue;
+              seenOfferIds.add(offer.id);
+              matchedRetailerIds.add(offer.retailerId);
+              collected.push(offer);
+            }
+            cursor = page.nextCursor;
+            pages += 1;
+          } while (cursor && pages < MAX_STOCK_SEARCH_PAGES && matchedRetailerIds.size < storefrontRetailers.length);
 
-  if (mode === 'retailers') {
-    return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground /><FlatList
-      data={shownRetailers}
-      keyExtractor={(item) => item.id}
+          if (!cancelled) setStockOffers(collected);
+        } catch {
+          if (!cancelled) {
+            setStockOffers([]);
+            setStockError('Live stock search is temporarily unavailable. Retailer-name search still works.');
+          }
+        } finally {
+          if (!cancelled) setStockLoading(false);
+        }
+      })();
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [searchTerm, stockSearchActive, storefrontIds, storefrontIdsKey, storefrontRetailers]);
+
+  const offersByRetailer = useMemo(() => {
+    const grouped = new Map<string, ProductOffer[]>();
+    for (const offer of stockOffers) {
+      const existing = grouped.get(offer.retailerId) || [];
+      existing.push(offer);
+      grouped.set(offer.retailerId, existing);
+    }
+    for (const offers of grouped.values()) offers.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+    return grouped;
+  }, [stockOffers]);
+
+  const retailerResults = useMemo<RetailerResult[]>(() => {
+    if (!searchTerm) return storefrontRetailers.map((retailer) => ({ retailer, matchingOffers: [] }));
+
+    const term = searchTerm.toLowerCase();
+    return storefrontRetailers
+      .filter((retailer) => retailerSearchText(retailer).includes(term) || offersByRetailer.has(retailer.id))
+      .map((retailer) => ({ retailer, matchingOffers: offersByRetailer.get(retailer.id) || [] }));
+  }, [offersByRetailer, searchTerm, storefrontRetailers]);
+
+  const retailersWithStock = useMemo(() => retailerResults.filter((result) => result.matchingOffers.length > 0).length, [retailerResults]);
+
+  return <SafeAreaView style={styles.safe} edges={['top']}>
+    <FateDropBackground />
+    <FlatList
+      data={retailerResults}
+      keyExtractor={(item) => item.retailer.id}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={directoryLoading} onRefresh={() => void loadDirectory()} tintColor={FateDropColors.violetLight} />}
-      ListHeaderComponent={<>{header}<View style={styles.search}><Ionicons name="search" size={17} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder={segment === 'major' ? 'Search major retailers' : 'Search independent retailers'} placeholderTextColor={FateDropColors.muted} style={styles.input} /></View><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{shownRetailers.length} retailers</Text><Text style={styles.sectionMeta}>{activeLabel}</Text></View>{directoryError ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber} /><Text style={styles.errorText}>{directoryError}</Text></View> : null}</>}
-      ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
-      ListEmptyComponent={!directoryLoading && !directoryError ? <View style={styles.empty}><Text style={styles.emptyTitle}>No retailers match</Text><Text style={styles.emptyCopy}>{segment === 'indies' && presence === 'physical' ? 'FateDrop only shows a retailer here when physical presence is explicitly known.' : 'Adjust the retailer filters. FateDrop does not substitute demo retailers into the live directory.'}</Text></View> : null}
-      renderItem={({ item }) => <RetailerCard retailer={item} segment={segment} />}
-    /></SafeAreaView>;
-  }
+      ListHeaderComponent={<>
+        <FateDropHeader title="Retailers" subtitle="FATE NETWORK STOREFRONTS" />
+        <View style={styles.hero}>
+          <View style={styles.heroGlow} />
+          <Text style={styles.eyebrow}>FATE NETWORK · RETAILERS</Text>
+          <Text style={styles.heroTitle}>Find a retailer or search what is in stock.</Text>
+          <Text style={styles.heroCopy}>Browse retailer storefronts across the Fate Network. Search a product to see which storefronts currently have a matching in-stock offer.</Text>
+          <View style={styles.neutralNote}><Ionicons name="swap-vertical-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.neutralText}>Retailers are shown alphabetically. This page does not rank shops.</Text></View>
+        </View>
 
-  return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground /><FlatList
-    data={visibleOffers}
-    keyExtractor={(item) => item.id}
-    contentContainerStyle={styles.content}
-    ListHeaderComponent={<>{header}<View style={styles.search}><Ionicons name="search" size={17} color={FateDropColors.muted} /><TextInput value={offerQuery} onChangeText={setOfferQuery} placeholder={`Search ${segment === 'major' ? 'major' : 'independent'} offers`} placeholderTextColor={FateDropColors.muted} style={styles.input} /></View><FlatList horizontal data={categories} keyExtractor={(item) => item.label} renderItem={({ item }) => <FilterChip label={item.label} active={category === item.value} onPress={() => setCategory(item.value)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} /><FlatList horizontal data={[{ id: undefined, name: segment === 'major' ? 'All major retailers' : 'All independents' }, ...segmentRetailers]} keyExtractor={(item) => item.id || 'all'} renderItem={({ item }) => <FilterChip label={item.name} active={retailerId === item.id} onPress={() => setRetailerId(item.id)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} /><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{visibleOffers.length} loaded offers</Text><Text style={styles.sectionMeta}>IN STOCK</Text></View></>}
-    ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
-    onEndReached={() => void catalogue.loadMore()}
-    onEndReachedThreshold={0.5}
-    ListFooterComponent={catalogue.loadingMore ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.loading} /> : null}
-    ListEmptyComponent={catalogue.loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.loading} /> : <View style={styles.empty}><Text style={styles.emptyTitle}>No matching retailer offers</Text><Text style={styles.emptyCopy}>{catalogue.error || 'No connected offer currently matches these retailer filters.'}</Text></View>}
-    renderItem={({ item }) => {
-      const retailer = directory.find((candidate) => candidate.id === item.retailerId);
-      const delivery = item.shippingOptions.find((option) => !option.collection)?.priceGbp;
-      return <ProductCard
-        title={item.title}
-        retailer={retailer?.name || item.retailerId}
-        details={`${item.condition.replaceAll('_', ' ')} · ${delivery === undefined ? 'Delivery unknown' : `Delivery £${delivery.toFixed(2)}`}`}
-        price={item.priceGbp === undefined ? 'Price unavailable' : `£${item.priceGbp.toFixed(2)}`}
-        stockLabel={item.preorder ? 'Preorder' : 'In stock'}
-        stockTone="mint"
-        fateLabel={item.pulseLabels?.[0]?.replaceAll('_', ' ')}
-        fateTone={item.pulseLabels?.includes('PRICE_DROPPED') ? 'mint' : 'violet'}
-        imageSource={item.imageUrl ? { uri: item.imageUrl } : undefined}
-        productUrl={item.productUrl}
-        onOpenProduct={item.productUrl ? () => void openTrackedRetailerLink({ destinationUrl: item.productUrl!, retailerId: item.retailerId, offerId: item.id, placement: 'retailers-v2' }) : undefined}
-        inWatchlist={watched.includes(item.id)}
-        onToggleWatchlist={() => void toggleWatchlist(item.id, watched).then(setWatched)}
-      />;
-    }}
-  /></SafeAreaView>;
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={FateDropColors.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search a retailer or product"
+            placeholderTextColor={FateDropColors.muted}
+            style={styles.input}
+            returnKeyType="search"
+            accessibilityLabel="Search Fate Network retailer storefronts and in-stock products"
+          />
+          {query ? <Pressable accessibilityRole="button" accessibilityLabel="Clear retailer search" onPress={() => setQuery('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={FateDropColors.secondary} /></Pressable> : null}
+        </View>
+
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>{searchTerm ? `${retailerResults.length} matching storefront${retailerResults.length === 1 ? '' : 's'}` : `${storefrontRetailers.length} storefronts`}</Text>
+          <Text style={styles.sectionMeta}>{searchTerm && stockSearchActive ? `${retailersWithStock} WITH STOCK` : 'A–Z'}</Text>
+        </View>
+
+        {searchTerm.length === 1 ? <Text style={styles.helper}>Type one more character to search live product stock. Retailer-name matching is already active.</Text> : null}
+        {stockLoading ? <View style={styles.searching}><ActivityIndicator size="small" color={FateDropColors.violetLight} /><Text style={styles.searchingText}>Checking connected storefront stock…</Text></View> : null}
+        {stockError ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber} /><Text style={styles.errorText}>{stockError}</Text></View> : null}
+        {directoryError ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber} /><Text style={styles.errorText}>{directoryError}</Text></View> : null}
+      </>}
+      ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+      ListEmptyComponent={!directoryLoading && !directoryError && !stockLoading ? <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>{searchTerm ? 'No storefronts match' : 'No retailer storefronts available'}</Text>
+        <Text style={styles.emptyCopy}>{searchTerm ? 'No retailer name or currently verified in-stock storefront offer matches this search.' : 'FateDrop does not substitute demo retailers when the live retailer directory has no storefronts to show.'}</Text>
+      </View> : null}
+      renderItem={({ item }) => <RetailerCard result={item} searchTerm={searchTerm} />}
+    />
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
@@ -241,20 +267,18 @@ const styles = StyleSheet.create({
   hero: { position: 'relative', overflow: 'hidden', padding: 20, borderRadius: 23, borderWidth: 1, borderColor: 'rgba(103,232,249,.16)', backgroundColor: 'rgba(9,10,17,.94)', marginBottom: 11 },
   heroGlow: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -80, top: -95, backgroundColor: 'rgba(103,232,249,.08)' },
   eyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { color: FateDropColors.text, fontSize: 25, lineHeight: 28, fontWeight: '900', letterSpacing: -0.65, marginTop: 7, maxWidth: 330 },
+  heroTitle: { color: FateDropColors.text, fontSize: 25, lineHeight: 29, fontWeight: '900', letterSpacing: -0.65, marginTop: 7, maxWidth: 330 },
   heroCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 8 },
-  heroStats: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: FateDropColors.border, marginTop: 15, paddingTop: 12 },
-  statValue: { color: FateDropColors.text, fontSize: 18, fontWeight: '900' },
-  statLabel: { color: FateDropColors.muted, fontSize: 6, fontWeight: '900', letterSpacing: .7, marginTop: 2 },
-  segmentRow: { flexDirection: 'row', gap: 7, marginBottom: 8 },
-  presenceRow: { flexDirection: 'row', gap: 7, marginBottom: 8, flexWrap: 'wrap' },
-  modeRow: { flexDirection: 'row', gap: 7, marginBottom: 12 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 13, borderRadius: 15, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass, marginBottom: 9 },
+  neutralNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: FateDropColors.border },
+  neutralText: { flex: 1, color: FateDropColors.secondary, fontSize: 9, lineHeight: 14 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 50, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass, marginBottom: 10 },
   input: { flex: 1, color: FateDropColors.text, fontSize: 12 },
-  filters: { gap: 7, paddingBottom: 10 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginVertical: 7 },
   sectionTitle: { color: FateDropColors.text, fontSize: 17, fontWeight: '900' },
-  sectionMeta: { flex: 1, textAlign: 'right', color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: .9 },
+  sectionMeta: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: .9 },
+  helper: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, marginBottom: 9 },
+  searching: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 11, marginBottom: 9, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
+  searchingText: { color: FateDropColors.secondary, fontSize: 9 },
   retailerCard: { padding: 14, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.92)' },
   retailerTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   retailerMark: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.violetLight}12`, borderWidth: 1, borderColor: `${FateDropColors.violetLight}28` },
@@ -263,19 +287,19 @@ const styles = StyleSheet.create({
   retailerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   retailerName: { color: FateDropColors.text, fontSize: 13, fontWeight: '900' },
   retailerClass: { color: FateDropColors.secondary, fontSize: 7, fontWeight: '800', letterSpacing: .7, marginTop: 3 },
-  presence: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '800', letterSpacing: .55, marginTop: 4 },
-  infoStrip: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 12, padding: 10, borderRadius: 11, backgroundColor: 'rgba(103,232,249,.045)', borderWidth: 1, borderColor: 'rgba(103,232,249,.1)' },
-  infoStripText: { flex: 1, color: FateDropColors.secondary, fontSize: 8, lineHeight: 12 },
-  retailerHealth: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: FateDropColors.border },
-  healthText: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  healthDot: { width: 6, height: 6, borderRadius: 3 },
-  healthLabel: { fontSize: 7, fontWeight: '900', letterSpacing: .75 },
-  healthMeta: { color: FateDropColors.muted, fontSize: 8, marginTop: 4 },
+  presence: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '800', marginTop: 4 },
+  tcgs: { color: FateDropColors.muted, fontSize: 7, fontWeight: '800', letterSpacing: .55, marginTop: 4 },
+  stockBlock: { marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: FateDropColors.border },
+  stockHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  stockHeadText: { color: FateDropColors.mint, fontSize: 7, fontWeight: '900', letterSpacing: .75 },
+  offerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6 },
+  offerTitle: { flex: 1, color: FateDropColors.secondary, fontSize: 9, lineHeight: 13 },
+  offerPrice: { color: FateDropColors.text, fontSize: 9, fontWeight: '900' },
+  moreMatches: { color: FateDropColors.muted, fontSize: 8, marginTop: 4 },
   error: { flexDirection: 'row', gap: 8, alignItems: 'center', borderRadius: 13, borderWidth: 1, borderColor: `${FateDropColors.amber}33`, padding: 12, marginBottom: 10 },
-  errorText: { flex: 1, color: FateDropColors.secondary, fontSize: 10 },
+  errorText: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 15 },
   empty: { paddingVertical: 42, alignItems: 'center' },
   emptyTitle: { color: FateDropColors.text, fontSize: 16, fontWeight: '900' },
   emptyCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, textAlign: 'center', maxWidth: 300, marginTop: 6 },
-  loading: { marginVertical: 28 },
   pressed: { opacity: .76 },
 });

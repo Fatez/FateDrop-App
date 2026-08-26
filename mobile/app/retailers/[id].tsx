@@ -38,12 +38,13 @@ function monitoringLabel(retailer: NetworkRetailer) {
 }
 
 export default function RetailerStorefront() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; q?: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
+  const productQuery = typeof params.q === 'string' ? params.q.trim() : '';
   const [retailer, setRetailer] = useState<NetworkRetailer | null>(null);
   const [loadingRetailer, setLoadingRetailer] = useState(Boolean(id));
   const [retailerError, setRetailerError] = useState('');
-  const catalogue = useCatalogue({ retailerId: id || undefined, inStockOnly: true, limit: 50 });
+  const catalogue = useCatalogue({ retailerId: id || undefined, query: productQuery || undefined, inStockOnly: true, limit: 50 });
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +78,7 @@ export default function RetailerStorefront() {
   }, [id]);
 
   const header = <>
-    <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Stores</Text></Pressable>
+    <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Retailers</Text></Pressable>
     {loadingRetailer ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.violetLight}/><Text style={styles.loadingText}>Loading retailer profile…</Text></View> : null}
     {retailerError ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.amber}/><Text style={styles.errorText}>{retailerError}</Text></View> : null}
     {retailer ? <>
@@ -102,12 +103,13 @@ export default function RetailerStorefront() {
         <Info label="Monitoring" value={monitoringLabel(retailer)}/>
       </View>
       <View style={styles.truthNote}><Ionicons name="shield-checkmark-outline" size={18} color={FateDropColors.goldBright}/><Text style={styles.truthText}>Online retailer availability never proves stock at a physical branch. Open Local Radar for physical-store intelligence; Confirmed only appears from exact-branch evidence.</Text></View>
-      <Text style={styles.sectionTitle}>Available online now · {catalogue.total.toLocaleString()}</Text>
+      {productQuery ? <View style={styles.searchContext}><Ionicons name="search" size={15} color={FateDropColors.cyan}/><Text style={styles.searchContextText}>Showing this storefront's current in-stock matches for “{productQuery}”.</Text></View> : null}
+      <Text style={styles.sectionTitle}>{productQuery ? `Matching online stock · ${catalogue.total.toLocaleString()}` : `Available online now · ${catalogue.total.toLocaleString()}`}</Text>
     </> : null}
   </>;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground/><FlatList
-    data={retailer ? catalogue.offers : []}
+    data={retailer ? catalogue.offers.filter((item) => item.stockStatus === 'IN_STOCK' && !item.preorder) : []}
     keyExtractor={(item) => item.id}
     onEndReached={() => void catalogue.loadMore()}
     contentContainerStyle={styles.content}
@@ -117,14 +119,14 @@ export default function RetailerStorefront() {
       title={item.title}
       retailer={retailer.name}
       price={item.priceGbp === undefined ? 'Price unavailable' : `£${item.priceGbp.toFixed(2)}`}
-      stockLabel={item.preorder ? 'Preorder' : 'In stock'}
+      stockLabel="In stock"
       stockTone="mint"
       fateLabel={item.pulseLabels?.[0]?.replaceAll('_',' ')}
       imageSource={item.imageUrl ? {uri:item.imageUrl} : undefined}
       productUrl={item.productUrl}
       onOpenProduct={item.productUrl ? () => void openTrackedRetailerLink({ destinationUrl:item.productUrl!, retailerId:retailer.id, offerId:item.id, placement:'retailer-storefront' }) : undefined}
     /> : null}
-    ListEmptyComponent={retailer && !loadingRetailer ? <Text style={styles.emptyCopy}>{catalogue.loading ? 'Loading current offers…' : catalogue.error || 'No currently available online offers are connected to this retailer.'}</Text> : null}
+    ListEmptyComponent={retailer && !loadingRetailer ? <Text style={styles.emptyCopy}>{catalogue.loading ? 'Loading current offers…' : catalogue.error || (productQuery ? 'This retailer has no currently verified in-stock offer matching this search.' : 'No currently verified in-stock online offers are connected to this retailer.')}</Text> : null}
   /></SafeAreaView>;
 }
 
@@ -153,6 +155,8 @@ const styles=StyleSheet.create({
   infoValue:{color:FateDropColors.secondary,fontSize:11,lineHeight:17,marginTop:4,textTransform:'capitalize'},
   truthNote:{flexDirection:'row',gap:10,padding:14,borderRadius:17,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:13},
   truthText:{flex:1,color:FateDropColors.secondary,fontSize:10,lineHeight:16},
+  searchContext:{flexDirection:'row',alignItems:'center',gap:8,padding:12,borderRadius:15,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:13},
+  searchContextText:{flex:1,color:FateDropColors.secondary,fontSize:10,lineHeight:15},
   sectionTitle:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginVertical:16},
   emptyCopy:{color:FateDropColors.muted,textAlign:'center',margin:25},
 });
