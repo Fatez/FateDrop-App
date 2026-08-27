@@ -240,7 +240,7 @@ export default function RetailerStorefront() {
           <View style={styles.catalogueHeadingRow}>
             <View style={styles.catalogueHeadingCopy}>
               <Text style={styles.catalogueTitle}>Shop catalogue ✦</Text>
-              <Text style={styles.catalogueMeta}>Search only {retailer.name}'s connected in-stock offers. Use FateFind to compare the same product across retailers.</Text>
+              <Text style={styles.catalogueMeta}>Search only {retailer.name}’s connected in-stock offers. Use FateFind to compare the same product across retailers.</Text>
             </View>
             <Ionicons name="diamond-outline" size={23} color={FateDropColors.violetLight} />
           </View>
