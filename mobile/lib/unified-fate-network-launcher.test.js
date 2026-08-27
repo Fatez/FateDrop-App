@@ -10,18 +10,21 @@ const tabLayout = read('app/(tabs)/_layout.tsx');
 const persistentDock = read('components/persistent-bottom-nav.tsx');
 const tools = read('app/tools.tsx');
 
-test('both centre Fate Network emblems open the same canonical launcher', () => {
-  assert.match(tabLayout, /router\.push\('\/tools'\)/);
-  assert.match(persistentDock, /router\.push\('\/tools'\)/);
-  assert.doesNotMatch(tabLayout, /toolboxOpen|<Modal|ToolChoice/);
+function assertAllDestinations(source) {
+  assert.match(source, /title="FateFind"/);
+  assert.match(source, /title="FateMatch"/);
+  assert.match(source, /title="Fate Trader"/);
+  assert.match(source, /title="Local Radar"/);
+  assert.match(source, /title="(?:Retailers|Stores)"/);
+  assert.match(source, /title="Search live database"/);
+  assert.match(source, /title="Wishlist"/);
+}
+
+test('main centre Fate Network menu exposes every current destination', () => {
+  assertAllDestinations(tabLayout);
 });
 
-test('canonical Fate Network launcher exposes Search and Wishlist alongside core jobs', () => {
-  assert.match(tools, /title="FateFind"/);
-  assert.match(tools, /title="FateMatch"/);
-  assert.match(tools, /title="Fate Trader"/);
-  assert.match(tools, /title="Local Radar"/);
-  assert.match(tools, /title="Stores"/);
-  assert.match(tools, /title="Search live database"/);
-  assert.match(tools, /title="Wishlist"/);
+test('full Fate Network launcher exposes the same destination set', () => {
+  assertAllDestinations(tools);
+  assert.match(persistentDock, /router\.push\('\/tools'\)/);
 });
