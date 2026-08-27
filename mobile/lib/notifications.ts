@@ -4,14 +4,13 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { FATEDROP_WEB_URL } from '@/constants/api';
 import { PUSH_TOKEN_KEY } from '@/lib/watchlist';
 import { getStoredSessionToken, syncFateDropId, updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
 });
-
-const website = (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || 'https://fate-drop.com').replace(/\/$/, '');
 
 function expoProjectId() {
   return process.env.EXPO_PUBLIC_EAS_PROJECT_ID
@@ -36,7 +35,7 @@ export async function registerForStockAlerts() {
   const projectId = expoProjectId();
   if (!projectId) return { enabled: false, reason: 'eas-project-id-required' };
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-  const response = await fetch(`${website}/api/mobile/push`, {
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/push`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${sessionToken}` },
     body: JSON.stringify({ token, platform: Platform.OS, deviceLabel: Device.modelName || null }),
@@ -52,7 +51,7 @@ export async function registerForStockAlerts() {
 export async function unregisterStockAlerts() {
   const [sessionToken, token] = await Promise.all([getStoredSessionToken(), AsyncStorage.getItem(PUSH_TOKEN_KEY)]);
   if (sessionToken && token) {
-    await fetch(`${website}/api/mobile/push`, {
+    await fetch(`${FATEDROP_WEB_URL}/api/mobile/push`, {
       method: 'DELETE',
       headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ token }),
