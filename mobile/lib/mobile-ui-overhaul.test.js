@@ -44,7 +44,8 @@ test('Fate Network keeps the physically approved five-job hierarchy and monitori
   assert.doesNotMatch(fateNetwork, /FateMatch means it was found/);
   assert.match(tabLayout, /title="Fate Trader"/);
   assert.match(tabLayout, /title="Local Radar"/);
-  assert.match(tabLayout, /title="Stores"/);
+  assert.match(tabLayout, /title="Retailers"/);
+  assert.match(tabLayout, /openTool\('\/(?:\(tabs\)\/)?indies'\)/);
 });
 
 test('Fate Trader and Local Radar destinations cannot become dead Fate Network buttons', () => {

@@ -124,7 +124,7 @@ export default function TabLayout() {
             <ToolChoice icon="notifications-outline" title="FateMatch" copy="Monitor products and the conditions you care about." onPress={() => openTool('/fate-match')} />
             <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Manage HAVE / WANT trade intentions and compatible collector opportunities." onPress={() => openTool('/fate-trader')} />
             <ToolChoice icon="navigate-outline" title="Local Radar" copy="See what is happening physically around you, including branch intelligence and events." onPress={() => openTool('/local-radar')} />
-            <ToolChoice icon="storefront-outline" title="Stores" copy="Discover retailers, what they sell and where to find them." onPress={() => openTool('/(tabs)/indies')} />
+            <ToolChoice icon="storefront-outline" title="Retailers" copy="Browse major retailers, TCG specialists and independent or local storefronts." onPress={() => openTool('/(tabs)/indies')} />
           </Pressable>
         </Pressable>
       </Modal>

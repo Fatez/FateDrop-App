@@ -25,7 +25,8 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /title="FateMatch"/);
   assert.match(tabs, /title="Fate Trader"/);
   assert.match(tabs, /title="Local Radar"/);
-  assert.match(tabs, /title="Stores"/);
+  assert.match(tabs, /title="Retailers"/);
+  assert.match(tabs, /openTool\('\/(?:\(tabs\)\/)?indies'\)/);
   assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
 });
 

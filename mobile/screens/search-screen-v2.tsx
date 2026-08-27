@@ -5,10 +5,10 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader, FilterChip } from '@/components/fatedrop-ui';
-import { retailers } from '@/constants/retailers';
 import { FateDropColors } from '@/constants/theme';
 import { useCatalogue } from '@/hooks/use-catalogue';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
+import { fetchRetailerDirectory, type NetworkRetailer } from '@/services/retailer-directory';
 import { LocalWishlistRepository } from '@/services/wishlist';
 import type { ProductCategory, ProductOffer } from '@/types/domain';
 
@@ -47,7 +47,7 @@ function groupOffers(offers: ProductOffer[]): ProductGroup[] {
   return [...grouped.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function ProductResult({ group, saved, onToggle }: { group: ProductGroup; saved: boolean; onToggle: () => void }) {
+function ProductResult({ group, saved, onToggle, retailerNames }: { group: ProductGroup; saved: boolean; onToggle: () => void; retailerNames: Map<string, string> }) {
   const retailerCount = new Set(group.offers.map((offer) => offer.retailerId)).size;
   const itemPrices = group.offers.map((offer) => offer.priceGbp).filter((value): value is number => value !== undefined);
   const truePrices = group.offers.map(deliveredFor).filter((value): value is number => value !== undefined);
@@ -74,13 +74,14 @@ function ProductResult({ group, saved, onToggle }: { group: ProductGroup; saved:
     </View>
 
     <View style={styles.offerList}>{sortedOffers.slice(0, 4).map((offer, index) => {
-      const store = retailers.find((item) => item.id === offer.retailerId);
       const delivery = deliveryFor(offer);
       const truePrice = deliveredFor(offer);
       return <View key={offer.id} style={styles.offerRow}>
         <View style={[styles.rank, index === 0 && styles.rankBest]}><Text style={[styles.rankText, index === 0 && styles.rankTextBest]}>{index + 1}</Text></View>
         <View style={styles.offerCopy}>
-          <Text style={styles.retailer}>{store?.name || offer.retailerId}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Open ${retailerNames.get(offer.retailerId) || offer.retailerId} retailer profile`} onPress={() => router.push({ pathname: '/retailers/[id]', params: { id: offer.retailerId } })}>
+            <Text style={styles.retailer}>{retailerNames.get(offer.retailerId) || offer.retailerId}</Text>
+          </Pressable>
           <Text style={styles.offerDetail}>{offer.priceGbp === undefined ? 'Item price unavailable' : `£${offer.priceGbp.toFixed(2)} item`} · {delivery === undefined ? 'delivery unknown' : `£${delivery.toFixed(2)} delivery`}</Text>
         </View>
         <View style={styles.offerRight}>
@@ -103,12 +104,30 @@ export default function SearchScreenV2() {
   const [retailerId, setRetailerId] = useState<string>();
   const [inStock, setInStock] = useState(true);
   const [savedProducts, setSavedProducts] = useState<string[]>([]);
+  const [retailerDirectory, setRetailerDirectory] = useState<NetworkRetailer[]>([]);
+  const [retailerDirectoryError, setRetailerDirectoryError] = useState('');
 
   useFocusEffect(useCallback(() => {
-    void wishlist.list().then((items) => setSavedProducts(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId)));
+    let cancelled = false;
+    void wishlist.list().then((items) => {
+      if (!cancelled) setSavedProducts(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId));
+    });
+    void fetchRetailerDirectory().then((result) => {
+      if (!cancelled) {
+        setRetailerDirectory(result.retailers.filter((item) => item.retailerClass !== 'event_vendor'));
+        setRetailerDirectoryError('');
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setRetailerDirectory([]);
+        setRetailerDirectoryError('Retailer directory unavailable. Product search still uses live catalogue evidence; retailer filters are temporarily unavailable.');
+      }
+    });
+    return () => { cancelled = true; };
   }, []));
 
-  const retailerOptions = retailers.filter((item) => !item.isDemo);
+  const retailerOptions = retailerDirectory;
+  const retailerNames = useMemo(() => new Map(retailerDirectory.map((item) => [item.id, item.name])), [retailerDirectory]);
   const catalogue = useCatalogue({ query, category, retailerId, inStockOnly: inStock, limit: 50 });
   const groups = useMemo(() => groupOffers(catalogue.offers), [catalogue.offers]);
 
@@ -133,18 +152,19 @@ export default function SearchScreenV2() {
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Product, set, SKU…" placeholderTextColor={FateDropColors.muted} style={styles.input} autoCapitalize="none" /></View>
     <FlatList horizontal data={categories} keyExtractor={(item) => item.label} renderItem={({ item }) => <FilterChip label={item.label} active={category === item.value} onPress={() => setCategory(item.value)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />
     <FlatList horizontal data={[{ id: undefined, name: 'All retailers' }, ...retailerOptions]} keyExtractor={(item) => item.id || 'all'} renderItem={({ item }) => <FilterChip label={item.name} active={retailerId === item.id} onPress={() => setRetailerId(item.id)} />} contentContainerStyle={styles.filters} showsHorizontalScrollIndicator={false} />
+    {retailerDirectoryError ? <Text style={styles.directoryWarning}>{retailerDirectoryError}</Text> : null}
     <View style={styles.resultHeader}><Pressable onPress={() => setInStock((value) => !value)} style={[styles.stockToggle, inStock && styles.stockToggleActive]}><View style={[styles.stockDot, inStock && styles.stockDotActive]} /><Text style={[styles.stockText, inStock && styles.stockTextActive]}>{inStock ? 'IN STOCK ONLY' : 'ALL STOCK STATES'}</Text></Pressable><View><Text style={styles.resultValue}>{catalogue.total.toLocaleString()}</Text><Text style={styles.resultLabel}>NETWORK OFFERS</Text></View></View>
     <View style={styles.sectionHead}><View><Text style={styles.sectionEyebrow}>PRODUCT GROUPS</Text><Text style={styles.sectionTitle}>{groups.length ? `${groups.length} loaded results` : 'Search results'}</Text></View></View>
   </>;
 
-  return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground /><FlatList data={groups} keyExtractor={(item) => item.id} ListHeaderComponent={header} contentContainerStyle={styles.content} ItemSeparatorComponent={() => <View style={{ height: 11 }} />} onEndReached={() => void catalogue.loadMore()} onEndReachedThreshold={0.5} ListFooterComponent={catalogue.loadingMore ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : null} ListEmptyComponent={catalogue.loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <View style={styles.empty}><Ionicons name="search-outline" size={22} color={FateDropColors.secondary} /><Text style={styles.emptyTitle}>No products match</Text><Text style={styles.emptyCopy}>{catalogue.error || 'Adjust the product, retailer or stock filters.'}</Text></View>} renderItem={({ item }) => <ProductResult group={item} saved={savedProducts.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
+  return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground /><FlatList data={groups} keyExtractor={(item) => item.id} ListHeaderComponent={header} contentContainerStyle={styles.content} ItemSeparatorComponent={() => <View style={{ height: 11 }} />} onEndReached={() => void catalogue.loadMore()} onEndReachedThreshold={0.5} ListFooterComponent={catalogue.loadingMore ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : null} ListEmptyComponent={catalogue.loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <View style={styles.empty}><Ionicons name="search-outline" size={22} color={FateDropColors.secondary} /><Text style={styles.emptyTitle}>No products match</Text><Text style={styles.emptyCopy}>{catalogue.error || 'Adjust the product, retailer or stock filters.'}</Text></View>} renderItem={({ item }) => <ProductResult group={item} saved={savedProducts.includes(item.id)} onToggle={() => void toggleProduct(item)} retailerNames={retailerNames} />} /></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingHorizontal: 18, paddingBottom: 120 },
   headerButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   hero: { padding: 20, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(103,232,249,.16)', backgroundColor: 'rgba(9,10,17,.92)', marginBottom: 11 }, heroEyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 }, heroTitle: { color: FateDropColors.text, fontSize: 24, lineHeight: 27, fontWeight: '900', letterSpacing: -0.6, marginTop: 7 }, heroCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 8 },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, height: 49, borderRadius: 16, backgroundColor: 'rgba(17,19,29,.92)', borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 10 }, input: { flex: 1, color: FateDropColors.text, fontSize: 13 }, filters: { gap: 7, paddingBottom: 9 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, height: 49, borderRadius: 16, backgroundColor: 'rgba(17,19,29,.92)', borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 10 }, input: { flex: 1, color: FateDropColors.text, fontSize: 13 }, filters: { gap: 7, paddingBottom: 9 }, directoryWarning: { color: FateDropColors.amber, fontSize: 9, lineHeight: 14, marginBottom: 9 },
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3, marginBottom: 20 }, stockToggle: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass }, stockToggleActive: { borderColor: `${FateDropColors.mint}45`, backgroundColor: `${FateDropColors.mint}0D` }, stockDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: FateDropColors.muted }, stockDotActive: { backgroundColor: FateDropColors.mint }, stockText: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.7 }, stockTextActive: { color: FateDropColors.mint }, resultValue: { color: FateDropColors.text, fontSize: 17, fontWeight: '900', textAlign: 'right' }, resultLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.7 },
   sectionHead: { marginBottom: 9 }, sectionEyebrow: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 }, sectionTitle: { color: FateDropColors.text, fontSize: 19, fontWeight: '900', marginTop: 3 },
   productCard: { padding: 15, borderRadius: 19, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.92)' }, productHead: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' }, productIdentity: { flex: 1 }, category: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: 1 }, productTitle: { color: FateDropColors.text, fontSize: 15, lineHeight: 19, fontWeight: '900', marginTop: 3 }, productMeta: { color: FateDropColors.muted, fontSize: 8, marginTop: 4 }, save: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated }, saveActive: { borderColor: `${FateDropColors.violetLight}55`, backgroundColor: `${FateDropColors.violetLight}12` },
