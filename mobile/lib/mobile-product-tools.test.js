@@ -20,7 +20,14 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="alerts"/);
   assert.match(tabs, /name="tools"/);
   assert.match(tabs, /FateDropNavEmblem/);
-  assert.match(tabs, /router\.push\('\/tools'\)/);
+  assert.match(tabs, /setToolboxOpen\(true\)/);
+  assert.match(tabs, /title="FateFind"/);
+  assert.match(tabs, /title="FateMatch"/);
+  assert.match(tabs, /title="Fate Trader"/);
+  assert.match(tabs, /title="Local Radar"/);
+  assert.match(tabs, /title="Retailers"/);
+  assert.match(tabs, /title="Search live database"/);
+  assert.match(tabs, /title="Wishlist"/);
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
