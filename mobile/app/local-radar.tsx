@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { clusterRadarShops, type RadarShopCluster } from '@/lib/local-radar-safe-clustering';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
 
@@ -18,6 +19,20 @@ function markerColor(shop: RadarShop) {
   if (state === 'confirmed') return FateDropColors.mint;
   if (state === 'expected') return FateDropColors.cyan;
   return FateDropColors.goldBright;
+}
+
+function clusterColor(cluster: RadarShopCluster) {
+  if (cluster.shops.some((shop) => shopLocalState(shop) === 'expected')) return FateDropColors.cyan;
+  if (cluster.shops.some((shop) => shopLocalState(shop) === 'confirmed')) return FateDropColors.mint;
+  return FateDropColors.goldBright;
+}
+
+function clusterDescription(cluster: RadarShopCluster) {
+  const expected = cluster.shops.filter((shop) => shopLocalState(shop) === 'expected').length;
+  const confirmed = cluster.shops.filter((shop) => shopLocalState(shop) === 'confirmed').length;
+  if (expected) return `${expected} Expected nearby · zoom in to separate stores`;
+  if (confirmed) return `${confirmed} Confirmed nearby · zoom in to separate stores`;
+  return 'Zoom in to separate stores';
 }
 
 function regionFor(area: UserArea | undefined, shops: RadarShop[]): Region {
@@ -100,6 +115,7 @@ export default function LocalRadarScreen() {
   };
 
   const mappedShops = useMemo(() => shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [shops]);
+  const mapMarkers = useMemo(() => clusterRadarShops(mappedShops, region), [mappedShops, region]);
   const prioritizedShops = shops;
   const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
   const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
@@ -116,7 +132,13 @@ export default function LocalRadarScreen() {
 
     <View style={[styles.mapShell, { height: mapHeight }]}>
       <MapView style={StyleSheet.absoluteFill} region={region} onRegionChangeComplete={setRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
-        {mappedShops.map(shop => <Marker key={shop.id} coordinate={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>)}
+        {mapMarkers.map((cluster) => {
+          if (cluster.shops.length === 1) {
+            const shop = cluster.shops[0];
+            return <Marker key={cluster.id} coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>;
+          }
+          return <Marker key={cluster.id} coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }} pinColor={clusterColor(cluster)} title={`${cluster.shops.length} nearby stores`} description={clusterDescription(cluster)}/>;
+        })}
       </MapView>
       <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>Confirmed</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
       {area ? <View style={styles.mapStats}><StatusBadge label={`${shops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
