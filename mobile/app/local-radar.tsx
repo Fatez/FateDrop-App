@@ -21,14 +21,29 @@ function markerColor(shop: RadarShop) {
 }
 
 function regionFor(area: UserArea | undefined, shops: RadarShop[]): Region {
-  if (area?.latitude !== undefined && area.longitude !== undefined) {
-    return { latitude: area.latitude, longitude: area.longitude, latitudeDelta: 0.28, longitudeDelta: 0.28 };
-  }
   const mapped = shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number');
   if (mapped.length) {
-    const latitude = mapped.reduce((sum, shop) => sum + Number(shop.latitude), 0) / mapped.length;
-    const longitude = mapped.reduce((sum, shop) => sum + Number(shop.longitude), 0) / mapped.length;
-    return { latitude, longitude, latitudeDelta: 0.32, longitudeDelta: 0.32 };
+    const latitudes = mapped.map(shop => Number(shop.latitude));
+    const longitudes = mapped.map(shop => Number(shop.longitude));
+    if (area?.latitude !== undefined && area.longitude !== undefined) {
+      latitudes.push(area.latitude);
+      longitudes.push(area.longitude);
+    }
+    const minLatitude = Math.min(...latitudes);
+    const maxLatitude = Math.max(...latitudes);
+    const minLongitude = Math.min(...longitudes);
+    const maxLongitude = Math.max(...longitudes);
+    const latitudeSpan = maxLatitude - minLatitude;
+    const longitudeSpan = maxLongitude - minLongitude;
+    return {
+      latitude: (minLatitude + maxLatitude) / 2,
+      longitude: (minLongitude + maxLongitude) / 2,
+      latitudeDelta: Math.max(0.28, latitudeSpan * 1.25),
+      longitudeDelta: Math.max(0.28, longitudeSpan * 1.25),
+    };
+  }
+  if (area?.latitude !== undefined && area.longitude !== undefined) {
+    return { latitude: area.latitude, longitude: area.longitude, latitudeDelta: 0.28, longitudeDelta: 0.28 };
   }
   return UK_REGION;
 }
