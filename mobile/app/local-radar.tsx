@@ -100,7 +100,7 @@ export default function LocalRadarScreen() {
   };
 
   const mappedShops = useMemo(() => shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [shops]);
-  const nearest = useMemo(() => [...shops].sort((a,b) => (a.distanceMiles ?? 999) - (b.distanceMiles ?? 999)).slice(0, 5), [shops]);
+  const prioritizedShops = shops;
   const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
   const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
   const navParams = areaParams(area, radius);
@@ -143,7 +143,7 @@ export default function LocalRadarScreen() {
       </View>
     </>}
 
-    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearest stores'}</Text><Text style={styles.sectionMeta}>Tap a store for its latest Local Radar information</Text></View>{nearest.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
+    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearby stores'}</Text><Text style={styles.sectionMeta}>Expected-stock branches are prioritised, then distance</Text></View>{prioritizedShops.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
 
     <View style={styles.truthCard}><Ionicons name="shield-checkmark-outline" size={19} color={FateDropColors.goldBright}/><Text style={styles.truthText}>A store pin means FateDrop knows the physical branch — not that stock is guaranteed. Expected information is advisory. Confirmed only appears when FateDrop has genuine exact-branch physical availability evidence. Online stock remains separate.</Text></View>
   </ScrollView></SafeAreaView>;
