@@ -96,7 +96,7 @@ export default function TabLayout() {
           options={{
             title: '',
             tabBarLabel: () => null,
-            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={56} /></View>,
+            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={62} /></View>,
           }}
         />
         <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   homeRoof: { position: 'absolute', top: 1, width: 14, height: 14, borderLeftWidth: 2, borderTopWidth: 2, transform: [{ rotate: '45deg' }], borderRadius: 1 },
   homeBody: { position: 'absolute', bottom: 1, width: 16, height: 12, borderWidth: 2, borderTopWidth: 0, alignItems: 'center', justifyContent: 'flex-end' },
   homeDoor: { width: 4, height: 7, borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-  emblemSlot: { width: 70, height: 70, marginTop: -22, alignItems: 'center', justifyContent: 'center' },
+  emblemSlot: { width: 76, height: 76, marginTop: -24, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: .76, transform: [{ scale: .985 }] },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.68)' },
   toolbox: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, borderColor: FateDropColors.border, backgroundColor: FateDropColors.shell, gap: 9 },
