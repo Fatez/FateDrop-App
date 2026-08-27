@@ -70,7 +70,6 @@ export default function AlertsScreenV4() {
       <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Image source={active.hero} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
-          <View style={[styles.pageTitleBlock, { top: insets.top + 8 }]}><Text style={styles.pageTitle}>Alerts</Text></View>
           <Pressable onPress={() => router.push('/notification-preferences')} style={[styles.settings, { top: insets.top + 13 }]}><Ionicons name="options-outline" size={18} color={FateDropColors.ivory} /></Pressable>
           <View style={styles.heroCopy}><Text style={[styles.heroEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} · {active.label.toUpperCase()}</Text><Text style={styles.heroTitle}>Signals without the noise.</Text><Text style={styles.heroSub}>Lifecycle intelligence stays separate from your personal FateFinds and FateMatches.</Text></View>
         </View>
@@ -128,7 +127,7 @@ const heroShadow = { textShadowColor: 'rgba(0,0,0,.94)', textShadowOffset: { wid
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingBottom: 120 },
   hero: { height: 350, overflow: 'hidden', backgroundColor: FateDropColors.background },
-  pageTitleBlock: { position: 'absolute', left: 20 }, pageTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 27, fontWeight: '700', ...heroShadow }, settings: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(4,7,12,.58)' },
+  settings: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(4,7,12,.58)' },
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 }, heroEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3, ...heroShadow }, heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, fontWeight: '700', marginTop: 4, ...heroShadow }, heroSub: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 340, ...heroShadow },
   switch: { flexDirection: 'row', marginHorizontal: 18, marginTop: 12, padding: 4, borderRadius: 14, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, switchItem: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 10 }, switchActive: { backgroundColor: FateDropColors.card }, switchText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' }, switchTextActive: { color: FateDropColors.goldBright },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 18, marginTop: 10 }, tab: { flex: 1, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, tabLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, tabCount: { color: FateDropColors.ivory, fontSize: 18, fontWeight: '900', marginTop: 3 },
