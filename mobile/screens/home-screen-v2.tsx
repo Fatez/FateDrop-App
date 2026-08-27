@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { API_BASE_URL } from '@/constants/api';
+import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { FateDropColors, FateDropLifecycleColors, FateDropTypography, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalAlerts, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
@@ -81,7 +82,7 @@ export default function HomeScreenV2() {
       >
         <View style={styles.brandHeader}>
           <Image
-            source={require('../assets/images/fatedrop-wordmark.png')}
+            source={{ uri: FATEDROP_WORDMARK_URI }}
             style={styles.brandWordmarkImage}
             contentFit="contain"
             contentPosition="left center"
@@ -254,8 +255,8 @@ function AlertPreview({ alert }: { alert: CanonicalMobileAlert }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 120 },
-  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 76, paddingTop: 8, paddingBottom: 8, zIndex: 4 },
-  brandWordmarkImage: { width: 210, height: 58 },
+  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 82, paddingTop: 8, paddingBottom: 8, zIndex: 4 },
+  brandWordmarkImage: { width: 216, height: 72 },
   headerAlert: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(12,16,24,.72)', alignItems: 'center', justifyContent: 'center' },
   headerBadge: { position: 'absolute', right: -3, top: -3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, backgroundColor: FateDropColors.vanished, alignItems: 'center', justifyContent: 'center' },
   headerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
