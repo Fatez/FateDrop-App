@@ -9,6 +9,7 @@ import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -34,8 +35,8 @@ export default function RootLayout() {
       .then((Notifications) => {
         if (!active) return;
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          const productUrl = response.notification.request.content.data?.productUrl;
-          if (typeof productUrl === 'string' && /^https?:\/\//i.test(productUrl)) void Linking.openURL(productUrl);
+          const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
+          if (safeProductUrl) void Linking.openURL(safeProductUrl);
         });
       })
       .catch(() => {
