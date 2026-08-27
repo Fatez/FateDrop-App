@@ -12,6 +12,7 @@ const brandHeader = read('components/fatedrop-brand-header.tsx');
 const navEmblem = read('components/fatedrop-nav-emblem.tsx');
 const home = read('screens/home-screen-v3.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
+const alerts = read('screens/alerts-screen-v4.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
 const wordmarkData = read('constants/brand-wordmark-data.ts');
 const emblemData = read('constants/brand-emblem-data.ts');
@@ -32,6 +33,9 @@ test('shared functional header is title-first and does not repeat the full wordm
 test('active Home and Profile are the primary full-wordmark identity surfaces', () => {
   assert.match(home, /FATEDROP_WORDMARK_URI/);
   assert.match(profile, /FATEDROP_WORDMARK_URI/);
+  assert.doesNotMatch(alerts, /fatedrop-wordmark/);
+  assert.match(alerts, /styles\.pageTitle/);
+  assert.match(alerts, />Alerts<\/Text>/);
   assert.match(wordmarkData, /data:image\/webp;base64,/);
   assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
@@ -51,9 +55,11 @@ test('Home keeps monitor health out of the welcome experience', () => {
 });
 
 test('center tool launcher uses the canonical shared FateDrop medallion and is intentionally prominent', () => {
-  assert.match(tabs, /FateDropNavEmblem size=\{56\}/);
-  assert.match(tabs, /width: 70, height: 70, marginTop: -22/);
+  assert.match(tabs, /FateDropNavEmblem size=\{62\}/);
+  assert.match(tabs, /width: 76, height: 76, marginTop: -24/);
   assert.match(navEmblem, /FATEDROP_CENTER_EMBLEM_URI/);
+  assert.match(navEmblem, /styles\.innerAccent/);
+  assert.match(navEmblem, /shadowColor: '#D8C17A'/);
   assert.match(emblemData, /data:image\/webp;base64,/);
   assert.ok(emblemData.length > 4000, `FateDrop emblem data unexpectedly small: ${emblemData.length} chars`);
   assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
