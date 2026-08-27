@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, Tabs } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -97,7 +96,7 @@ export default function TabLayout() {
           options={{
             title: '',
             tabBarLabel: () => null,
-            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={48} /></View>,
+            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={62} /></View>,
           }}
         />
         <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
@@ -112,7 +111,7 @@ export default function TabLayout() {
         <Pressable style={styles.backdrop} onPress={() => setToolboxOpen(false)}>
           <Pressable style={styles.toolbox} onPress={() => undefined}>
             <View style={styles.toolboxBrand}>
-              <Image source={require('../../assets/images/fatedrop-center-emblem.png')} style={styles.toolboxEmblem} contentFit="contain" />
+              <FateDropNavEmblem size={52} />
               <View style={styles.toolboxBrandCopy}>
                 <Text style={styles.toolboxEyebrow}>FATE NETWORK</Text>
                 <Text style={styles.toolboxTitle}>What do you want FateDrop to do?</Text>
@@ -144,11 +143,11 @@ const styles = StyleSheet.create({
   homeRoof: { position: 'absolute', top: 1, width: 14, height: 14, borderLeftWidth: 2, borderTopWidth: 2, transform: [{ rotate: '45deg' }], borderRadius: 1 },
   homeBody: { position: 'absolute', bottom: 1, width: 16, height: 12, borderWidth: 2, borderTopWidth: 0, alignItems: 'center', justifyContent: 'flex-end' },
   homeDoor: { width: 4, height: 7, borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-  emblemSlot: { width: 62, height: 62, marginTop: -18, alignItems: 'center', justifyContent: 'center' },
+  emblemSlot: { width: 76, height: 76, marginTop: -24, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: .76, transform: [{ scale: .985 }] },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.68)' },
   toolbox: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, borderColor: FateDropColors.border, backgroundColor: FateDropColors.shell, gap: 9 },
-  toolboxBrand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10 }, toolboxEmblem: { width: 50, height: 50 }, toolboxBrandCopy: { flex: 1 },
+  toolboxBrand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10 }, toolboxBrandCopy: { flex: 1 },
   toolboxEyebrow: { color: NAV_GOLD, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 }, toolboxTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, fontWeight: '700', marginTop: 2 }, toolboxCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   close: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
   toolChoice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },

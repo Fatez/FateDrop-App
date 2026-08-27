@@ -9,28 +9,42 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const sharedBarrel = read('components/fatedrop-ui.tsx');
 const sharedLegacy = read('components/fatedrop-ui-legacy.tsx');
 const brandHeader = read('components/fatedrop-brand-header.tsx');
-const home = read('screens/home-screen-v2.tsx');
+const navEmblem = read('components/fatedrop-nav-emblem.tsx');
+const home = read('screens/home-screen-v3.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
+const alerts = read('screens/alerts-screen-v4.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
+const wordmarkData = read('constants/brand-wordmark-data.ts');
+const emblemData = read('constants/brand-emblem-data.ts');
+const appConfig = JSON.parse(read('app.json'));
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.match(sharedLegacy, /app-background-cosmic\.webp/);
   assert.doesNotMatch(sharedLegacy, /fatedrop-portal-hero\.png/);
 });
 
-test('shared app header is wordmark-only with no legacy emblem box', () => {
+test('shared functional header is title-first and does not repeat the full wordmark', () => {
   assert.match(sharedBarrel, /FateDropBrandHeader as FateDropHeader/);
-  assert.match(brandHeader, /fatedrop-wordmark\.png/);
-  assert.doesNotMatch(brandHeader, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(brandHeader, /headerLogoShell/);
+  assert.match(brandHeader, /Text style=\{styles\.title\}/);
+  assert.doesNotMatch(brandHeader, /fatedrop-wordmark/);
+  assert.doesNotMatch(brandHeader, /FATEDROP_WORDMARK_URI/);
 });
 
-test('Home uses the final Koru hero and canonical FateDrop ID identity greeting', () => {
+test('active Home and Profile are the primary full-wordmark identity surfaces', () => {
+  assert.match(home, /FATEDROP_WORDMARK_URI/);
+  assert.match(profile, /FATEDROP_WORDMARK_URI/);
+  assert.doesNotMatch(alerts, /fatedrop-wordmark/);
+  assert.doesNotMatch(alerts, /styles\.pageTitle/);
+  assert.doesNotMatch(alerts, />Alerts<\/Text>/);
+  assert.match(wordmarkData, /data:image\/webp;base64,/);
+  assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
+});
+
+test('active Home keeps the approved Koru hero and network-first experience', () => {
   assert.match(home, /home-koru-hero\.webp/);
-  assert.match(home, /snapshot\?\.user\.displayName\?\.trim\(\)/);
-  assert.match(home, /snapshot\?\.user\.handle\?\.trim\(\)/);
-  assert.match(home, /Welcome, \$\{identityName\}/);
-  assert.match(home, /fatedrop-wordmark\.png/);
+  assert.match(home, /fetchNetworkPulse\(7\)/);
+  assert.match(home, /THE FATE NETWORK IS LIVE/);
+  assert.match(home, /Know what moved\. Hunt what matters\./);
 });
 
 test('Home keeps monitor health out of the welcome experience', () => {
@@ -40,11 +54,28 @@ test('Home keeps monitor health out of the welcome experience', () => {
   assert.doesNotMatch(home, /\/api\/status/);
 });
 
-test('center tool launcher uses the clean transparent FateDrop PNG emblem', () => {
-  assert.match(tabs, /fatedrop-center-emblem\.png/);
-  const launcher = tabs.slice(tabs.indexOf('name="tools"'), tabs.indexOf('name="network"'));
-  assert.doesNotMatch(launcher, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(launcher, /emblemHalo/);
+test('center tool launcher uses the canonical shared FateDrop medallion and is intentionally prominent', () => {
+  assert.match(tabs, /FateDropNavEmblem size=\{62\}/);
+  assert.match(tabs, /width: 76, height: 76, marginTop: -24/);
+  assert.match(navEmblem, /FATEDROP_CENTER_EMBLEM_URI/);
+  assert.match(navEmblem, /styles\.innerAccent/);
+  assert.match(navEmblem, /shadowColor: '#D8C17A'/);
+  assert.match(emblemData, /data:image\/webp;base64,/);
+  assert.ok(emblemData.length > 4000, `FateDrop emblem data unexpectedly small: ${emblemData.length} chars`);
+  assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
+});
+
+test('native platform branding stays on the canonical generated asset family', () => {
+  assert.equal(appConfig.expo.icon, './assets/images/icon.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
+
+  const notifications = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications');
+  const splash = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen');
+
+  assert.equal(notifications?.[1]?.icon, './assets/images/fatedrop-logo.png');
+  assert.equal(splash?.[1]?.image, './assets/images/splash-icon.png');
 });
 
 test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
@@ -88,10 +119,7 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
   assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
 });
 
-test('final Home art assets are real production images, not tiny placeholders', () => {
+test('final Home hero remains a real production image, not a tiny placeholder', () => {
   const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
-  const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.png'));
-
   assert.ok(hero.size > 10000, `Koru hero unexpectedly small: ${hero.size} bytes`);
-  assert.ok(wordmark.size > 10000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
 });

@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
+import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { profileAvatarSources, profileCompanionMeta, profileCompanionSources } from '@/constants/profile-customisation';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -61,7 +62,7 @@ export default function ProfileScreenV2() {
             <View style={styles.overlayHeader}>
               <View style={styles.logoPlate}>
                 <Image
-                  source={require('@/assets/images/fatedrop-wordmark.png')}
+                  source={{ uri: FATEDROP_WORDMARK_URI }}
                   style={styles.wordmark}
                   contentFit="contain"
                   contentPosition="left center"
@@ -218,8 +219,8 @@ const styles = StyleSheet.create({
   cover: { width: '100%', height: 210, overflow: 'hidden', backgroundColor: FateDropColors.surface },
   coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.04)' },
   overlayHeader: { position: 'absolute', top: 10, left: 14, right: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  logoPlate: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(3,7,12,.34)' },
-  wordmark: { width: 168, height: 44 },
+  logoPlate: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 12, backgroundColor: 'rgba(3,7,12,.34)' },
+  wordmark: { width: 174, height: 58 },
   membershipPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}70`, backgroundColor: 'rgba(5,10,16,.68)' },
   membershipText: { color: FateDropColors.goldBright, fontSize: 9.2, fontWeight: '900', letterSpacing: .8 },
 
