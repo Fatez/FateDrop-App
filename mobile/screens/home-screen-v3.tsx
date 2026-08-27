@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
@@ -53,7 +54,7 @@ export default function HomeScreenV3() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Image source={require('../assets/images/home-koru-hero.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
-          <Image source={require('../assets/images/fatedrop-wordmark.png')} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
+          <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
           </Pressable>
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
   hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background, marginBottom: 18 },
-  wordmark: { position: 'absolute', left: 18, width: 150, height: 44 },
+  wordmark: { position: 'absolute', left: 18, width: 168, height: 56 },
   profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.58)', borderWidth: 1, borderColor: FateDropColors.border },
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 },
   heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, ...heroShadow },
