@@ -11,6 +11,7 @@ const retailerService = fs.readFileSync(path.join(root, 'services', 'retailer-di
 const localRadar = fs.readFileSync(path.join(root, 'app', 'local-radar.tsx'), 'utf8');
 const localStore = fs.readFileSync(path.join(root, 'app', 'local-radar-store.tsx'), 'utf8');
 const tabs = fs.readFileSync(path.join(root, 'app', '(tabs)', '_layout.tsx'), 'utf8');
+const tools = fs.readFileSync(path.join(root, 'app', 'tools.tsx'), 'utf8');
 const retailerHero = fs.readFileSync(path.join(root, 'constants', 'retailer-hero.ts'), 'utf8');
 
 test('Search retailer identity comes from the Cloud retailer directory', () => {
@@ -32,11 +33,11 @@ test('retailer storefront resolves Cloud profile first and excludes static demo 
   assert.match(storefront, /Branch stock remains unknown unless Local Radar has exact-branch evidence/);
 });
 
-test('Fate Network exposes one Retailers entry rather than a competing independent-store tool', () => {
-  assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /Browse major retailers, TCG specialists and independent or local storefronts/);
-  assert.doesNotMatch(tabs, /title="Support Independent Stores"/);
-  assert.match(tabs, /openTool\('\/\(tabs\)\/indies'\)/);
+test('Fate Network exposes one Stores entry rather than a competing independent-store tool', () => {
+  assert.match(tabs, /router\.push\('\/tools'\)/);
+  assert.match(tools, /title="Stores"/);
+  assert.match(tools, /Discover the retailer network, including major retailers and independents/);
+  assert.doesNotMatch(tools, /title="Support Independent Stores"/);
 });
 
 test('Retailers categorises the same Cloud directory into major, specialist and independent-local views', () => {
