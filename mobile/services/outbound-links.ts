@@ -10,5 +10,9 @@ export async function openTrackedRetailerLink(input:{destinationUrl:string;retai
   const destinationUrl=safeExternalHttpsUrl(input.destinationUrl);if(!destinationUrl)throw new Error('Only secure retailer links are supported.');
   const payload={...input,destinationUrl,anonymousSessionId:await sessionId(),createdAt:new Date().toISOString()};
   void fetch(`${API_BASE_URL}/api/outbound-clicks`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}).catch(()=>undefined);
-  await WebBrowser.openBrowserAsync(destinationUrl);
+  await WebBrowser.openBrowserAsync(destinationUrl,{
+    presentationStyle:WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+    dismissButtonStyle:'close',
+    enableBarCollapsing:true,
+  });
 }
