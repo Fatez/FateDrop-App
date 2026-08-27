@@ -11,16 +11,18 @@ const encounters = fs.readFileSync(path.join(__dirname, '../screens/encounters-s
 const moreRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/more.tsx'), 'utf8');
 const more = fs.readFileSync(path.join(__dirname, '../screens/more-screen-v2.tsx'), 'utf8');
 
-test('Retailers uses the live Cloud directory rather than the legacy static screen', () => {
+test('Retailers uses one live Cloud directory with approved discovery segments', () => {
   assert.match(indiesRoute, /indies-screen-v2/);
   assert.match(indies, /fetchRetailerDirectory/);
   assert.match(directory, /\/api\/retailers/);
-  assert.match(indies, /\['independent', 'specialist', 'regional'\]/);
-  assert.match(indies, /retailerClass === 'national'/);
-  assert.match(indies, /MONITOR HEALTHY/);
-  assert.match(indies, /FateDrop does not substitute demo retailers into the live directory/);
-  assert.match(indies, /physical presence is explicitly known/);
-  assert.match(indies, /not a promise that these shops sell at RRP/);
+  assert.match(indies, /retailer\.retailerClass === 'national'/);
+  assert.match(indies, /retailer\.retailerClass === 'specialist'/);
+  assert.match(indies, /\['independent', 'regional'\]\.includes\(retailer\.retailerClass\)/);
+  assert.match(indies, /A–Z · NO RANKING/);
+  assert.match(indies, /FateDrop does not substitute demo retailers into the live storefront directory/);
+  assert.match(indies, /A store pin does not imply physical stock/);
+  assert.match(indies, /Looking for a product\? Use FateFind\./);
+  assert.doesNotMatch(indies, /constants\/retailers/);
 });
 
 test('Fate Encounters keeps live events and saved-event behaviour in the redesigned screen', () => {
