@@ -9,9 +9,11 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const sharedBarrel = read('components/fatedrop-ui.tsx');
 const sharedLegacy = read('components/fatedrop-ui-legacy.tsx');
 const brandHeader = read('components/fatedrop-brand-header.tsx');
+const navEmblem = read('components/fatedrop-nav-emblem.tsx');
 const home = read('screens/home-screen-v2.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
+const appConfig = JSON.parse(read('app.json'));
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.match(sharedLegacy, /app-background-cosmic\.webp/);
@@ -40,11 +42,23 @@ test('Home keeps monitor health out of the welcome experience', () => {
   assert.doesNotMatch(home, /\/api\/status/);
 });
 
-test('center tool launcher uses the clean transparent FateDrop PNG emblem', () => {
-  assert.match(tabs, /fatedrop-center-emblem\.png/);
-  const launcher = tabs.slice(tabs.indexOf('name="tools"'), tabs.indexOf('name="network"'));
-  assert.doesNotMatch(launcher, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(launcher, /emblemHalo/);
+test('center tool launcher uses the canonical shared FateDrop PNG emblem', () => {
+  assert.match(tabs, /FateDropNavEmblem/);
+  assert.match(navEmblem, /fatedrop-center-emblem\.png/);
+  assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
+});
+
+test('native platform branding stays on the canonical generated asset family', () => {
+  assert.equal(appConfig.expo.icon, './assets/images/icon.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
+  assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
+
+  const notifications = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications');
+  const splash = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen');
+
+  assert.equal(notifications?.[1]?.icon, './assets/images/fatedrop-logo.png');
+  assert.equal(splash?.[1]?.image, './assets/images/splash-icon.png');
 });
 
 test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
