@@ -13,6 +13,8 @@ const navEmblem = read('components/fatedrop-nav-emblem.tsx');
 const home = read('screens/home-screen-v2.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
+const wordmarkData = read('constants/brand-wordmark-data.ts');
+const emblemData = read('constants/brand-emblem-data.ts');
 const appConfig = JSON.parse(read('app.json'));
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
@@ -20,11 +22,18 @@ test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.doesNotMatch(sharedLegacy, /fatedrop-portal-hero\.png/);
 });
 
-test('shared app header is wordmark-only with no legacy emblem box', () => {
+test('shared functional header is title-first and does not repeat the full wordmark', () => {
   assert.match(sharedBarrel, /FateDropBrandHeader as FateDropHeader/);
-  assert.match(brandHeader, /fatedrop-wordmark\.png/);
-  assert.doesNotMatch(brandHeader, /fatedrop-emblem\.webp/);
-  assert.doesNotMatch(brandHeader, /headerLogoShell/);
+  assert.match(brandHeader, /Text style=\{styles\.title\}/);
+  assert.doesNotMatch(brandHeader, /fatedrop-wordmark/);
+  assert.doesNotMatch(brandHeader, /FATEDROP_WORDMARK_URI/);
+});
+
+test('Home and Profile are the primary full-wordmark identity surfaces', () => {
+  assert.match(home, /FATEDROP_WORDMARK_URI/);
+  assert.match(profile, /FATEDROP_WORDMARK_URI/);
+  assert.match(wordmarkData, /data:image\/webp;base64,/);
+  assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
 
 test('Home uses the final Koru hero and canonical FateDrop ID identity greeting', () => {
@@ -32,7 +41,6 @@ test('Home uses the final Koru hero and canonical FateDrop ID identity greeting'
   assert.match(home, /snapshot\?\.user\.displayName\?\.trim\(\)/);
   assert.match(home, /snapshot\?\.user\.handle\?\.trim\(\)/);
   assert.match(home, /Welcome, \$\{identityName\}/);
-  assert.match(home, /fatedrop-wordmark\.png/);
 });
 
 test('Home keeps monitor health out of the welcome experience', () => {
@@ -42,9 +50,12 @@ test('Home keeps monitor health out of the welcome experience', () => {
   assert.doesNotMatch(home, /\/api\/status/);
 });
 
-test('center tool launcher uses the canonical shared FateDrop PNG emblem', () => {
-  assert.match(tabs, /FateDropNavEmblem/);
-  assert.match(navEmblem, /fatedrop-center-emblem\.png/);
+test('center tool launcher uses the canonical shared FateDrop medallion and is intentionally prominent', () => {
+  assert.match(tabs, /FateDropNavEmblem size=\{56\}/);
+  assert.match(tabs, /width: 70, height: 70, marginTop: -22/);
+  assert.match(navEmblem, /FATEDROP_CENTER_EMBLEM_URI/);
+  assert.match(emblemData, /data:image\/webp;base64,/);
+  assert.ok(emblemData.length > 4000, `FateDrop emblem data unexpectedly small: ${emblemData.length} chars`);
   assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
 });
 
@@ -102,10 +113,7 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
   assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
 });
 
-test('final Home art assets are real production images, not tiny placeholders', () => {
+test('final Home hero remains a real production image, not a tiny placeholder', () => {
   const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
-  const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.png'));
-
   assert.ok(hero.size > 10000, `Koru hero unexpectedly small: ${hero.size} bytes`);
-  assert.ok(wordmark.size > 8000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
 });
