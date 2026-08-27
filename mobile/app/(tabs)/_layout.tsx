@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs } from 'expo-router';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
@@ -23,7 +23,7 @@ function HomeMark({ focused }: { focused: boolean }) {
 
 export default function TabLayout() {
   const { signedIn, snapshot } = useFateDropId();
-  const [alertCount, setAlertCount] = useStateCompat(0);
+  const [alertCount, setAlertCount] = useState(0);
   const userId = snapshot?.user?.id ?? null;
 
   const refreshAlertCount = useCallback(async () => {
@@ -100,14 +100,6 @@ export default function TabLayout() {
       <Tabs.Screen name="more" options={{ href: null }} />
     </Tabs>
   );
-}
-
-// Keep the unread-alert state local to the tab shell while avoiding a second
-// Fate Network menu implementation. This wrapper exists only to keep the
-// component's state declaration compact.
-function useStateCompat(initialValue: number) {
-  const React = require('react') as typeof import('react');
-  return React.useState(initialValue);
 }
 
 const styles = StyleSheet.create({
