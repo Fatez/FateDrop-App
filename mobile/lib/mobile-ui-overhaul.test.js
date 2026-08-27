@@ -36,18 +36,17 @@ test('Home network pulse consumes public Cloud signal truth, never private diagn
   assert.doesNotMatch(networkSignals, /SIGNAL_ENGINE_URL\}\/api\/signal-health/);
 });
 
-test('Fate Network keeps the physically approved five-job hierarchy and monitoring semantics', () => {
+test('Fate Network keeps the physically approved jobs and monitoring semantics in one launcher', () => {
   assert.match(fateNetwork, /title="FateFind"/);
   assert.match(fateNetwork, /title="FateMatch"/);
   assert.match(fateNetwork, /title="Fate Trader"/);
   assert.match(fateNetwork, /title="Local Radar"/);
   assert.match(fateNetwork, /title="Stores"/);
+  assert.match(fateNetwork, /Search live database/);
+  assert.match(fateNetwork, /Wishlist/);
   assert.match(fateNetwork, /Monitor the products and conditions you care about/);
   assert.doesNotMatch(fateNetwork, /FateMatch means it was found/);
-  assert.match(tabLayout, /title="Fate Trader"/);
-  assert.match(tabLayout, /title="Local Radar"/);
-  assert.match(tabLayout, /title="Retailers"/);
-  assert.match(tabLayout, /openTool\('\/(?:\(tabs\)\/)?indies'\)/);
+  assert.match(tabLayout, /router\.push\('\/tools'\)/);
 });
 
 test('Fate Trader and Local Radar destinations cannot become dead Fate Network buttons', () => {
