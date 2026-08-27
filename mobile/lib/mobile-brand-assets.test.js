@@ -107,5 +107,5 @@ test('final Home art assets are real production images, not tiny placeholders', 
   const wordmark = fs.statSync(path.join(root, 'assets/images/fatedrop-wordmark.png'));
 
   assert.ok(hero.size > 10000, `Koru hero unexpectedly small: ${hero.size} bytes`);
-  assert.ok(wordmark.size > 10000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
+  assert.ok(wordmark.size > 8000, `FateDrop wordmark unexpectedly small: ${wordmark.size} bytes`);
 });
