@@ -1,0 +1,51 @@
+name: P0 Combined App Main Verify
+
+on:
+  push:
+    branches:
+      - fix/p0-combined-app-verify-2026-08-27
+    paths:
+      - ".github/workflows/p0-combined-app-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-combined-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact combined App main
+        uses: actions/checkout@v4
+        with:
+          ref: b955b5c9da35f21e610a70752a25e701200d417b
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - name: Install repository dependencies
+        run: npm ci
+      - name: Run repository tests
+        run: npm test
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+      - name: Lint and typecheck mobile
+        working-directory: mobile
+        run: npm run verify
+      - name: Verify public Cloud retailer coverage contract is reachable
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 4 --retry-delay 5 \
+            "https://fatedrop-cloud-production.up.railway.app/api/retailers" -o /tmp/retailers.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const body = JSON.parse(fs.readFileSync('/tmp/retailers.json', 'utf8'));
+          if (!body || typeof body !== 'object') throw new Error('retailer response missing');
+          const rows = Array.isArray(body.retailers) ? body.retailers : Array.isArray(body.items) ? body.items : Array.isArray(body.data) ? body.data : null;
+          if (!rows) throw new Error(`retailer array missing: ${JSON.stringify(Object.keys(body))}`);
+          NODE
