@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const tabs = read('app/(tabs)/_layout.tsx');
+const tools = read('app/tools.tsx');
 const search = read('screens/search-screen-v2.tsx');
 const fateFindRoute = read('app/fatefind.tsx');
 const fateFind = read('screens/fatefind-live-screen-v2.tsx');
@@ -19,15 +20,17 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tabs, /name="alerts"/);
   assert.match(tabs, /name="tools"/);
   assert.match(tabs, /FateDropNavEmblem/);
+  assert.match(tabs, /router\.push\('\/tools'\)/);
   assert.match(tabs, /name="network"/);
   assert.match(tabs, /name="profile"/);
-  assert.match(tabs, /title="FateFind"/);
-  assert.match(tabs, /title="FateMatch"/);
-  assert.match(tabs, /title="Fate Trader"/);
-  assert.match(tabs, /title="Local Radar"/);
-  assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /openTool\('\/(?:\(tabs\)\/)?indies'\)/);
   assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
+  assert.match(tools, /title="FateFind"/);
+  assert.match(tools, /title="FateMatch"/);
+  assert.match(tools, /title="Fate Trader"/);
+  assert.match(tools, /title="Local Radar"/);
+  assert.match(tools, /title="Stores"/);
+  assert.match(tools, /Search live database/);
+  assert.match(tools, /Wishlist/);
 });
 
 test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {
