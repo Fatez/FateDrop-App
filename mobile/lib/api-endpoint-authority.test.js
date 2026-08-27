@@ -11,12 +11,21 @@ const identity = fs.readFileSync(path.join(root, 'services/fatedrop-id.ts'), 'ut
 const signals = fs.readFileSync(path.join(root, 'services/network-signals.ts'), 'utf8');
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
 
-test('canonical Web host is fatedrop.co.uk and retired fate-drop.com is rejected', () => {
+test('canonical Web/account gateway is pinned to fatedrop.co.uk', () => {
   assert.match(api, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fatedrop\.co\.uk'/);
-  assert.match(api, /OBSOLETE_FATEDROP_WEB_HOSTS/);
-  assert.match(api, /fate-drop\.com/);
+  assert.match(api, /CANONICAL_FATEDROP_WEB_HOST = 'fatedrop\.co\.uk'/);
+  assert.match(api, /url\.protocol !== 'https:'/);
+  assert.match(api, /url\.hostname\.toLowerCase\(\) !== CANONICAL_FATEDROP_WEB_HOST/);
+  assert.match(api, /url\.origin !== canonicalOrigin/);
+  assert.match(api, /return DEFAULT_FATEDROP_WEB_URL/);
   assert.match(envExample, /EXPO_PUBLIC_FATEDROP_WEB_URL=https:\/\/fatedrop\.co\.uk/);
   assert.doesNotMatch(envExample, /EXPO_PUBLIC_FATEDROP_WEB_URL=https:\/\/fate-drop\.com/);
+});
+
+test('stale Expo/Codespaces Web overrides cannot redirect authenticated App traffic', () => {
+  assert.match(api, /canonicalWebBaseUrl\(process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL\)/);
+  assert.match(api, /stale\/non-canonical host, port, path, query or hash fails safely back/);
+  assert.doesNotMatch(api, /OBSOLETE_FATEDROP_WEB_HOSTS/);
 });
 
 test('Web-backed App services consume one canonical exported endpoint', () => {
@@ -27,7 +36,12 @@ test('Web-backed App services consume one canonical exported endpoint', () => {
   }
 });
 
-test('push registration cannot fall back to the retired Web host', () => {
+test('personal alert inbox is fetched from the canonical authenticated mobile route', () => {
+  assert.match(alerts, /FATEDROP_WEB_URL.*\/api\/mobile\/alerts\?limit=/s);
+  assert.match(alerts, /authorization: `Bearer \$\{token\}`/);
+});
+
+test('push registration cannot fall back to a retired or arbitrary Web host', () => {
   assert.match(notifications, /FATEDROP_WEB_URL.*\/api\/mobile\/push/s);
   assert.doesNotMatch(notifications, /https:\/\/fate-drop\.com/);
 });
