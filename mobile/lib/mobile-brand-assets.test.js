@@ -34,8 +34,8 @@ test('active Home and Profile are the primary full-wordmark identity surfaces', 
   assert.match(home, /FATEDROP_WORDMARK_URI/);
   assert.match(profile, /FATEDROP_WORDMARK_URI/);
   assert.doesNotMatch(alerts, /fatedrop-wordmark/);
-  assert.match(alerts, /styles\.pageTitle/);
-  assert.match(alerts, />Alerts<\/Text>/);
+  assert.doesNotMatch(alerts, /styles\.pageTitle/);
+  assert.doesNotMatch(alerts, />Alerts<\/Text>/);
   assert.match(wordmarkData, /data:image\/webp;base64,/);
   assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
