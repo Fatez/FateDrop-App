@@ -2,10 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
+import { LocalIntelNotice } from '@/components/local-intel-notice';
+import { LocalRadarMap } from '@/components/local-radar-map';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
@@ -115,9 +117,7 @@ export default function LocalRadarScreen() {
     </View>
 
     <View style={[styles.mapShell, { height: mapHeight }]}>
-      <MapView style={StyleSheet.absoluteFill} region={region} onRegionChangeComplete={setRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
-        {mappedShops.map(shop => <Marker key={shop.id} coordinate={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>)}
-      </MapView>
+      <LocalRadarMap shops={mappedShops} region={region} onRegionChange={setRegion} showUserLocation={area?.source === 'DEVICE'} onSelectShop={setSelected}/>
       <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>Confirmed</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
       {area ? <View style={styles.mapStats}><StatusBadge label={`${shops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
       {!area ? <View style={styles.mapPrompt}><Ionicons name="navigate-circle-outline" size={36} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>Search your area</Text><Text style={styles.mapPromptCopy}>{scopedRetailerId ? `Use your location or postcode to find known ${scopedName} branches.` : 'Nearby Pokémon-selling stores will appear here as real map pins.'}</Text></View> : null}
@@ -134,6 +134,8 @@ export default function LocalRadarScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
     </View>
+
+    {area ? <LocalIntelNotice shops={prioritizedShops} onOpen={(shop) => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })}/> : null}
 
     {scopedRetailerId ? <View style={styles.scopeCard}><Ionicons name="link-outline" size={18} color={FateDropColors.cyan}/><Text style={styles.scopeText}>This Local Radar view is scoped to branches tied to the same FateDrop retailer ID as {scopedName}. It does not match stores by name or infer physical stock from the retailer’s online catalogue.</Text></View> : <>
       <Text style={styles.question}>What would you like Local Radar to show?</Text>
