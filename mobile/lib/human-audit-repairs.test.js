@@ -12,6 +12,7 @@ const alertsRoute = read('app/(tabs)/alerts.tsx');
 const rootLayout = read('app/_layout.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
 const navEmblem = read('components/fatedrop-nav-emblem.tsx');
+const apiConstants = read('constants/api.ts');
 const idService = read('services/fatedrop-id.ts');
 const alertService = read('services/canonical-alerts.ts');
 const signalService = read('services/network-signals.ts');
@@ -22,10 +23,12 @@ test('human audit repair routes Home and Alerts through the vNext screens', () =
   assert.match(alertsRoute, /alerts-screen-v4/);
 });
 
-test('Home uses the shared seven-day network lifecycle pulse', () => {
+test('Home uses the shared seven-day network lifecycle pulse from the public Cloud contract', () => {
   assert.match(home, /fetchNetworkPulse\(7\)/);
-  assert.match(signalService, /\/api\/mobile\/signal-health\?days=/);
-  assert.doesNotMatch(signalService, /SIGNAL_ENGINE_URL}\/api\/signal-health/);
+  assert.match(signalService, /SIGNAL_ENGINE_URL\}\/api\/signal-summary\?days=/);
+  assert.match(signalService, /PUBLIC_SIGNAL_CONTRACT_VERSION = 1/);
+  assert.doesNotMatch(signalService, /\/api\/mobile\/signal-health/);
+  assert.doesNotMatch(signalService, /\/api\/signal-health/);
   for (const state of ['whisper', 'echo', 'manifested', 'vanished']) {
     assert.match(signalService, new RegExp(state));
   }
@@ -46,12 +49,14 @@ test('normal root browsing keeps the FateDrop five-button shell visible with a d
   assert.match(dock, /\/fatefind/);
 });
 
-test('mobile account and canonical alert services default to the current FateDrop domain', () => {
-  assert.match(idService, /https:\/\/fatedrop\.co\.uk/);
-  assert.match(alertService, /https:\/\/fatedrop\.co\.uk/);
-  assert.match(signalService, /https:\/\/fatedrop\.co\.uk/);
-  assert.doesNotMatch(idService, /https:\/\/fate-drop\.com/);
-  assert.doesNotMatch(alertService, /https:\/\/fate-drop\.com/);
+test('mobile account and canonical alert services share the centralized current FateDrop domain', () => {
+  assert.match(apiConstants, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fatedrop\.co\.uk'/);
+  assert.match(apiConstants, /OBSOLETE_FATEDROP_WEB_HOSTS/);
+  for (const service of [idService, alertService, signalService]) {
+    assert.match(service, /FATEDROP_WEB_URL/);
+    assert.doesNotMatch(service, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
+  }
+  assert.doesNotMatch(apiConstants, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fate-drop\.com'/);
 });
 
 test('legacy Wishlist migration remains passive', () => {
