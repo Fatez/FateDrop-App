@@ -8,6 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const service = read('services/local-radar-intelligence.ts');
 const overview = read('app/local-radar.tsx');
+const map = read('components/local-radar-map.tsx');
 const stores = read('app/local-radar-stock.tsx');
 const detail = read('app/local-radar-store.tsx');
 
@@ -43,7 +44,9 @@ test('customer-facing Local Radar screens do not expose online signal lifecycle 
 });
 
 test('Local Stores remains map-first and keeps online stock separate from physical truth', () => {
-  assert.match(overview, /<MapView/);
+  assert.match(overview, /<LocalRadarMap/);
+  assert.match(map, /<MapView/);
+  assert.match(map, /clusterRadarShops/);
   assert.match(overview, />Local Stores</);
   assert.match(overview, /Online stock remains separate/);
   assert.match(stores, /exact-branch Confirmed stock/);
