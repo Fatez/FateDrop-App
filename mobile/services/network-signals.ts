@@ -1,4 +1,4 @@
-import { SIGNAL_ENGINE_URL } from '@/constants/api';
+import { FATEDROP_WEB_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
 export type NetworkSignalState = 'whisper' | 'echo' | 'manifested' | 'vanished';
@@ -35,13 +35,16 @@ export type NetworkPulse = Record<NetworkSignalState, number>;
 
 interface NetworkSignalResponse {
   success: boolean;
+  contractVersion?: number;
   count: number;
   generatedAt?: string;
   signals?: NetworkSignal[];
 }
 
-type SignalHealthResponse = {
+type SignalSummaryResponse = {
+  success?: boolean;
   available?: boolean;
+  contractVersion?: number;
   lifecycle?: Partial<Record<NetworkSignalState, { total?: number; today?: number }>>;
 };
 
@@ -77,11 +80,7 @@ type CanonicalAlertResponse = {
 };
 
 const CANONICAL_SIGNAL_STATES: NetworkSignalState[] = ['whisper', 'echo', 'manifested', 'vanished'];
-const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
-
-function webBaseUrl() {
-  return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/, '');
-}
+const PUBLIC_SIGNAL_CONTRACT_VERSION = 1;
 
 function penceToGbp(value: number | null | undefined) {
   return Number.isFinite(value) ? Number(value) / 100 : undefined;
@@ -130,7 +129,7 @@ function canonicalAlertToSignal(alert: CanonicalAlertWire): NetworkSignal | null
 async function fetchSignedInCanonicalAlerts(limit: number): Promise<NetworkSignal[] | null> {
   const token = await getStoredSessionToken();
   if (!token) return null;
-  const response = await fetch(`${webBaseUrl()}/api/mobile/alerts?limit=${limit}`, {
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?limit=${limit}`, {
     headers: { accept: 'application/json', authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => null) as CanonicalAlertResponse | null;
@@ -144,11 +143,11 @@ async function fetchSignedInCanonicalAlerts(limit: number): Promise<NetworkSigna
 
 export async function fetchNetworkPulse(days = 7): Promise<NetworkPulse> {
   const safeDays = Math.min(30, Math.max(2, Math.trunc(days)));
-  const response = await fetch(`${webBaseUrl()}/api/mobile/signal-health?days=${safeDays}`, {
+  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signal-summary?days=${safeDays}`, {
     headers: { accept: 'application/json' },
   });
-  const data = await response.json().catch(() => null) as SignalHealthResponse | null;
-  if (!response.ok || data?.available !== true || !data.lifecycle) {
+  const data = await response.json().catch(() => null) as SignalSummaryResponse | null;
+  if (!response.ok || data?.contractVersion !== PUBLIC_SIGNAL_CONTRACT_VERSION || data?.available !== true || !data.lifecycle) {
     throw new Error('FateDrop network pulse is temporarily unavailable.');
   }
   return Object.fromEntries(CANONICAL_SIGNAL_STATES.map((state) => {
@@ -162,6 +161,7 @@ export async function fetchPublicNetworkSignals(limit = 100): Promise<NetworkSig
   const response = await fetch(`${SIGNAL_ENGINE_URL}/api/signals?limit=${safeLimit}`);
   if (!response.ok) throw new Error(`Signal feed HTTP ${response.status}`);
   const data = await response.json() as NetworkSignalResponse;
+  if (data.contractVersion !== PUBLIC_SIGNAL_CONTRACT_VERSION) throw new Error('Unsupported FateDrop signal contract.');
   if (!data.success || !Array.isArray(data.signals)) return [];
   return data.signals.filter((signal): signal is NetworkSignal => Boolean(signal?.id && signal?.title && CANONICAL_SIGNAL_STATES.includes(signal.state)));
 }
@@ -169,13 +169,13 @@ export async function fetchPublicNetworkSignals(limit = 100): Promise<NetworkSig
 export async function fetchNetworkSignals(limit = 50): Promise<NetworkSignal[]> {
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
 
-  // Signed-in Alerts must use the canonical alert inbox so the app reflects the
-  // same persisted alert IDs that Web and delivery telemetry use. Do not silently
-  // fall back to raw detections when the canonical inbox is unavailable.
+  // Signed-in Alerts use the authenticated canonical inbox because it carries
+  // membership, preferences and read-state semantics. Do not replace it with raw
+  // detections when that personal contract is unavailable.
   const canonicalAlerts = await fetchSignedInCanonicalAlerts(safeLimit);
   if (canonicalAlerts) return canonicalAlerts;
 
-  // Signed-out users may still inspect public lifecycle activity. This is a raw
-  // network feed and must not be presented as personal/canonical alert history.
+  // Signed-out users may inspect public lifecycle activity directly from Cloud.
+  // This is raw network activity and must not be presented as personal alert history.
   return fetchPublicNetworkSignals(safeLimit);
 }
