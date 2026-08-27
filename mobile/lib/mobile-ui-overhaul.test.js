@@ -46,7 +46,14 @@ test('Fate Network keeps the physically approved jobs and monitoring semantics i
   assert.match(fateNetwork, /Wishlist/);
   assert.match(fateNetwork, /Monitor the products and conditions you care about/);
   assert.doesNotMatch(fateNetwork, /FateMatch means it was found/);
-  assert.match(tabLayout, /router\.push\('\/tools'\)/);
+  assert.match(tabLayout, /setToolboxOpen\(true\)/);
+  assert.match(tabLayout, /title="FateFind"/);
+  assert.match(tabLayout, /title="FateMatch"/);
+  assert.match(tabLayout, /title="Fate Trader"/);
+  assert.match(tabLayout, /title="Local Radar"/);
+  assert.match(tabLayout, /title="Retailers"/);
+  assert.match(tabLayout, /title="Search live database"/);
+  assert.match(tabLayout, /title="Wishlist"/);
 });
 
 test('Fate Trader and Local Radar destinations cannot become dead Fate Network buttons', () => {
