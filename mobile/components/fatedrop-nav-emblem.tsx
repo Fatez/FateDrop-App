@@ -1,22 +1,20 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
-const FATEDROP_CENTER_EMBLEM = require('../assets/images/fatedrop-center-emblem.png');
+import { FATEDROP_CENTER_EMBLEM_URI } from '@/constants/brand-emblem-data';
 
 /**
  * Canonical FateDrop emblem for navigation chrome.
  *
- * The artwork lives in one shared asset so the centre navigation mark and
- * toolbox launcher do not drift into separate hand-drawn interpretations.
+ * Keep this as the one rendered centre-nav identity. The artwork can change
+ * independently without changing navigation behaviour or tool routing.
  */
-export function FateDropNavEmblem({ size = 46 }: { size?: number }) {
-  const artworkSize = size * 0.84;
-
+export function FateDropNavEmblem({ size = 52 }: { size?: number }) {
   return (
     <View style={[styles.root, { width: size, height: size, borderRadius: size / 2 }]}>
       <Image
-        source={FATEDROP_CENTER_EMBLEM}
-        style={{ width: artworkSize, height: artworkSize }}
+        source={{ uri: FATEDROP_CENTER_EMBLEM_URI }}
+        style={{ width: size, height: size }}
         contentFit="contain"
         accessibilityElementsHidden
       />
@@ -28,6 +26,11 @@ const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,14,20,.92)',
+    backgroundColor: 'transparent',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 7,
   },
 });
