@@ -1,11 +1,17 @@
-import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { FateDropColors } from '@/constants/theme';
+import { FateDropColors, Fonts } from '@/constants/theme';
 
+/**
+ * Functional page header.
+ *
+ * The full FateDrop wordmark is intentionally reserved for high-value identity
+ * surfaces such as Home and Profile. Utility pages use their actual page title
+ * so the brand stays premium rather than being repeated as UI furniture.
+ */
 export function FateDropBrandHeader({
-  title,
+  title = 'FateDrop',
   subtitle,
   rightAction,
 }: {
@@ -15,17 +21,11 @@ export function FateDropBrandHeader({
 }) {
   return (
     <View style={styles.headerShell}>
-      <View style={styles.brandGroup}>
-        <Image
-          source={require('@/assets/images/fatedrop-wordmark.png')}
-          style={styles.wordmark}
-          contentFit="contain"
-          contentPosition="left center"
-        />
+      <View style={styles.copy}>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text style={styles.title}>{title}</Text>
       </View>
-      <View style={styles.action}>{rightAction}</View>
-      {title ? <Text style={styles.pageLabel}>{title}</Text> : null}
+      {rightAction ? <View style={styles.action}>{rightAction}</View> : null}
     </View>
   );
 }
@@ -35,33 +35,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 78,
+    minHeight: 72,
     paddingHorizontal: 4,
     paddingTop: 8,
     paddingBottom: 12,
     zIndex: 2,
   },
-  brandGroup: {
+  copy: {
     flex: 1,
     justifyContent: 'center',
   },
-  wordmark: {
-    width: 184,
-    height: 50,
-  },
   subtitle: {
-    color: FateDropColors.secondary,
-    fontSize: 10,
+    color: FateDropColors.goldBright,
+    fontSize: 9,
     lineHeight: 12,
     fontWeight: '900',
-    letterSpacing: 1.35,
-    marginTop: -3,
+    letterSpacing: 1.2,
+    marginBottom: 3,
+  },
+  title: {
+    color: FateDropColors.ivory,
+    fontFamily: Fonts?.serif,
+    fontSize: 26,
+    lineHeight: 31,
+    fontWeight: '700',
   },
   action: {
     marginLeft: 12,
-  },
-  pageLabel: {
-    position: 'absolute',
-    opacity: 0,
   },
 });
