@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { fetchCanonicalAlerts, markCanonicalAlertsSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
+import { countUnreadCanonicalAlertsByStage, fetchCanonicalAlerts, markCanonicalAlertStageSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 
 const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
 type AlertView = 'signals' | 'matches';
@@ -18,6 +18,7 @@ const meta: Record<CanonicalAlertStage, { label: string; companion: string; colo
   MANIFESTED: { label: 'Manifested', companion: 'Koru', color: FateDropColors.manifested, hero: require('../assets/images/alert-koru-hero-final.webp') },
   VANISHED: { label: 'Vanished', companion: 'Nyxen', color: FateDropColors.vanished, hero: require('../assets/images/alert-nyxen-hero-final.webp') },
 };
+const emptyUnreadCounts = (): Record<CanonicalAlertStage, number> => ({ WHISPER: 0, ECHO: 0, MANIFESTED: 0, VANISHED: 0 });
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 const money = (pence: number | null | undefined) => pence == null ? '—' : `£${(pence / 100).toFixed(2)}`;
 function ago(value: string | number) { const ms = typeof value === 'number' ? value * (value < 10_000_000_000 ? 1000 : 1) : new Date(value).getTime(); const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000)); return mins < 1 ? 'Just now' : mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`; }
@@ -36,8 +37,10 @@ export default function AlertsScreenV4() {
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [stage, setStage] = useState<CanonicalAlertStage>('ECHO');
   const [view, setView] = useState<AlertView>('signals');
+  const [unreadCounts, setUnreadCounts] = useState<Record<CanonicalAlertStage, number>>(emptyUnreadCounts);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const userId = snapshot?.user?.id ?? null;
 
   useEffect(() => {
     const incomingStage = first(params.stage)?.toUpperCase();
@@ -47,18 +50,34 @@ export default function AlertsScreenV4() {
   }, [params.stage, params.view]);
 
   const load = useCallback(async () => {
-    if (!signedIn) { setAlerts([]); setError(null); return; }
+    if (!signedIn) { setAlerts([]); setUnreadCounts(emptyUnreadCounts()); setError(null); return; }
     setLoading(true); setError(null);
     try {
       const [next] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
       setAlerts(next);
-      const userId = snapshot?.user?.id;
-      if (userId) await markCanonicalAlertsSeen(userId, next);
+      setUnreadCounts(userId ? await countUnreadCanonicalAlertsByStage(userId, next) : emptyUnreadCounts());
     }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Alert inbox unavailable.'); }
     finally { setLoading(false); }
-  }, [refresh, signedIn, snapshot?.user?.id]);
+  }, [refresh, signedIn, userId]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  useEffect(() => {
+    if (!signedIn || !userId || view !== 'signals') return;
+    const visibleAlerts = alerts.filter((alert) => alert.fateStage === stage);
+    if (visibleAlerts.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await markCanonicalAlertStageSeen(userId, stage, visibleAlerts);
+        const nextUnread = await countUnreadCanonicalAlertsByStage(userId, alerts);
+        if (!cancelled) setUnreadCounts(nextUnread);
+      } catch {
+        // Read-state persistence is presentation UX; keep the current dot if local storage is unavailable.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [alerts, signedIn, stage, userId, view]);
 
   const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, alerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [alerts]);
   const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage), [alerts, stage]);
@@ -78,7 +97,7 @@ export default function AlertsScreenV4() {
         <View style={styles.switch}><Pressable onPress={() => setView('signals')} style={[styles.switchItem, view === 'signals' && styles.switchActive]}><Text style={[styles.switchText, view === 'signals' && styles.switchTextActive]}>SIGNALS</Text></Pressable><Pressable onPress={() => setView('matches')} style={[styles.switchItem, view === 'matches' && styles.switchActive]}><Text style={[styles.switchText, view === 'matches' && styles.switchTextActive]}>FATEMATCHES</Text></Pressable></View>
 
         {view === 'signals' ? <>
-          <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
+          <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
           {!signedIn ? <SignIn /> : <>
             {error ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.warning} /><Text style={styles.errorText}>{error}</Text></View> : null}
             <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text></View><Text style={styles.sectionCount}>{filtered.length}</Text></View>
@@ -131,7 +150,7 @@ const styles = StyleSheet.create({
   wordmark: { position: 'absolute', left: 18, width: 150, height: 44 }, settings: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(4,7,12,.58)' },
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 }, heroEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3, ...heroShadow }, heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, fontWeight: '700', marginTop: 4, ...heroShadow }, heroSub: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 340, ...heroShadow },
   switch: { flexDirection: 'row', marginHorizontal: 18, marginTop: 12, padding: 4, borderRadius: 14, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, switchItem: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 10 }, switchActive: { backgroundColor: FateDropColors.card }, switchText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' }, switchTextActive: { color: FateDropColors.goldBright },
-  tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 18, marginTop: 10 }, tab: { flex: 1, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, tabLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, tabCount: { color: FateDropColors.ivory, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 18, marginTop: 10 }, tab: { flex: 1, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 }, tabLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, tabUnreadDot: { width: 6, height: 6, borderRadius: 3 }, tabCount: { color: FateDropColors.ivory, fontSize: 18, fontWeight: '900', marginTop: 3 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginHorizontal: 18, marginTop: 20, marginBottom: 8 }, sectionEyebrow: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, sectionTitle: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900', marginTop: 2 }, sectionCount: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900' },
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 18, marginBottom: 7, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, alertDot: { width: 8, height: 8, borderRadius: 4 }, alertTop: { flexDirection: 'row', justifyContent: 'space-between' }, alertStage: { fontSize: 8, fontWeight: '900' }, alertTime: { color: FateDropColors.muted, fontSize: 9 }, alertTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900', marginTop: 3 }, alertValue: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800', marginTop: 5 }, alertReference: { color: FateDropColors.goldBright, fontSize: 9, marginTop: 3 }, alertMeta: { color: FateDropColors.secondary, fontSize: 9, marginTop: 4 }, alertTruePrice: { color: FateDropColors.manifested, fontSize: 9, fontWeight: '800', marginTop: 3 },
   error: { flexDirection: 'row', gap: 9, margin: 18, padding: 13, borderRadius: 15, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, errorText: { color: FateDropColors.secondary, flex: 1, fontSize: 11 },

@@ -53,7 +53,7 @@ export default function TabLayout() {
       if (state === 'active') void refreshAlertCount();
     });
     const unsubscribeReadState = subscribeCanonicalAlertReadState((changedUserId) => {
-      if (changedUserId === userId) setAlertCount(0);
+      if (changedUserId === userId) void refreshAlertCount();
     });
 
     return () => {

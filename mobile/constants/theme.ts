@@ -25,8 +25,10 @@ export const Colors = {
 /**
  * FateDrop mobile brand tokens.
  *
- * The warm collector palette is the default frame. Violet/cyan/crimson are
- * reserved for signal semantics and companion artwork rather than generic UI.
+ * The warm collector palette is the default frame. Lifecycle colours are owned
+ * by the companion assigned to each alert stage so App and Web teach one visual
+ * language: Oru/Whisper gold, Fenn/Echo warm beige, Koru/Manifested violet,
+ * Nyxen/Vanished crimson.
  * Legacy aliases remain while older screens are migrated onto the shared tokens.
  */
 export const FateDropColors = {
@@ -49,10 +51,10 @@ export const FateDropColors = {
   bronzeDeep: '#5E4938',
 
   // Lifecycle / companion semantics.
-  whisper: '#D2B66F',
-  echo: '#7C6EFF',
-  manifested: '#63E1FF',
-  vanished: '#EF4D5A',
+  whisper: '#D2B66F', // Oru · gold
+  echo: '#D9CDBB', // Fenn · warm ivory / beige
+  manifested: '#7C6EFF', // Koru · violet
+  vanished: '#EF4D5A', // Nyxen · crimson
 
   success: '#6ECF8B',
   warning: '#E0A65A',
