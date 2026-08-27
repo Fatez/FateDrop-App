@@ -41,7 +41,7 @@ test('normal root browsing keeps the FateDrop five-button shell visible with the
   assert.match(dock, /Alerts/);
   assert.match(dock, /FateDropNavEmblem/);
   assert.match(navEmblem, /Canonical FateDrop emblem/);
-  assert.match(navEmblem, /fatedrop-center-emblem\.png/);
+  assert.match(navEmblem, /FATEDROP_CENTER_EMBLEM_URI/);
   assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
   assert.doesNotMatch(dock, /fatedrop-center-emblem\.png/);
   assert.match(dock, /Network/);
