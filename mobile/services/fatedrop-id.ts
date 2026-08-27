@@ -60,8 +60,16 @@ export async function getStoredSessionToken(){
   return legacyToken;
 }
 export async function clearStoredSession(){ await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
-export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{ try{const raw=await AsyncStorage.getItem(SNAPSHOT_KEY);if(!raw)return null;const parsed=JSON.parse(raw) as FateDropSyncSnapshot;return parsed?.contractVersion===1?normalizeSnapshot(parsed):null;}catch{return null;} }
-async function saveSnapshot(snapshot:FateDropSyncSnapshot){const normalized=normalizeSnapshot(snapshot);await AsyncStorage.setItem(SNAPSHOT_KEY,JSON.stringify(normalized));return normalized;}
+
+// Historical builds cached the full identity/sync snapshot in AsyncStorage,
+// including email and collector activity. Keep only the opaque bearer token in
+// SecureStore and always reload canonical identity/activity from FateDrop Web.
+export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{
+  await AsyncStorage.removeItem(SNAPSHOT_KEY).catch(()=>null);
+  return null;
+}
+async function saveSnapshot(snapshot:FateDropSyncSnapshot){return normalizeSnapshot(snapshot);}
+
 export async function signInFateDropId(email:string,password:string){await retryPendingSessionRevocation();const response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,password})});const result=await parseJson<LoginResponse>(response);await storeSessionToken(result.sessionToken);await AsyncStorage.removeItem(TOKEN_KEY);return saveSnapshot({contractVersion:1,syncedAt:Math.floor(Date.now()/1000),user:result.user,entitlement:result.entitlement,wishlist:result.wishlist||[],fateFinds:result.fateFinds||[],fateMatches:result.fateMatches||[],notificationPreferences:normalizePreferences(result.notificationPreferences),pendingMigrations:result.pendingMigrations||[]});}
 export async function signOutFateDropId(){const token=await getStoredSessionToken();if(token){let revoked=false;try{revoked=await revokeSessionToken(token);}catch{}if(revoked)await SecureStore.deleteItemAsync(PENDING_REVOKE_KEY);else await SecureStore.setItemAsync(PENDING_REVOKE_KEY,token);}await clearStoredSession();}
 export async function syncFateDropId():Promise<FateDropSyncSnapshot>{await retryPendingSessionRevocation();const token=await getStoredSessionToken();if(!token)throw new Error('FateDrop ID sign-in required.');const response=await fetch(`${baseUrl()}/api/mobile/sync`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});if(response.status===401){await clearStoredSession();throw new Error('Your FateDrop ID session expired. Please sign in again.');}const result=await parseJson<FateDropSyncSnapshot>(response);return saveSnapshot(normalizeSnapshot(result));}
