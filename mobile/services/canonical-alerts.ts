@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { FATEDROP_WEB_URL } from '@/constants/api';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
-const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 const ALERT_READ_STATE_PREFIX = 'fatedrop:canonical-alerts:read:v1';
 const MAX_SEEN_ALERT_IDS = 500;
 
@@ -74,10 +74,6 @@ type CanonicalAlertReadState = {
 
 type CanonicalAlertReadStateListener = (userId: string) => void;
 const readStateListeners = new Set<CanonicalAlertReadStateListener>();
-
-function baseUrl() {
-  return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/, '');
-}
 
 function readStateKey(userId: string) {
   return `${ALERT_READ_STATE_PREFIX}:${encodeURIComponent(userId)}`;
@@ -170,7 +166,7 @@ export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileA
   const token = await getStoredSessionToken();
   if (!token) return [];
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
-  const response = await fetch(`${baseUrl()}/api/mobile/alerts?limit=${safeLimit}`, {
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?limit=${safeLimit}`, {
     headers: { accept: 'application/json', authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => null) as CanonicalAlertResponse | null;
