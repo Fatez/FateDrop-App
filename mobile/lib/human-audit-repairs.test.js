@@ -53,7 +53,8 @@ test('normal root browsing keeps the FateDrop five-button shell visible with the
 
 test('mobile account and canonical alert services share the centralized current FateDrop domain', () => {
   assert.match(apiConstants, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fatedrop\.co\.uk'/);
-  assert.match(apiConstants, /OBSOLETE_FATEDROP_WEB_HOSTS/);
+  assert.match(apiConstants, /CANONICAL_FATEDROP_WEB_HOST = 'fatedrop\.co\.uk'/);
+  assert.match(apiConstants, /canonicalWebBaseUrl\(process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL\)/);
   for (const service of [idService, alertService, signalService]) {
     assert.match(service, /FATEDROP_WEB_URL/);
     assert.doesNotMatch(service, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
