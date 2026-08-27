@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import {
   clearStoredSession,
+  getStoredSessionToken,
   hasCapability,
   loadCachedIdentitySnapshot,
   signInFateDropId,
@@ -48,12 +49,14 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let mounted = true;
-    void loadCachedIdentitySnapshot().then((cached) => {
+    void Promise.all([loadCachedIdentitySnapshot(), getStoredSessionToken()]).then(([cached, token]) => {
       if (!mounted) return;
       setSnapshot(cached);
       setLoading(false);
-      if (cached) void refresh();
-    }).catch(() => setLoading(false));
+      if (token) void refresh();
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
     return () => { mounted = false; };
   }, [refresh]);
 
