@@ -42,6 +42,10 @@ jobs:
         working-directory: mobile
         run: npm ci
 
+      - name: Audit mobile production dependencies
+        working-directory: mobile
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint and typecheck mobile
         working-directory: mobile
         run: npm run verify
