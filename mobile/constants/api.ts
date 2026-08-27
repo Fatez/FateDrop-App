@@ -1,6 +1,6 @@
 const DEFAULT_SIGNAL_ENGINE_URL = 'https://fatedrop-cloud-production.up.railway.app';
 const DEFAULT_FATEDROP_WEB_URL = 'https://fatedrop.co.uk';
-const OBSOLETE_FATEDROP_WEB_HOSTS = new Set(['fate-drop.com', 'www.fate-drop.com']);
+const CANONICAL_FATEDROP_WEB_HOST = 'fatedrop.co.uk';
 
 function trimBaseUrl(value: string) {
   return String(value || '').trim().replace(/\/$/, '');
@@ -9,9 +9,15 @@ function trimBaseUrl(value: string) {
 function canonicalWebBaseUrl(value: string | undefined) {
   const candidate = trimBaseUrl(value || DEFAULT_FATEDROP_WEB_URL);
   try {
-    const host = new URL(candidate).hostname.toLowerCase();
-    if (OBSOLETE_FATEDROP_WEB_HOSTS.has(host)) return DEFAULT_FATEDROP_WEB_URL;
-    return candidate;
+    const url = new URL(candidate);
+    const canonicalOrigin = new URL(DEFAULT_FATEDROP_WEB_URL).origin;
+    if (url.protocol !== 'https:' || url.hostname.toLowerCase() !== CANONICAL_FATEDROP_WEB_HOST || url.origin !== canonicalOrigin) {
+      return DEFAULT_FATEDROP_WEB_URL;
+    }
+    // The authenticated Web/account gateway is a production contract, not a
+    // developer-selectable backend. Ignore stale paths/query/hash values as well
+    // as stale hosts so an Expo/Codespaces env cannot strand mobile auth/alerts.
+    return DEFAULT_FATEDROP_WEB_URL;
   } catch {
     return DEFAULT_FATEDROP_WEB_URL;
   }
@@ -24,8 +30,10 @@ export const SIGNAL_ENGINE_URL = trimBaseUrl(
 
 /**
  * Canonical authenticated FateDrop Web/account gateway.
- * Known retired hosts fail safely to fatedrop.co.uk so an old Expo/Codespace env cannot
- * silently strand sign-in, sync, notification preferences or the personal alert inbox.
+ * EXPO_PUBLIC_FATEDROP_WEB_URL may restate the canonical production origin, but
+ * any stale/non-canonical host, port, path, query or hash fails safely back to
+ * fatedrop.co.uk. This prevents old Expo/Codespace environment values from
+ * silently breaking sign-in, sync, notification preferences or the alert inbox.
  */
 export const FATEDROP_WEB_URL = canonicalWebBaseUrl(process.env.EXPO_PUBLIC_FATEDROP_WEB_URL);
 
