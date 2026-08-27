@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
 import { FateDropColors } from '@/constants/theme';
@@ -54,37 +54,17 @@ export function LocalRadarMap({
         />;
       }
 
-      const color = clusterColor(cluster);
       return <Marker
         key={cluster.id}
         coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
+        pinColor={clusterColor(cluster)}
+        title={`${cluster.shops.length} nearby stores`}
+        description="Tap to zoom in"
         onPress={() => {
           onSelectShop(null);
           onRegionChange(regionForRadarCluster(cluster, region));
         }}
-      >
-        <View style={[styles.cluster, { borderColor: color }]}> 
-          <Text style={styles.clusterCount}>{cluster.shops.length}</Text>
-        </View>
-      </Marker>;
+      />;
     })}
   </MapView>;
 }
-
-const styles = StyleSheet.create({
-  cluster: {
-    minWidth: 38,
-    height: 38,
-    paddingHorizontal: 9,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(8,14,20,.94)',
-    borderWidth: 2,
-  },
-  clusterCount: {
-    color: FateDropColors.text,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-});
