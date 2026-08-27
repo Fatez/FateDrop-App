@@ -92,7 +92,7 @@ test('individual storefront mirrors approved mockup while searching only its own
   assert.match(storefront, /useLocalSearchParams<\{ id\?: string \}>/);
   assert.match(storefront, /query: cleanCatalogueQuery \|\| undefined/);
   assert.match(storefront, /item\.stockStatus === 'IN_STOCK' && !item\.preorder/);
-  assert.match(storefront, /Search only \{retailer\.name\}'s connected in-stock offers/);
+  assert.match(storefront, /Search only \{retailer\.name\}’s connected in-stock offers/);
   assert.match(storefront, /Trading card games/);
   assert.match(storefront, /retailer\.tcgs\.map\(tcgLabel\)/);
 });
@@ -111,7 +111,7 @@ test('storefront deep-links physical retailers into Local Radar by canonical ret
   assert.match(storefront, /retailerId: retailer\.id/);
   assert.match(localRadar, /useLocalSearchParams<\{ retailerId\?: string; retailerName\?: string \}>/);
   assert.match(localRadar, /shop\.retailerId === scopedRetailerId/);
-  assert.match(localRadar, /does not match stores by name or infer physical stock from the retailer's online catalogue/);
+  assert.match(localRadar, /does not match stores by name or infer physical stock from the retailer’s online catalogue/);
 });
 
 test('Local Radar keeps exact-branch physical evidence separate and links back by canonical retailer id', () => {
