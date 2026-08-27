@@ -29,8 +29,10 @@ test('Home combines seven-day lifecycle pulse, personal FateDrop summary and dis
   assert.match(home, /How FateDrop works/);
 });
 
-test('Home network pulse uses the stable Web gateway rather than direct Railway signal health', () => {
-  assert.match(networkSignals, /webBaseUrl\(\)\}\/api\/mobile\/signal-health/);
+test('Home network pulse consumes public Cloud signal truth, never private diagnostics or a Web proxy', () => {
+  assert.match(networkSignals, /SIGNAL_ENGINE_URL\}\/api\/signal-summary/);
+  assert.match(networkSignals, /PUBLIC_SIGNAL_CONTRACT_VERSION = 1/);
+  assert.doesNotMatch(networkSignals, /\/api\/mobile\/signal-health/);
   assert.doesNotMatch(networkSignals, /SIGNAL_ENGINE_URL\}\/api\/signal-health/);
 });
 

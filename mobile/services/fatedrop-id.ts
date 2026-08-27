@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
+import { FATEDROP_WEB_URL } from '@/constants/api';
+
 const TOKEN_KEY = 'fatedrop.id.session.v1';
 const LEGACY_TOKEN_KEY = 'fatedrop:id:session:v1';
 const SNAPSHOT_KEY = 'fatedrop:id:snapshot:v1';
-const DEFAULT_WEB_URL = 'https://fatedrop.co.uk';
 
 export type FateCapability = 'browse_network'|'selected_signals'|'retailer_discovery'|'true_price'|'advanced_fate_match'|'priority_alerts'|'advanced_filters'|'premium_discord'|'fate_lock_eligibility';
 export type FateFindCompanionId = 'koru'|'fenn'|'oru'|'nyxen';
@@ -17,7 +18,7 @@ export type CrossPlatformNotificationPreferences = { whisper:boolean; echo:boole
 export type FateDropSyncSnapshot = { contractVersion:1; syncedAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement; wishlist:CrossPlatformWishlistItem[]; fateFinds:CrossPlatformFateFind[]; fateMatches:CrossPlatformFateMatch[]; notificationPreferences:CrossPlatformNotificationPreferences; pendingMigrations:string[] };
 type LoginResponse = Partial<FateDropSyncSnapshot> & { sessionToken:string; expiresAt:number; user:FateDropIdentity; entitlement?:FateDropEntitlement; membership?:FateDropEntitlement };
 
-function baseUrl(){ return (process.env.EXPO_PUBLIC_FATEDROP_WEB_URL || DEFAULT_WEB_URL).replace(/\/$/,''); }
+function baseUrl(){ return FATEDROP_WEB_URL; }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
 const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:false,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
