@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 const radar = fs.readFileSync(path.join(__dirname, '..', 'app', 'local-radar.tsx'), 'utf8');
 const tabs = fs.readFileSync(path.join(__dirname, '..', 'app', '(tabs)', '_layout.tsx'), 'utf8');
+const tools = fs.readFileSync(path.join(__dirname, '..', 'app', 'tools.tsx'), 'utf8');
 
 test('Local Radar fits returned mapped branches before falling back to a fixed user-centred viewport', () => {
   const mappedBranch = radar.indexOf('if (mapped.length)');
@@ -16,8 +17,10 @@ test('Local Radar fits returned mapped branches before falling back to a fixed u
 });
 
 test('central Fate Network Local Radar entry remains unscoped', () => {
-  assert.match(tabs, /onPress=\{\(\) => openTool\('\/local-radar'\)\}/);
-  assert.doesNotMatch(tabs, /openTool\(\{[^}]*retailerId/);
+  assert.match(tabs, /router\.push\('\/tools'\)/);
+  assert.match(tools, /title="Local Radar"/);
+  assert.match(tools, /onPress=\{\(\) => router\.push\('\/local-radar'\)\}/);
+  assert.doesNotMatch(tools, /retailerId/);
 });
 
 test('retailer scope filters only when an explicit retailerId is present', () => {
