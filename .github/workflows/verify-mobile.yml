@@ -11,7 +11,9 @@ on:
       - '.github/workflows/verify-mobile.yml'
   push:
     branches:
+      - main
       - fatedrop-mobile-product-spec-v1
+      - feat/precision-alert-filtering-2026-08-24
 
 permissions:
   contents: read
@@ -41,6 +43,10 @@ jobs:
       - name: Install mobile dependencies
         working-directory: mobile
         run: npm ci
+
+      - name: Audit mobile release dependencies
+        working-directory: mobile
+        run: node scripts/audit-release-dependencies.mjs
 
       - name: Lint and typecheck mobile
         working-directory: mobile
