@@ -39,10 +39,10 @@ function operatorNoticeFromData(data: Record<string, unknown>): LocalRadarOperat
   };
 }
 
-export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   return <View style={errorStyles.screen}>
     <Text style={errorStyles.title}>The signal was interrupted</Text>
-    <Text style={errorStyles.message}>{error.message || 'FateDrop could not load this page.'}</Text>
+    <Text style={errorStyles.message}>FateDrop could not load this page. Try again, or return home.</Text>
     <Pressable onPress={retry} style={errorStyles.primary}><Text style={errorStyles.primaryText}>Try again</Text></Pressable>
     <Pressable onPress={() => router.replace('/')} style={errorStyles.secondary}><Text style={errorStyles.secondaryText}>Return home</Text></Pressable>
   </View>;
