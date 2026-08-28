@@ -68,6 +68,10 @@ export default function RootLayout() {
             router.push('/local-radar');
             return;
           }
+          if (data?.route === 'alerts') {
+            router.push('/alerts');
+            return;
+          }
           const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
           if (safeProductUrl) void Linking.openURL(safeProductUrl);
         });
