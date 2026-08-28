@@ -56,6 +56,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "13f37e5b-31b2-4eae-b523-dad02a8986d0"
+      }
+    },
+    "owner": "fatesdrops-team"
   }
 }
