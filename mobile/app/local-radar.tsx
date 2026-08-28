@@ -6,6 +6,7 @@ import MapView, { Marker, type Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
+import { LocalPhysicalStockNotice } from '@/components/local-physical-stock-notice';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
@@ -134,6 +135,8 @@ export default function LocalRadarScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
     </View>
+
+    {area ? <LocalPhysicalStockNotice shops={prioritizedShops} onOpen={(shop) => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })}/> : null}
 
     {scopedRetailerId ? <View style={styles.scopeCard}><Ionicons name="link-outline" size={18} color={FateDropColors.cyan}/><Text style={styles.scopeText}>This Local Radar view is scoped to branches tied to the same FateDrop retailer ID as {scopedName}. It does not match stores by name or infer physical stock from the retailer’s online catalogue.</Text></View> : <>
       <Text style={styles.question}>What would you like Local Radar to show?</Text>
