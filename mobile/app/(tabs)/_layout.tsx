@@ -10,17 +10,6 @@ import { countUnreadCanonicalAlerts, fetchCanonicalAlerts, subscribeCanonicalAle
 
 const NAV_GOLD = FateDropColors.goldBright;
 
-function HomeMark({ focused }: { focused: boolean }) {
-  return (
-    <View style={styles.homeMark}>
-      <View style={[styles.homeRoof, { borderColor: NAV_GOLD, opacity: focused ? 1 : .82 }]} />
-      <View style={[styles.homeBody, { borderColor: NAV_GOLD, opacity: focused ? 1 : .82 }]}>
-        <View style={[styles.homeDoor, { backgroundColor: NAV_GOLD }]} />
-      </View>
-    </View>
-  );
-}
-
 export default function TabLayout() {
   const { signedIn, snapshot } = useFateDropId();
   const [alertCount, setAlertCount] = useState(0);
@@ -75,13 +64,13 @@ export default function TabLayout() {
         tabBarInactiveTintColor: NAV_GOLD,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarItemStyle: { paddingVertical: 3 },
+        tabBarItemStyle: { paddingVertical: 0 },
         sceneStyle: { backgroundColor: FateDropColors.background },
       }}>
-        <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ focused }) => <HomeMark focused={focused} /> }} />
+        <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <Ionicons name="home-sharp" size={20} color={color} /> }} />
         <Tabs.Screen name="alerts" options={{
           title: 'Alerts',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={21} color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="notifications-outline" size={20} color={color} />,
           tabBarBadge: alertCount > 0 ? (alertCount > 99 ? '99+' : alertCount) : undefined,
           tabBarBadgeStyle: styles.badge,
         }} />
@@ -96,11 +85,11 @@ export default function TabLayout() {
           options={{
             title: '',
             tabBarLabel: () => null,
-            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={62} /></View>,
+            tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={48} /></View>,
           }}
         />
-        <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={21} color={color} /> }} />
-        <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={21} color={color} /> }} />
+        <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color }) => <Ionicons name="pulse-outline" size={20} color={color} /> }} />
+        <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={20} color={color} /> }} />
         <Tabs.Screen name="search" options={{ href: null }} />
         <Tabs.Screen name="indies" options={{ href: null }} />
         <Tabs.Screen name="watchlist" options={{ href: null }} />
@@ -141,11 +130,7 @@ const styles = StyleSheet.create({
   tabBar: { position: 'absolute', height: 88, paddingTop: 9, paddingBottom: 22, backgroundColor: 'rgba(8,14,20,.985)', borderTopWidth: 1, borderTopColor: FateDropColors.border, elevation: 18, shadowOpacity: .38, shadowRadius: 20, shadowColor: '#000000' },
   tabLabel: { fontSize: 9, fontWeight: '800', letterSpacing: .35 },
   badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: FateDropColors.vanished, color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
-  homeMark: { width: 24, height: 23, alignItems: 'center', justifyContent: 'center' },
-  homeRoof: { position: 'absolute', top: 1, width: 14, height: 14, borderLeftWidth: 2, borderTopWidth: 2, transform: [{ rotate: '45deg' }], borderRadius: 1 },
-  homeBody: { position: 'absolute', bottom: 1, width: 16, height: 12, borderWidth: 2, borderTopWidth: 0, alignItems: 'center', justifyContent: 'flex-end' },
-  homeDoor: { width: 4, height: 7, borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-  emblemSlot: { width: 76, height: 76, marginTop: -24, alignItems: 'center', justifyContent: 'center' },
+  emblemSlot: { width: 74, height: 68, marginTop: -18, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: .76, transform: [{ scale: .985 }] },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.68)' },
   toolbox: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, borderColor: FateDropColors.border, backgroundColor: FateDropColors.shell, gap: 9 },
