@@ -54,9 +54,9 @@ test('Home keeps monitor health out of the welcome experience', () => {
   assert.doesNotMatch(home, /\/api\/status/);
 });
 
-test('center tool launcher uses the canonical shared FateDrop medallion and is intentionally prominent', () => {
-  assert.match(tabs, /FateDropNavEmblem size=\{62\}/);
-  assert.match(tabs, /width: 76, height: 76, marginTop: -24/);
+test('center tool launcher uses the canonical shared FateDrop medallion at the approved Tesco dock size', () => {
+  assert.match(tabs, /FateDropNavEmblem size=\{48\}/);
+  assert.match(tabs, /width: 74, height: 68, marginTop: -18/);
   assert.match(navEmblem, /FATEDROP_CENTER_EMBLEM_URI/);
   assert.match(navEmblem, /styles\.innerAccent/);
   assert.match(navEmblem, /shadowColor: '#D8C17A'/);
