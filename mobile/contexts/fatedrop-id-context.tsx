@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
 import {
-  clearStoredSession,
   getStoredSessionToken,
   hasCapability,
   loadCachedIdentitySnapshot,
@@ -77,11 +76,14 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     setSyncing(true);
-    try { await signOutFateDropId(); }
-    finally {
-      await clearStoredSession();
+    try {
+      await signOutFateDropId();
       setSnapshot(null);
       setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'FateDrop could not securely sign you out. Please try again.');
+      throw cause;
+    } finally {
       setSyncing(false);
     }
   }, []);
