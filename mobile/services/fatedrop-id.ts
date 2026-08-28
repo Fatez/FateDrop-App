@@ -20,7 +20,7 @@ type LoginResponse = Partial<FateDropSyncSnapshot> & { sessionToken:string; expi
 
 function baseUrl(){ return FATEDROP_WEB_URL; }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
-const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:false,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
+const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:true,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
 
 function isCompanionId(value:unknown):value is FateFindCompanionId{return value==='koru'||value==='fenn'||value==='oru'||value==='nyxen';}

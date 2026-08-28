@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
@@ -30,7 +30,7 @@ const companionColors = {
 } as const;
 
 export default function ProfileScreenV2() {
-  const { snapshot, signedIn } = useFateDropId();
+  const { snapshot, signedIn, signOut, syncing } = useFateDropId();
   const displayName = snapshot?.user.displayName || snapshot?.user.handle || 'Seeker';
   const tier = snapshot?.entitlement.effectiveTier?.toUpperCase() || 'FREE';
   const identity = snapshot?.user.fateId || 'guest';
@@ -47,6 +47,26 @@ export default function ProfileScreenV2() {
       };
     }, [identity]),
   );
+
+  const requestSignOut = useCallback(() => {
+    if (!signedIn || syncing) return;
+    Alert.alert(
+      'Sign out of FateDrop?',
+      'This ends your FateDrop ID session on this device. You can sign back in from Profile at any time.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: () => {
+            void signOut().catch((cause) => {
+              Alert.alert('Sign out failed', cause instanceof Error ? cause.message : 'FateDrop could not securely sign you out. Please try again.');
+            });
+          },
+        },
+      ],
+    );
+  }, [signOut, signedIn, syncing]);
 
   const membershipLabel = tier === 'FREE' ? 'FREE MEMBER' : 'PREMIUM MEMBER';
 
@@ -147,6 +167,27 @@ export default function ProfileScreenV2() {
             <Divider />
             <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
           </View>
+
+          {signedIn ? (
+            <>
+              <SectionTitle label="ACCOUNT" />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign out of FateDrop"
+                disabled={syncing}
+                onPress={requestSignOut}
+                style={({ pressed }) => [styles.signOutRow, (pressed || syncing) && styles.pressed]}>
+                <View style={styles.signOutIcon}>
+                  <Ionicons name="log-out-outline" size={18} color={FateDropColors.coral} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.signOutTitle}>{syncing ? 'Signing out…' : 'Sign out'}</Text>
+                  <Text style={styles.signOutDetail}>End this FateDrop ID session on this device.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={FateDropColors.coral} />
+              </Pressable>
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -260,6 +301,10 @@ const styles = StyleSheet.create({
   preferenceIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0F`, borderWidth: 1, borderColor: `${FateDropColors.gold}32` },
   preferenceTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },
   preferenceDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
+  signOutRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.coral}42`, backgroundColor: 'rgba(18,24,32,.92)', marginBottom: 22 },
+  signOutIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.coral}0F`, borderWidth: 1, borderColor: `${FateDropColors.coral}32` },
+  signOutTitle: { color: FateDropColors.coral, fontSize: 15, fontWeight: '900' },
+  signOutDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
   divider: { height: 1, backgroundColor: FateDropColors.borderSoft, marginLeft: 62 },
   flex: { flex: 1 },
   pressed: { opacity: .72 },
