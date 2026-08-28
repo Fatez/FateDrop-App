@@ -35,7 +35,12 @@ export default function RootLayout() {
       .then((Notifications) => {
         if (!active) return;
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
+          const data = response.notification.request.content.data;
+          if (data?.route === 'local-radar') {
+            router.push('/local-radar');
+            return;
+          }
+          const safeProductUrl = safeExternalHttpsUrl(data?.productUrl);
           if (safeProductUrl) void Linking.openURL(safeProductUrl);
         });
       })
