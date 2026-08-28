@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon-emblem.png",
     "scheme": "fatedrop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -35,7 +35,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/fatedrop-logo.png",
           "color": "#A855F7",
           "defaultChannel": "stock-alerts"
         }
@@ -43,9 +42,6 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
             "backgroundColor": "#000000"
