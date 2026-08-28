@@ -5,6 +5,8 @@ const test = require('node:test');
 
 const layout = fs.readFileSync(path.join(__dirname, '../app/_layout.tsx'), 'utf8');
 
+const hardenedProductExpression = 'safeExternalHttpsUrl(response.notification.request.content.data?.productUrl)';
+
 test('Local Radar operator notification routes into the stable Local Radar screen', () => {
   assert.match(layout, /data\?\.route === 'local-radar'/);
   assert.match(layout, /router\.push\('\/local-radar'\)/);
@@ -13,12 +15,12 @@ test('Local Radar operator notification routes into the stable Local Radar scree
 
 test('Local Radar routing is checked before the normal product URL handoff', () => {
   const routeCheck = layout.indexOf("data?.route === 'local-radar'");
-  const productCheck = layout.indexOf('safeExternalHttpsUrl(data?.productUrl)');
+  const productCheck = layout.indexOf(hardenedProductExpression);
   assert.ok(routeCheck >= 0, 'Local Radar route check must exist');
   assert.ok(productCheck > routeCheck, 'product URL fallback must run after Local Radar routing');
 });
 
-test('normal product notifications keep the hardened external URL path', () => {
-  assert.match(layout, /safeExternalHttpsUrl\(data\?\.productUrl\)/);
+test('normal product notifications keep the exact hardened external URL path', () => {
+  assert.ok(layout.includes(hardenedProductExpression));
   assert.match(layout, /Linking\.openURL\(safeProductUrl\)/);
 });
