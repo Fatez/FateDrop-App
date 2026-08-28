@@ -21,11 +21,12 @@ test('EAS has explicit internal beta and production build profiles', () => {
   assert.equal(eas.build.production.autoIncrement, true);
 });
 
-test('push registration requires a real EAS project id and never invents one', () => {
+test('push registration is pinned to the canonical Expo-issued FateDrop EAS project id', () => {
   assert.match(notifications, /EXPO_PUBLIC_EAS_PROJECT_ID/);
   assert.match(notifications, /Constants\.expoConfig\?\.extra\?\.eas\?\.projectId/);
   assert.match(notifications, /Constants\.easConfig\?\.projectId/);
   assert.match(notifications, /reason: 'eas-project-id-required'/);
   assert.match(notifications, /getExpoPushTokenAsync\(\{ projectId \}\)/);
-  assert.equal(app.expo.extra?.eas?.projectId, undefined);
+  assert.equal(app.expo.owner, 'fatesdrops-team');
+  assert.equal(app.expo.extra?.eas?.projectId, '13f37e5b-31b2-4eae-b523-dad02a8986d0');
 });
