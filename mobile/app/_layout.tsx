@@ -40,7 +40,7 @@ export default function RootLayout() {
             router.push('/local-radar');
             return;
           }
-          const safeProductUrl = safeExternalHttpsUrl(data?.productUrl);
+          const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
           if (safeProductUrl) void Linking.openURL(safeProductUrl);
         });
       })
