@@ -5,10 +5,11 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FATEDROP_WEB_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 
-const website=(process.env.EXPO_PUBLIC_FATEDROP_WEB_URL||'https://fate-drop.com').replace(/\/$/,'');
+const website=FATEDROP_WEB_URL;
 
 export default function AccountScreen(){
   const {snapshot,signedIn,signIn,signOut,refresh,syncing,error}=useFateDropId();
