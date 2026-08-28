@@ -10,6 +10,7 @@ const alerts = fs.readFileSync(path.join(root, 'services/canonical-alerts.ts'), 
 const identity = fs.readFileSync(path.join(root, 'services/fatedrop-id.ts'), 'utf8');
 const signals = fs.readFileSync(path.join(root, 'services/network-signals.ts'), 'utf8');
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
+const account = fs.readFileSync(path.join(root, 'app/account.tsx'), 'utf8');
 
 test('canonical Web/account gateway is pinned to fatedrop.co.uk', () => {
   assert.match(api, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fatedrop\.co\.uk'/);
@@ -34,6 +35,14 @@ test('Web-backed App services consume one canonical exported endpoint', () => {
     assert.doesNotMatch(source, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
     assert.doesNotMatch(source, /DEFAULT_WEB_URL/);
   }
+});
+
+test('Account signup and membership links use the canonical Web gateway', () => {
+  assert.match(account, /import \{ FATEDROP_WEB_URL \} from '@\/constants\/api'/);
+  assert.match(account, /const website=FATEDROP_WEB_URL/);
+  assert.match(account, /`\$\{website\}\/account\/register`/);
+  assert.doesNotMatch(account, /fate-drop\.com/);
+  assert.doesNotMatch(account, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
 });
 
 test('personal alert inbox is fetched from the canonical authenticated mobile route', () => {
