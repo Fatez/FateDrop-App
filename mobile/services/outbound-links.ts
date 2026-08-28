@@ -36,9 +36,9 @@ export async function openTrackedRetailerLink(input: {
     body: JSON.stringify(payload),
   }).catch(() => undefined);
 
-  // Deliberately do not fall back to Linking.openURL here. Retailer purchase links
-  // must keep an app-owned return path instead of silently ejecting the user into
-  // Safari/Chrome when the in-app browser flow is unavailable.
+  // Retailer purchase links must retain an app-owned return path. If the
+  // in-app browser is unavailable, surface the failure rather than silently
+  // switching navigation ownership.
   await openBrowserAsync(destinationUrl, {
     presentationStyle: WebBrowserPresentationStyle.PAGE_SHEET,
   });
