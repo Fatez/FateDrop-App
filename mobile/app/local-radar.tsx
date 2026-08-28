@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { clusterRadarShops, type RadarShopCluster } from '@/lib/local-radar-clustering-v3';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
 
@@ -17,6 +18,12 @@ function markerColor(shop: RadarShop) {
   const state = shopLocalState(shop);
   if (state === 'confirmed') return FateDropColors.mint;
   if (state === 'expected') return FateDropColors.cyan;
+  return FateDropColors.goldBright;
+}
+
+function clusterColor(cluster: RadarShopCluster) {
+  if (cluster.shops.some((shop) => shopLocalState(shop) === 'expected')) return FateDropColors.cyan;
+  if (cluster.shops.some((shop) => shopLocalState(shop) === 'confirmed')) return FateDropColors.mint;
   return FateDropColors.goldBright;
 }
 
@@ -60,7 +67,9 @@ export default function LocalRadarScreen() {
   const [selected, setSelected] = useState<RadarShop | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [region, setRegion] = useState<Region>(UK_REGION);
+  const [mapRegion, setMapRegion] = useState<Region>(UK_REGION);
+  const [viewportRegion, setViewportRegion] = useState<Region>(UK_REGION);
+  const [mapRevision, setMapRevision] = useState(0);
 
   const load = useCallback(async (nextArea: UserArea, nextRadius = radius) => {
     setLoading(true);
@@ -69,8 +78,11 @@ export default function LocalRadarScreen() {
       const payload = await fetchLocalRadar(nextArea, nextRadius, 'shops');
       const allShops = payload.shops || [];
       const nextShops = scopedRetailerId ? allShops.filter((shop) => shop.retailerId === scopedRetailerId) : allShops;
+      const nextRegion = regionFor(nextArea, nextShops);
       setShops(nextShops);
-      setRegion(regionFor(nextArea, nextShops));
+      setMapRegion(nextRegion);
+      setViewportRegion(nextRegion);
+      setMapRevision((value) => value + 1);
       setSelected(current => current ? nextShops.find(shop => shop.id === current.id) || null : null);
     } catch (reason) {
       setShops([]);
@@ -100,6 +112,7 @@ export default function LocalRadarScreen() {
   };
 
   const mappedShops = useMemo(() => shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [shops]);
+  const mapMarkers = useMemo(() => clusterRadarShops(mappedShops, viewportRegion), [mappedShops, viewportRegion]);
   const prioritizedShops = shops;
   const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
   const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
@@ -115,8 +128,19 @@ export default function LocalRadarScreen() {
     </View>
 
     <View style={[styles.mapShell, { height: mapHeight }]}>
-      <MapView style={StyleSheet.absoluteFill} region={region} onRegionChangeComplete={setRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
-        {mappedShops.map(shop => <Marker key={shop.id} coordinate={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>)}
+      <MapView key={`radar-map-${mapRevision}`} style={StyleSheet.absoluteFill} initialRegion={mapRegion} onRegionChangeComplete={setViewportRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
+        {mapMarkers.map((cluster) => {
+          if (cluster.shops.length === 1) {
+            const shop = cluster.shops[0];
+            return <Marker key={cluster.id} tracksViewChanges={false} coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>;
+          }
+          const tone = clusterColor(cluster);
+          return <Marker key={cluster.id} tracksViewChanges={false} coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }} anchor={{ x: 0.5, y: 0.5 }} accessibilityLabel={`${cluster.shops.length} nearby stores`}>
+            <View style={[styles.clusterHalo, { backgroundColor: `${tone}22`, borderColor: `${tone}66` }]}>
+              <View style={[styles.clusterBubble, { backgroundColor: tone }]}><Text style={styles.clusterCount}>{cluster.shops.length}</Text></View>
+            </View>
+          </Marker>;
+        })}
       </MapView>
       <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>Confirmed</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
       {area ? <View style={styles.mapStats}><StatusBadge label={`${shops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
@@ -150,5 +174,5 @@ export default function LocalRadarScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:FateDropColors.background},content:{padding:16,paddingBottom:120},topRow:{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8},back:{width:38,height:38,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},titleWrap:{flex:1},eyebrow:{color:FateDropColors.goldBright,fontSize:8,fontWeight:'900',letterSpacing:1.1},title:{color:FateDropColors.text,fontFamily:Fonts?.serif,fontSize:19,lineHeight:22,fontWeight:'700',marginTop:1},searchCard:{padding:11,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:10,marginBottom:2},locate:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:10,borderRadius:11,backgroundColor:FateDropColors.violet},locateText:{color:FateDropColors.text,fontWeight:'900',fontSize:11},manual:{flexDirection:'row',gap:7,marginTop:7},input:{flex:1,color:FateDropColors.text,paddingHorizontal:11,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.cardElevated,fontSize:11},setButton:{justifyContent:'center',paddingHorizontal:16,borderRadius:10,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:9,marginTop:7},radiusRow:{flexDirection:'row',gap:6,marginTop:8},radiusChip:{flex:1,alignItems:'center',paddingVertical:7,borderRadius:9,backgroundColor:FateDropColors.cardElevated,borderWidth:1,borderColor:'transparent'},radiusChipActive:{borderColor:FateDropColors.gold},radiusText:{color:FateDropColors.muted,fontSize:9,fontWeight:'800'},radiusTextActive:{color:FateDropColors.goldBright},mapShell:{overflow:'hidden',borderRadius:22,borderWidth:1,borderColor:FateDropColors.border,backgroundColor:FateDropColors.cardElevated},mapLegend:{position:'absolute',top:10,left:10,flexDirection:'row',gap:7,paddingHorizontal:9,paddingVertical:7,borderRadius:12,backgroundColor:'rgba(8,14,20,.88)'},legendItem:{flexDirection:'row',alignItems:'center',gap:4},dot:{width:7,height:7,borderRadius:4},legendText:{color:FateDropColors.text,fontSize:8,fontWeight:'800'},mapStats:{position:'absolute',top:44,left:10,right:10,flexDirection:'row',flexWrap:'wrap',gap:5},mapPrompt:{position:'absolute',top:'35%',left:30,right:30,alignItems:'center',padding:18,borderRadius:17,backgroundColor:'rgba(8,14,20,.90)'},mapPromptTitle:{color:FateDropColors.text,fontSize:16,fontWeight:'900',marginTop:5},mapPromptCopy:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,textAlign:'center',marginTop:3},selectedCard:{position:'absolute',left:10,right:10,bottom:10,flexDirection:'row',alignItems:'center',gap:10,padding:11,borderRadius:15,backgroundColor:'rgba(8,14,20,.95)',borderWidth:1,borderColor:FateDropColors.border},selectedCopy:{flex:1},selectedSignal:{fontSize:8,fontWeight:'900',letterSpacing:.7},selectedName:{color:FateDropColors.text,fontSize:13,fontWeight:'900',marginTop:2},selectedMeta:{color:FateDropColors.muted,fontSize:9,marginTop:3},selectedButton:{flexDirection:'row',alignItems:'center',gap:3,paddingHorizontal:12,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.violet},selectedButtonText:{color:FateDropColors.text,fontSize:10,fontWeight:'900'},question:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginTop:16,marginBottom:9},actions:{gap:8},actionCard:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},actionIcon:{width:48,height:48,borderRadius:15,alignItems:'center',justifyContent:'center'},actionCopy:{flex:1},actionTitle:{color:FateDropColors.text,fontSize:15,fontWeight:'900'},actionMeta:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,marginTop:3},scopeCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:12,backgroundColor:`${FateDropColors.cyan}0B`,borderWidth:1,borderColor:`${FateDropColors.cyan}22`},scopeText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14},sectionHead:{marginTop:20,marginBottom:8},sectionTitle:{color:FateDropColors.text,fontSize:17,fontWeight:'900'},sectionMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},storeRow:{flexDirection:'row',alignItems:'center',gap:9,padding:11,borderRadius:14,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:7},storeDot:{width:9,height:9,borderRadius:5},storeCopy:{flex:1},storeName:{color:FateDropColors.text,fontSize:12,fontWeight:'900'},storeMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},truthCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:16,backgroundColor:`${FateDropColors.gold}0B`,borderWidth:1,borderColor:`${FateDropColors.gold}22`},truthText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14}
+  safe:{flex:1,backgroundColor:FateDropColors.background},content:{padding:16,paddingBottom:120},topRow:{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8},back:{width:38,height:38,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},titleWrap:{flex:1},eyebrow:{color:FateDropColors.goldBright,fontSize:8,fontWeight:'900',letterSpacing:1.1},title:{color:FateDropColors.text,fontFamily:Fonts?.serif,fontSize:19,lineHeight:22,fontWeight:'700',marginTop:1},searchCard:{padding:11,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:10,marginBottom:2},locate:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:10,borderRadius:11,backgroundColor:FateDropColors.violet},locateText:{color:FateDropColors.text,fontWeight:'900',fontSize:11},manual:{flexDirection:'row',gap:7,marginTop:7},input:{flex:1,color:FateDropColors.text,paddingHorizontal:11,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.cardElevated,fontSize:11},setButton:{justifyContent:'center',paddingHorizontal:16,borderRadius:10,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:9,marginTop:7},radiusRow:{flexDirection:'row',gap:6,marginTop:8},radiusChip:{flex:1,alignItems:'center',paddingVertical:7,borderRadius:9,backgroundColor:FateDropColors.cardElevated,borderWidth:1,borderColor:'transparent'},radiusChipActive:{borderColor:FateDropColors.gold},radiusText:{color:FateDropColors.muted,fontSize:9,fontWeight:'800'},radiusTextActive:{color:FateDropColors.goldBright},mapShell:{overflow:'hidden',borderRadius:22,borderWidth:1,borderColor:FateDropColors.border,backgroundColor:FateDropColors.cardElevated},mapLegend:{position:'absolute',top:10,left:10,flexDirection:'row',gap:7,paddingHorizontal:9,paddingVertical:7,borderRadius:12,backgroundColor:'rgba(8,14,20,.88)'},legendItem:{flexDirection:'row',alignItems:'center',gap:4},dot:{width:7,height:7,borderRadius:4},legendText:{color:FateDropColors.text,fontSize:8,fontWeight:'800'},mapStats:{position:'absolute',top:44,left:10,right:10,flexDirection:'row',flexWrap:'wrap',gap:5},mapPrompt:{position:'absolute',top:'35%',left:30,right:30,alignItems:'center',padding:18,borderRadius:17,backgroundColor:'rgba(8,14,20,.90)'},mapPromptTitle:{color:FateDropColors.text,fontSize:16,fontWeight:'900',marginTop:5},mapPromptCopy:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,textAlign:'center',marginTop:3},selectedCard:{position:'absolute',left:10,right:10,bottom:10,flexDirection:'row',alignItems:'center',gap:10,padding:11,borderRadius:15,backgroundColor:'rgba(8,14,20,.95)',borderWidth:1,borderColor:FateDropColors.border},selectedCopy:{flex:1},selectedSignal:{fontSize:8,fontWeight:'900',letterSpacing:.7},selectedName:{color:FateDropColors.text,fontSize:13,fontWeight:'900',marginTop:2},selectedMeta:{color:FateDropColors.muted,fontSize:9,marginTop:3},selectedButton:{flexDirection:'row',alignItems:'center',gap:3,paddingHorizontal:12,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.violet},selectedButtonText:{color:FateDropColors.text,fontSize:10,fontWeight:'900'},clusterHalo:{width:48,height:48,borderRadius:24,borderWidth:1,alignItems:'center',justifyContent:'center'},clusterBubble:{minWidth:34,height:34,borderRadius:17,paddingHorizontal:8,alignItems:'center',justifyContent:'center',borderWidth:2,borderColor:FateDropColors.background},clusterCount:{color:FateDropColors.background,fontSize:12,fontWeight:'900'},question:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginTop:16,marginBottom:9},actions:{gap:8},actionCard:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},actionIcon:{width:48,height:48,borderRadius:15,alignItems:'center',justifyContent:'center'},actionCopy:{flex:1},actionTitle:{color:FateDropColors.text,fontSize:15,fontWeight:'900'},actionMeta:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,marginTop:3},scopeCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:12,backgroundColor:`${FateDropColors.cyan}0B`,borderWidth:1,borderColor:`${FateDropColors.cyan}22`},scopeText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14},sectionHead:{marginTop:20,marginBottom:8},sectionTitle:{color:FateDropColors.text,fontSize:17,fontWeight:'900'},sectionMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},storeRow:{flexDirection:'row',alignItems:'center',gap:9,padding:11,borderRadius:14,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:7},storeDot:{width:9,height:9,borderRadius:5},storeCopy:{flex:1},storeName:{color:FateDropColors.text,fontSize:12,fontWeight:'900'},storeMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},truthCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:16,backgroundColor:`${FateDropColors.gold}0B`,borderWidth:1,borderColor:`${FateDropColors.gold}22`},truthText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14}
 });
