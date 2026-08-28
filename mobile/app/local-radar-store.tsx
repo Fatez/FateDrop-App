@@ -21,6 +21,10 @@ import {
 
 type RadarRouteParams = Record<string, string | string[] | undefined>;
 
+function routeValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || '' : typeof value === 'string' ? value : '';
+}
+
 function productState(product: RadarStockProduct) {
   const state = String(product.localState || '').toLowerCase();
   if (state === 'confirmed') return { label: 'CONFIRMED', color: FateDropColors.mint, state: 'confirmed' as const };
@@ -30,9 +34,17 @@ function productState(product: RadarStockProduct) {
 
 export default function LocalRadarStoreScreen() {
   const params = useLocalSearchParams() as RadarRouteParams;
-  const id = typeof params.id === 'string' ? params.id : '';
-  const area = useMemo(() => areaFromParams(params), [params]);
-  const radius = typeof params.radiusMiles === 'string' && Number.isFinite(Number(params.radiusMiles)) ? Number(params.radiusMiles) : 25;
+  const id = routeValue(params.id);
+  const source = routeValue(params.source);
+  const postcode = routeValue(params.postcode);
+  const lat = routeValue(params.lat);
+  const lng = routeValue(params.lng);
+  const radiusValue = routeValue(params.radiusMiles);
+  const radius = radiusValue && Number.isFinite(Number(radiusValue)) ? Number(radiusValue) : 25;
+  const area = useMemo(
+    () => areaFromParams({ source, postcode, lat, lng }),
+    [source, postcode, lat, lng],
+  );
   const [shop, setShop] = useState<RadarShop | null>(null);
   const [loading, setLoading] = useState(Boolean(area && id));
   const [error, setError] = useState('');
@@ -40,12 +52,16 @@ export default function LocalRadarStoreScreen() {
   useEffect(() => {
     let cancelled = false;
     if (!area || !id) {
+      setShop(null);
       setError('This store needs a Local Radar location context.');
       setLoading(false);
       return;
     }
+
+    setShop(null);
+    setError('');
+    setLoading(true);
     void (async () => {
-      setLoading(true);
       try {
         const payload = await fetchLocalRadar(area, radius, 'shops');
         const found = (payload.shops || []).find(item => item.id === id) || null;
@@ -54,7 +70,10 @@ export default function LocalRadarStoreScreen() {
           setError(found ? '' : 'This store is no longer in the current Local Radar result set.');
         }
       } catch {
-        if (!cancelled) setError('FateDrop could not refresh this store.');
+        if (!cancelled) {
+          setShop(null);
+          setError('FateDrop could not refresh this store.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -100,13 +119,13 @@ export default function LocalRadarStoreScreen() {
       {products.length === 0 ? <View style={styles.empty}><Ionicons name="radio-outline" size={22} color={FateDropColors.muted}/><Text style={styles.emptyTitle}>Current availability unknown</Text><Text style={styles.emptyCopy}>The store can still appear because FateDrop knows it is a physical Pokémon retailer. No stock claim is being made.</Text></View> : products.map((product, index) => {
         const productStatus = productState(product);
         const expected = expectedWindowLabel(product);
-        const source = product.sourceLabel || null;
+        const sourceLabel = product.sourceLabel || null;
         return <View key={`${product.productIdentityId || product.title || 'product'}:${index}`} style={styles.productCard}>
           <Text style={[styles.productSignal, { color: productStatus.color }]}>{productStatus.label}</Text>
           <Text style={styles.productTitle}>{product.title || 'Pokémon stock'}</Text>
           {productStatus.state === 'confirmed' ? <Text style={styles.productMeta}>{ageLabel(product.freshnessAgeMinutes)}</Text> : null}
           {productStatus.state === 'expected' ? <Text style={styles.expectedDate}>{expected || 'Expected date not yet confirmed'}</Text> : null}
-          {source ? <Text style={styles.productMeta}>Source: {source}</Text> : null}
+          {sourceLabel ? <Text style={styles.productMeta}>Source: {sourceLabel}</Text> : null}
           {product.value?.priceKnown ? <Text style={styles.value}>{valueLine(product.value)}</Text> : null}
           {productStatus.state === 'expected' ? <Text style={styles.advisory}>{shop.localAvailability?.disclaimer || expectedStock?.disclaimer}</Text> : null}
           {(product.contradictionCount || 0) > 0 ? <Text style={styles.contradiction}>Recent evidence conflicts, so FateDrop is treating this information cautiously.</Text> : null}
