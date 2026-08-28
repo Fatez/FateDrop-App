@@ -59,7 +59,20 @@ export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|
 async function saveSnapshot(snapshot:FateDropSyncSnapshot){return normalizeSnapshot(snapshot);}
 
 export async function signInFateDropId(email:string,password:string){const response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},body:JSON.stringify({email,password})});const result=await parseJson<LoginResponse>(response);const entitlement=result.entitlement||result.membership;if(!entitlement)throw new Error('FateDrop sign-in response is missing membership entitlement.');await storeSessionToken(result.sessionToken);await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);return saveSnapshot({contractVersion:1,syncedAt:Math.floor(Date.now()/1000),user:result.user,entitlement,wishlist:result.wishlist||[],fateFinds:result.fateFinds||[],fateMatches:result.fateMatches||[],notificationPreferences:normalizePreferences(result.notificationPreferences),pendingMigrations:result.pendingMigrations||[]});}
-export async function signOutFateDropId(){const token=await getStoredSessionToken();if(token)await fetch(`${baseUrl()}/api/mobile/session`,{method:'DELETE',headers:{authorization:`Bearer ${token}`,accept:'application/json'}}).catch(()=>null);await clearStoredSession();}
+export async function signOutFateDropId(){
+  const token=await getStoredSessionToken();
+  if(!token){await clearStoredSession();return;}
+  let response:Response;
+  try{
+    response=await fetch(`${baseUrl()}/api/mobile/session`,{method:'DELETE',headers:{authorization:`Bearer ${token}`,accept:'application/json'}});
+  }catch{
+    throw new Error('FateDrop could not securely sign you out. Please try again when you are connected.');
+  }
+  if(!response.ok){
+    throw new Error('FateDrop could not securely sign you out. Please try again.');
+  }
+  await clearStoredSession();
+}
 export async function syncFateDropId():Promise<FateDropSyncSnapshot>{const token=await getStoredSessionToken();if(!token)throw new Error('FateDrop ID sign-in required.');const response=await fetch(`${baseUrl()}/api/mobile/sync`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});if(response.status===401){await clearStoredSession();throw new Error('Your FateDrop ID session expired. Please sign in again.');}const result=await parseJson<FateDropSyncSnapshot>(response);return saveSnapshot(normalizeSnapshot(result));}
 export async function entitlementIsFresh(maxAgeSeconds=300){const snapshot=await loadCachedIdentitySnapshot();return Boolean(snapshot&&Math.floor(Date.now()/1000)-snapshot.syncedAt<=maxAgeSeconds);}
 export function hasCapability(snapshot:FateDropSyncSnapshot|null,capability:FateCapability){return Boolean(snapshot?.entitlement?.active&&snapshot.entitlement.capabilities.includes(capability));}
