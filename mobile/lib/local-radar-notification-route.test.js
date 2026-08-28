@@ -14,6 +14,15 @@ test('Local Radar operator notification routes into the stable Local Radar scree
   assert.match(layout, /return;/);
 });
 
+test('canonical lifecycle notifications route into Alerts, including Vanished', () => {
+  assert.match(layout, /data\?\.route === 'alerts'/);
+  assert.match(layout, /router\.push\('\/alerts'\)/);
+  const alertsRouteCheck = layout.indexOf("data?.route === 'alerts'");
+  const productCheck = layout.indexOf(hardenedProductExpression);
+  assert.ok(alertsRouteCheck >= 0, 'canonical lifecycle route check must exist');
+  assert.ok(productCheck > alertsRouteCheck, 'lifecycle routing must run before the retailer product URL fallback');
+});
+
 test('Local Radar routing preserves the descriptive Cloud and Web operator payload', () => {
   assert.match(layout, /operatorNoticeFromData\(data\)/);
   assert.match(layout, /retailerName: notificationText\(data\.retailerName\)/);
