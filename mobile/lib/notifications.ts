@@ -61,28 +61,3 @@ export async function unregisterStockAlerts() {
   if (sessionToken) await updateRemoteNotificationPreferences({ push: false }).catch(() => null);
   return { enabled: false };
 }
-
-export async function sendVanishedPresentationTest() {
-  if (!Device.isDevice) return { sent: false, reason: 'physical-device-required' };
-  const existing = await Notifications.getPermissionsAsync();
-  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') return { sent: false, reason: 'permission-denied' };
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('stock-alerts', {
-      name: 'FateDrop alerts', importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 150, 250], lightColor: '#A855F7', sound: 'default',
-    });
-  }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '[TEST] FateDrop · Vanished',
-      body: 'Vanished presentation test — a previously verified signal is no longer available.',
-      sound: 'default',
-      data: { stage: 'VANISHED', test: true },
-    },
-    trigger: null,
-  });
-  return { sent: true };
-}
