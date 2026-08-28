@@ -66,16 +66,24 @@ test('center tool launcher uses the canonical shared FateDrop medallion at the a
 });
 
 test('native platform branding stays on the canonical generated asset family', () => {
-  assert.equal(appConfig.expo.icon, './assets/images/icon.png');
+  assert.equal(appConfig.expo.icon, './assets/images/app-icon-emblem.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
 
+  const nativeIcon = fs.readFileSync(path.join(root, 'assets/images/app-icon-emblem.png'));
+  assert.equal(nativeIcon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'native icon must be a real PNG');
+  assert.equal(nativeIcon.readUInt32BE(16), 1024, 'native icon must be 1024px wide');
+  assert.equal(nativeIcon.readUInt32BE(20), 1024, 'native icon must be 1024px high');
+
   const notifications = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications');
   const splash = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen');
 
-  assert.equal(notifications?.[1]?.icon, './assets/images/fatedrop-logo.png');
-  assert.equal(splash?.[1]?.image, './assets/images/splash-icon.png');
+  assert.equal(notifications?.[1]?.icon, undefined, 'notifications must not reference the corrupt legacy icon');
+  assert.equal(splash?.[1]?.image, undefined, 'splash must not reference the corrupt legacy image');
+  assert.equal(fs.existsSync(path.join(root, 'assets/images/icon.png')), false);
+  assert.equal(fs.existsSync(path.join(root, 'assets/images/fatedrop-logo.png')), false);
+  assert.equal(fs.existsSync(path.join(root, 'assets/images/splash-icon.png')), false);
 });
 
 test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
