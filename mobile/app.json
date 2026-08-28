@@ -2,6 +2,7 @@
   "expo": {
     "name": "FateDrop",
     "slug": "fatedrop",
+    "owner": "fatesdrops-team",
     "version": "1.0.0",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
@@ -56,6 +57,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "13f37e5b-31b2-4eae-b523-dad02a8986d0"
+      }
     }
   }
 }
