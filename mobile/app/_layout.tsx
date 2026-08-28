@@ -1,11 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
+import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -14,6 +15,29 @@ import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+function notificationText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function notificationCount(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+}
+
+function operatorNoticeFromData(data: Record<string, unknown>): LocalRadarOperatorNoticeData {
+  const stage = data.stage === 'WHISPER' || data.stage === 'ECHO' ? data.stage : '';
+  return {
+    localIntelId: notificationText(data.localIntelId),
+    stage,
+    retailerName: notificationText(data.retailerName),
+    productTitle: notificationText(data.productTitle),
+    expectedFrom: notificationText(data.expectedFrom),
+    expectedTo: notificationText(data.expectedTo),
+    expectedLabel: notificationText(data.expectedLabel),
+    branchCount: notificationCount(data.branchCount),
+  };
+}
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return <View style={errorStyles.screen}>
@@ -26,6 +50,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [localRadarNotice, setLocalRadarNotice] = useState<LocalRadarOperatorNoticeData | null>(null);
+  const [localRadarNoticeCollapsed, setLocalRadarNoticeCollapsed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -35,6 +61,13 @@ export default function RootLayout() {
       .then((Notifications) => {
         if (!active) return;
         subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response.notification.request.content.data as Record<string, unknown>;
+          if (data?.route === 'local-radar') {
+            setLocalRadarNotice(operatorNoticeFromData(data));
+            setLocalRadarNoticeCollapsed(false);
+            router.push('/local-radar');
+            return;
+          }
           const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
           if (safeProductUrl) void Linking.openURL(safeProductUrl);
         });
@@ -86,6 +119,13 @@ export default function RootLayout() {
           <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
         </Stack>
         <PersistentBottomNav />
+        {localRadarNotice ? <LocalRadarOperatorNotice
+          notice={localRadarNotice}
+          collapsed={localRadarNoticeCollapsed}
+          onCollapse={() => setLocalRadarNoticeCollapsed(true)}
+          onExpand={() => setLocalRadarNoticeCollapsed(false)}
+          onDismiss={() => setLocalRadarNotice(null)}
+        /> : null}
         <StatusBar style="light" />
       </ThemeProvider>
     </FateDropIdProvider>
