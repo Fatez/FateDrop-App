@@ -41,6 +41,15 @@ test('Local Radar routing is checked before the normal product URL handoff', () 
   assert.ok(productCheck > routeCheck, 'product URL fallback must run after Local Radar routing');
 });
 
+test('canonical lifecycle push routes to Alerts before the external product fallback', () => {
+  const routeCheck = layout.indexOf("data?.route === 'alerts'");
+  const alertsPush = layout.indexOf("router.push('/alerts')");
+  const productCheck = layout.indexOf(hardenedProductExpression);
+  assert.ok(routeCheck >= 0, 'canonical alerts route check must exist');
+  assert.ok(alertsPush > routeCheck, 'canonical lifecycle push must route into Alerts');
+  assert.ok(productCheck > alertsPush, 'product URL fallback must run after canonical Alerts routing');
+});
+
 test('normal product notifications keep the exact hardened external URL path', () => {
   assert.ok(layout.includes(hardenedProductExpression));
   assert.match(layout, /Linking\.openURL\(safeProductUrl\)/);
