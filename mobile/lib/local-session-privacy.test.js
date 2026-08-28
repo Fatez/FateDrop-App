@@ -23,3 +23,26 @@ test('app launch restores canonical identity from a SecureStore-backed server se
   assert.match(context, /if \(token\) void refresh\(\)/);
   assert.match(service, /FATEDROP_WEB_URL/);
 });
+
+test('mobile logout keeps the bearer token until server revocation succeeds', () => {
+  const start = service.indexOf('export async function signOutFateDropId()');
+  const end = service.indexOf('export async function syncFateDropId', start);
+  const signOut = service.slice(start, end);
+  assert.ok(start >= 0 && end > start, 'signOutFateDropId source not found');
+  assert.match(signOut, /method:'DELETE'/);
+  assert.match(signOut, /if\(!response\.ok\)/);
+  assert.match(signOut, /could not securely sign you out/);
+  assert.ok(signOut.indexOf('if(!response.ok)') < signOut.lastIndexOf('await clearStoredSession()'), 'local token must only clear after a successful revocation response');
+  assert.doesNotMatch(signOut, /\.catch\(\(\)=>null\)/);
+});
+
+test('logout failure preserves signed-in state so revocation can be retried', () => {
+  const start = context.indexOf('const signOut = useCallback');
+  const end = context.indexOf('const value = useMemo', start);
+  const signOut = context.slice(start, end);
+  assert.ok(start >= 0 && end > start, 'signOut context source not found');
+  assert.doesNotMatch(signOut, /clearStoredSession/);
+  assert.match(signOut, /catch \(cause\)/);
+  assert.match(signOut, /throw cause/);
+  assert.ok(signOut.indexOf('await signOutFateDropId()') < signOut.indexOf('setSnapshot(null)'), 'signed-in state must clear only after remote revocation succeeds');
+});
