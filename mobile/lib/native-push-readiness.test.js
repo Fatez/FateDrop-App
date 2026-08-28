@@ -8,6 +8,9 @@ const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
 const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
 
+const CANONICAL_EAS_PROJECT_ID = '13f37e5b-31b2-4eae-b523-dad02a8986d0';
+const CANONICAL_EXPO_OWNER = 'fatesdrops-team';
+
 test('FateDrop has stable native application identifiers', () => {
   assert.equal(app.expo.name, 'FateDrop');
   assert.equal(app.expo.slug, 'fatedrop');
@@ -21,11 +24,12 @@ test('EAS has explicit internal beta and production build profiles', () => {
   assert.equal(eas.build.production.autoIncrement, true);
 });
 
-test('push registration requires a real EAS project id and never invents one', () => {
+test('push registration is pinned to the real canonical EAS project and never invents one', () => {
   assert.match(notifications, /EXPO_PUBLIC_EAS_PROJECT_ID/);
   assert.match(notifications, /Constants\.expoConfig\?\.extra\?\.eas\?\.projectId/);
   assert.match(notifications, /Constants\.easConfig\?\.projectId/);
   assert.match(notifications, /reason: 'eas-project-id-required'/);
   assert.match(notifications, /getExpoPushTokenAsync\(\{ projectId \}\)/);
-  assert.equal(app.expo.extra?.eas?.projectId, undefined);
+  assert.equal(app.expo.extra?.eas?.projectId, CANONICAL_EAS_PROJECT_ID);
+  assert.equal(app.expo.owner, CANONICAL_EXPO_OWNER);
 });
