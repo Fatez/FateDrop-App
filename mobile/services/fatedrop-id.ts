@@ -24,8 +24,16 @@ const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,ech
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
 
 function isCompanionId(value:unknown):value is FateFindCompanionId{return value==='koru'||value==='fenn'||value==='oru'||value==='nyxen';}
+function lifecyclePreference(value:unknown){return typeof value==='boolean'?value:true;}
 function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences>|undefined):CrossPlatformNotificationPreferences{
-  return {...defaultPreferences,...(input||{}),whisper:typeof input?.whisper==='boolean'?input.whisper:true};
+  return {
+    ...defaultPreferences,
+    ...(input||{}),
+    whisper:lifecyclePreference(input?.whisper),
+    echo:lifecyclePreference(input?.echo),
+    manifested:lifecyclePreference(input?.manifested),
+    vanished:lifecyclePreference(input?.vanished),
+  };
 }
 function normalizeEntitlement(input:FateDropEntitlement|undefined):FateDropEntitlement{return input||fallbackEntitlement;}
 function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
