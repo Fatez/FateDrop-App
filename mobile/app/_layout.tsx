@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
+import { ClosedBetaBoundary } from '@/components/closed-beta-boundary';
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
 import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
@@ -13,18 +14,10 @@ import { LocalRadarNoticeProvider, useLocalRadarNotice } from '@/contexts/local-
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+export const unstable_settings = { anchor: '(tabs)' };
 
-function notificationText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function notificationCount(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
-}
+function notificationText(value: unknown) { return typeof value === 'string' ? value.trim() : ''; }
+function notificationCount(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0; }
 
 function operatorNoticeFromData(data: Record<string, unknown>): LocalRadarOperatorNoticeData {
   const stage = data.stage === 'WHISPER' || data.stage === 'ECHO' ? data.stage : '';
@@ -93,9 +86,7 @@ function FateDropShell() {
           if (data?.route === 'local-radar') handleLocalRadarData(data, false);
         });
 
-        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          handleResponse(response);
-        });
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => { handleResponse(response); });
 
         void Notifications.getLastNotificationResponseAsync()
           .then((response) => {
@@ -151,22 +142,18 @@ function FateDropShell() {
       <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
     </Stack>
     <PersistentBottomNav />
-    {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice
-      notice={notice}
-      collapsed={collapsed}
-      onCollapse={collapseNotice}
-      onExpand={expandNotice}
-      onDismiss={dismissNotice}
-    /> : null}
+    {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice notice={notice} collapsed={collapsed} onCollapse={collapseNotice} onExpand={expandNotice} onDismiss={dismissNotice} /> : null}
     <StatusBar style="light" />
   </ThemeProvider>;
 }
 
 export default function RootLayout() {
   return <FateDropIdProvider>
-    <LocalRadarNoticeProvider>
-      <FateDropShell />
-    </LocalRadarNoticeProvider>
+    <ClosedBetaBoundary>
+      <LocalRadarNoticeProvider>
+        <FateDropShell />
+      </LocalRadarNoticeProvider>
+    </ClosedBetaBoundary>
   </FateDropIdProvider>;
 }
 
