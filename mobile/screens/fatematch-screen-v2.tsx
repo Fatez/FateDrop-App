@@ -258,7 +258,7 @@ export default function FateMatchScreenV2() {
           return (
             <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
               <View style={styles.flex}>
-                <Text style={styles.matchLive}>{matchCompanion.toUpperCase()} FOUND THIS</Text>
+                <Text style={styles.matchLive}>{matchCompanion} found this</Text>
                 <Text style={styles.matchTitle}>{match.title}</Text>
                 <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
                 <Text style={styles.matchPrice}>
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   huntMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: FateDropColors.success },
   matchCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface, marginTop: 8 },
-  matchLive: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  matchLive: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   matchTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
   matchMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   matchPrice: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '800', marginTop: 5 },
