@@ -1,15 +1,19 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
-const home = fs.readFileSync('screens/home-screen-v3.tsx', 'utf8');
-const guide = fs.readFileSync('app/demo.tsx', 'utf8');
-const onboarding = fs.readFileSync('app/onboarding.tsx', 'utf8');
-const more = fs.readFileSync('screens/more-screen-v2.tsx', 'utf8');
+const mobileRoot = path.resolve(__dirname, '..');
+const read = (relativePath) => fs.readFileSync(path.join(mobileRoot, relativePath), 'utf8');
+
+const home = read('screens/home-screen-v3.tsx');
+const guide = read('app/demo.tsx');
+const onboarding = read('app/onboarding.tsx');
+const more = read('screens/more-screen-v2.tsx');
 
 test('Home keeps a prominent permanent FateDrop Guide entry', () => {
   assert.match(home, /FATEDROP GUIDE/);
-  assert.match(home, /Not sure what a feature or signal means\?/);
+  assert.match(home, /How FateDrop works/);
   assert.match(home, /router\.push\('\/demo'\)/);
 });
 
