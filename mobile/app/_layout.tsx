@@ -74,6 +74,10 @@ function FateDropShell() {
             handleLocalRadarData(data, true);
             return;
           }
+          if (data?.route === 'local-radar-stock') {
+            router.push('/local-radar-stock');
+            return;
+          }
           if (data?.route === 'alerts') {
             router.push('/alerts');
             return;
