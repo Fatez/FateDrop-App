@@ -68,22 +68,6 @@ export async function unregisterStockAlerts() {
   return { enabled: false };
 }
 
-export async function sendVanishedPresentationTest() {
-  const permission = await ensureNotificationPermission();
-  if (!permission.granted) return { sent: false, reason: permission.reason };
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '[TEST] FateDrop · Vanished',
-      body: 'Vanished presentation test — a previously verified signal is no longer available.',
-      sound: 'default',
-      data: { stage: 'VANISHED', test: true },
-    },
-    trigger: null,
-  });
-  return { sent: true };
-}
-
 export async function sendLocalRadarPresentationTest() {
   const permission = await ensureNotificationPermission();
   if (!permission.granted) return { sent: false, reason: permission.reason };
