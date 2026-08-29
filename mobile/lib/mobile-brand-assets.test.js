@@ -66,9 +66,10 @@ test('center tool launcher uses the canonical shared FateDrop medallion at the a
   assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
 });
 
-test('native platform branding uses the canonical FateDrop home-screen icon', () => {
-  assert.equal(appConfig.expo.icon, './assets/images/app-icon-emblem.png');
-  assert.equal(appConfig.expo.ios?.icon, './assets/images/app-icon-emblem.png');
+test('native platform branding uses the final FateDrop home-screen icon path', () => {
+  assert.equal(appConfig.expo.icon, './assets/images/fatedrop-app-icon-final.png');
+  assert.equal(appConfig.expo.ios?.icon, './assets/images/fatedrop-app-icon-final.png');
+  assert.equal(fs.existsSync(path.join(root, 'assets/images/fatedrop-app-icon-final.png')), true);
   assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
