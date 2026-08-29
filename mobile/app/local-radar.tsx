@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -61,6 +61,7 @@ export default function LocalRadarScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [region, setRegion] = useState<Region>(UK_REGION);
+  const locationActionInFlight = useRef(false);
 
   const load = useCallback(async (nextArea: UserArea, nextRadius = radius) => {
     setLoading(true);
@@ -77,6 +78,7 @@ export default function LocalRadarScreen() {
       setSelected(null);
       setError(reason instanceof Error && reason.message === 'INVALID_POSTCODE' ? 'Enter a valid UK postcode.' : 'Local Radar could not reach the physical-store network.');
     } finally {
+      locationActionInFlight.current = false;
       setLoading(false);
     }
   }, [radius, scopedRetailerId]);
@@ -84,19 +86,29 @@ export default function LocalRadarScreen() {
   useEffect(() => { if (area) void load(area, radius); }, [area, radius, load]);
 
   const handleDeviceLocation = async () => {
+    if (locationActionInFlight.current) return;
+    locationActionInFlight.current = true;
     setLoading(true);
     setError('');
     try { setArea(await adapter.requestCurrentArea()); }
     catch (reason) {
+      locationActionInFlight.current = false;
       setLoading(false);
       setError(reason instanceof Error && reason.message === 'LOCATION_DENIED' ? 'Location permission was denied. Enter a postcode instead.' : 'Location could not be determined.');
     }
   };
 
   const handlePostcodeSearch = async () => {
+    if (locationActionInFlight.current) return;
+    locationActionInFlight.current = true;
+    setLoading(true);
     setError('');
     try { setArea(await adapter.fromPostcode(postcode)); }
-    catch { setError('Enter a valid UK postcode.'); }
+    catch {
+      locationActionInFlight.current = false;
+      setLoading(false);
+      setError('Enter a valid UK postcode.');
+    }
   };
 
   const mappedShops = useMemo(() => shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [shops]);
@@ -130,9 +142,9 @@ export default function LocalRadarScreen() {
 
     <View style={styles.searchCard}>
       <Pressable onPress={() => void handleDeviceLocation()} disabled={loading} style={styles.locate}><Ionicons name="locate" size={16} color={FateDropColors.text}/><Text style={styles.locateText}>{loading ? 'Scanning…' : 'Use my location'}</Text></Pressable>
-      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.locateText}>Set</Text></Pressable></View>
+      <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} disabled={loading} style={styles.setButton}><Text style={styles.locateText}>{loading ? 'Scanning…' : 'Set'}</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
+      {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} disabled={loading} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
     </View>
 
     {scopedRetailerId ? <View style={styles.scopeCard}><Ionicons name="link-outline" size={18} color={FateDropColors.cyan}/><Text style={styles.scopeText}>This Local Radar view is scoped to branches tied to the same FateDrop retailer ID as {scopedName}. It does not match stores by name or infer physical stock from the retailer’s online catalogue.</Text></View> : <>
