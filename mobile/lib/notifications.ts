@@ -19,19 +19,25 @@ function expoProjectId() {
     || null;
 }
 
-export async function registerForStockAlerts() {
-  const sessionToken = await getStoredSessionToken();
-  if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
-  if (!Device.isDevice) return { enabled: false, reason: 'physical-device-required' };
+async function ensureNotificationPermission() {
+  if (!Device.isDevice) return { granted: false, reason: 'physical-device-required' as const };
+  const existing = await Notifications.getPermissionsAsync();
+  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
+  if (permission.status !== 'granted') return { granted: false, reason: 'permission-denied' as const };
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('stock-alerts', {
       name: 'FateDrop alerts', importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 150, 250], lightColor: '#A855F7', sound: 'default',
     });
   }
-  const existing = await Notifications.getPermissionsAsync();
-  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') return { enabled: false, reason: 'permission-denied' };
+  return { granted: true as const };
+}
+
+export async function registerForStockAlerts() {
+  const sessionToken = await getStoredSessionToken();
+  if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
+  const permission = await ensureNotificationPermission();
+  if (!permission.granted) return { enabled: false, reason: permission.reason };
   const projectId = expoProjectId();
   if (!projectId) return { enabled: false, reason: 'eas-project-id-required' };
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
@@ -62,27 +68,37 @@ export async function unregisterStockAlerts() {
   return { enabled: false };
 }
 
-export async function sendVanishedPresentationTest() {
-  if (!Device.isDevice) return { sent: false, reason: 'physical-device-required' };
-  const existing = await Notifications.getPermissionsAsync();
-  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') return { sent: false, reason: 'permission-denied' };
+export async function sendLocalRadarPresentationTest() {
+  const permission = await ensureNotificationPermission();
+  if (!permission.granted) return { sent: false, reason: permission.reason };
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('stock-alerts', {
-      name: 'FateDrop alerts', importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 150, 250], lightColor: '#A855F7', sound: 'default',
-    });
-  }
+  const now = Date.now();
+  const expectedFrom = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+  const expectedTo = new Date(now + 48 * 60 * 60 * 1000).toISOString();
+  const localIntelId = `local-radar-presentation-test:${now}`;
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: '[TEST] FateDrop · Vanished',
-      body: 'Vanished presentation test — a previously verified signal is no longer available.',
+      title: '[TEST] FateDrop · Local Radar · Incoming stock',
+      body: 'Test Pokémon stock expected at 2 participating stores. Tap to inspect the Local Radar alert.',
       sound: 'default',
-      data: { stage: 'VANISHED', test: true },
+      data: {
+        route: 'local-radar',
+        localIntelId,
+        stage: 'ECHO',
+        retailerId: 'test-retailer',
+        retailerName: 'Test Retailer',
+        productTitle: '[TEST] Pokémon TCG incoming stock',
+        expectedFrom,
+        expectedTo,
+        expectedLabel: 'TEST · Expected tomorrow',
+        branchCount: 2,
+        operatorIssue: 0,
+        test: true,
+        canary: true,
+      },
     },
     trigger: null,
   });
-  return { sent: true };
+  return { sent: true, localIntelId };
 }

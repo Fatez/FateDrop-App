@@ -54,7 +54,7 @@ export function LocalRadarOperatorNotice({
   const when = expectedCopy(notice);
 
   if (collapsed) {
-    return <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 8 }]}>
+    return <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 60 }]}>
       <Pressable onPress={onExpand} style={styles.compact} accessibilityRole="button" accessibilityLabel="Expand incoming Local Radar stock update">
         <View style={styles.compactIcon}><Ionicons name="radio" size={14} color={FateDropColors.cyan} /></View>
         <View style={styles.flex}>
@@ -66,7 +66,7 @@ export function LocalRadarOperatorNotice({
     </View>;
   }
 
-  return <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 8 }]}>
+  return <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 60 }]}>
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.icon}><Ionicons name="radio-outline" size={20} color={FateDropColors.cyan} /></View>
@@ -83,8 +83,8 @@ export function LocalRadarOperatorNotice({
       <View style={styles.dateRow}><Ionicons name="calendar-outline" size={14} color={FateDropColors.cyan} /><Text style={styles.date}>{when}</Text></View>
       <Text style={styles.explain}>Check Local Radar to see if a participating store is near you. Expected stock is advisory and may change before arrival.</Text>
 
-      <Pressable onPress={onCollapse} style={styles.primary} accessibilityRole="button" accessibilityLabel="Collapse stock update and show Local Radar map">
-        <Text style={styles.primaryText}>GOT IT · SHOW MAP</Text>
+      <Pressable onPress={onCollapse} style={styles.primary} accessibilityRole="button" accessibilityLabel="Minimise stock update and show Local Radar map">
+        <Text style={styles.primaryText}>MINIMISE · SHOW MAP</Text>
         <Ionicons name="chevron-up" size={15} color={FateDropColors.text} />
       </Pressable>
     </View>
