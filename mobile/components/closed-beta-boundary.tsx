@@ -1,16 +1,58 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router, usePathname } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FATEDROP_WEB_URL } from '@/constants/api';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 
 export function ClosedBetaBoundary({ children }: { children: ReactNode }) {
   const { snapshot, loading, syncing, refresh, signOut } = useFateDropId();
+  const pathname = usePathname();
 
-  if (loading || !snapshot?.user || snapshot.accessAllowed) return <>{children}</>;
+  if (loading) {
+    return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <FateDropBackground />
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="small" color={FateDropColors.goldBright} />
+        <Text style={styles.loadingText}>CHECKING BETA ACCESS…</Text>
+      </View>
+    </SafeAreaView>;
+  }
+
+  if (snapshot?.user && snapshot.accessAllowed) return <>{children}</>;
+
+  // A signed-out install may enter only the account screen so an existing
+  // approved/pending FateDrop ID can authenticate. Every product route remains
+  // behind this boundary until the canonical server approval is present.
+  if (!snapshot?.user && pathname === '/account') return <>{children}</>;
+
+  if (!snapshot?.user) {
+    return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <FateDropBackground />
+      <View style={styles.screen}>
+        <View style={styles.icon}><Ionicons name="lock-closed-outline" size={28} color={FateDropColors.goldBright} /></View>
+        <Text style={styles.eyebrow}>FATEDROP · CLOSED BETA</Text>
+        <Text style={styles.title}>Closed beta access required.</Text>
+        <Text style={styles.copy}>
+          Sign in with your FateDrop ID to check your beta approval. If you have not requested access yet, create your FateDrop ID and request the closed beta on the FateDrop website.
+        </Text>
+
+        <Text style={styles.truth}>Installing FateDrop or receiving a TestFlight link does not grant beta access. Approval is tied to your FateDrop ID.</Text>
+
+        <Pressable onPress={() => router.push('/account')} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          <Ionicons name="log-in-outline" size={16} color={FateDropColors.text} />
+          <Text style={styles.primaryText}>SIGN IN</Text>
+        </Pressable>
+        <Pressable onPress={() => void Linking.openURL(`${FATEDROP_WEB_URL}/app-beta`)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+          <Text style={styles.secondaryText}>REQUEST BETA ACCESS ON WEBSITE ↗</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>;
+  }
 
   const revoked = snapshot.betaAccess.status === 'revoked';
 
@@ -46,6 +88,8 @@ export function ClosedBetaBoundary({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 28 },
+  loadingText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   screen: { flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingBottom: 24 },
   icon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}44`, backgroundColor: `${FateDropColors.goldBright}0E`, marginBottom: 18 },
   eyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
