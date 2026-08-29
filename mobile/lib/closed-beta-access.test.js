@@ -40,8 +40,9 @@ test('fresh installs fail closed and may enter only the account sign-in route', 
   assert.match(boundary, /!snapshot\?\.user && pathname === '\/account'/);
   assert.match(boundary, /Closed beta access required/);
   assert.match(boundary, /router\.push\('\/account'\)/);
-  assert.match(boundary, /FATEDROP_WEB_URL.*\/app-beta/);
+  assert.match(boundary, /FATEDROP_WEB_URL.*\/account\/register/);
   assert.match(boundary, /REQUEST BETA ACCESS ON WEBSITE/);
+  assert.match(boundary, /Registration creates your closed-beta request in Pending status/);
   assert.match(boundary, /Installing FateDrop or receiving a TestFlight link does not grant beta access/);
 });
 
