@@ -6,6 +6,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { ClosedBetaBoundary } from '@/components/closed-beta-boundary';
+import { FirstRunTourBoundary } from '@/components/first-run-tour-boundary';
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
 import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
@@ -112,6 +113,7 @@ function FateDropShell() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="companion/index" options={{ headerShown: false }} />
       <Stack.Screen name="profile-customisation" options={{ headerShown: false }} />
       <Stack.Screen name="stories" options={{ headerShown: false }} />
@@ -141,7 +143,7 @@ function FateDropShell() {
       <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
       <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
     </Stack>
-    <PersistentBottomNav />
+    {pathname !== '/onboarding' ? <PersistentBottomNav /> : null}
     {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice notice={notice} collapsed={collapsed} onCollapse={collapseNotice} onExpand={expandNotice} onDismiss={dismissNotice} /> : null}
     <StatusBar style="light" />
   </ThemeProvider>;
@@ -150,9 +152,11 @@ function FateDropShell() {
 export default function RootLayout() {
   return <FateDropIdProvider>
     <ClosedBetaBoundary>
-      <LocalRadarNoticeProvider>
-        <FateDropShell />
-      </LocalRadarNoticeProvider>
+      <FirstRunTourBoundary>
+        <LocalRadarNoticeProvider>
+          <FateDropShell />
+        </LocalRadarNoticeProvider>
+      </FirstRunTourBoundary>
     </ClosedBetaBoundary>
   </FateDropIdProvider>;
 }
