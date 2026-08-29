@@ -33,6 +33,18 @@ test('root layout blocks the normal FateDrop shell behind one closed beta bounda
   assert.ok(layout.indexOf('<ClosedBetaBoundary>') < layout.indexOf('<FateDropShell />'));
 });
 
+test('fresh installs fail closed and may enter only the account sign-in route', () => {
+  assert.doesNotMatch(boundary, /loading \|\| !snapshot\?\.user \|\| snapshot\.accessAllowed/);
+  assert.match(boundary, /if \(loading\)/);
+  assert.match(boundary, /snapshot\?\.user && snapshot\.accessAllowed/);
+  assert.match(boundary, /!snapshot\?\.user && pathname === '\/account'/);
+  assert.match(boundary, /Closed beta access required/);
+  assert.match(boundary, /router\.push\('\/account'\)/);
+  assert.match(boundary, /FATEDROP_WEB_URL.*\/app-beta/);
+  assert.match(boundary, /REQUEST BETA ACCESS ON WEBSITE/);
+  assert.match(boundary, /Installing FateDrop or receiving a TestFlight link does not grant beta access/);
+});
+
 test('pending App surface explains approval and supports refresh and sign out', () => {
   assert.match(boundary, /FATEDROP · CLOSED BETA/);
   assert.match(boundary, /Your beta request is pending/);
