@@ -26,6 +26,7 @@ const collectorTools: Tool[] = [
 ];
 
 const accountTools: Tool[] = [
+  { title: 'App Guide', detail: 'Replay the FateDrop tour and learn what every alert means.', icon: 'compass-outline', path: '/onboarding', color: FateDropColors.goldBright },
   { title: 'Notification preferences', detail: 'Choose lifecycle and delivery surfaces.', icon: 'notifications-outline', path: '/notification-preferences', color: FateDropColors.cyan },
   { title: 'Fate Companion', detail: 'Your persistent Koru & Friends companion loadout.', icon: 'sparkles-outline', path: '/companion', color: FateDropColors.violetLight },
   { title: 'FateDrop ID', detail: 'Identity, membership and cross-platform sync.', icon: 'person-circle-outline', path: '/account', color: FateDropColors.mint },
