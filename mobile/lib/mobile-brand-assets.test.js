@@ -17,6 +17,7 @@ const tabs = read('app/(tabs)/_layout.tsx');
 const wordmarkData = read('constants/brand-wordmark-data.ts');
 const emblemData = read('constants/brand-emblem-data.ts');
 const appConfig = JSON.parse(read('app.json'));
+const easConfig = JSON.parse(read('eas.json'));
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.match(sharedLegacy, /app-background-cosmic\.webp/);
@@ -67,6 +68,7 @@ test('center tool launcher uses the canonical shared FateDrop medallion at the a
 
 test('native platform branding stays on the canonical generated asset family', () => {
   assert.equal(appConfig.expo.icon, './assets/images/app-icon-emblem.png');
+  assert.equal(appConfig.expo.ios.icon, './assets/images/app-icon-emblem.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
@@ -75,6 +77,10 @@ test('native platform branding stays on the canonical generated asset family', (
   assert.equal(nativeIcon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'native icon must be a real PNG');
   assert.equal(nativeIcon.readUInt32BE(16), 1024, 'native icon must be 1024px wide');
   assert.equal(nativeIcon.readUInt32BE(20), 1024, 'native icon must be 1024px high');
+  const pngColorType = nativeIcon.readUInt8(25);
+  assert.notEqual(pngColorType, 4, 'iOS icon must not use grayscale alpha');
+  assert.notEqual(pngColorType, 6, 'iOS icon must not use RGBA alpha');
+  assert.equal(nativeIcon.includes(Buffer.from('tRNS')), false, 'iOS icon must not contain indexed/palette transparency');
 
   const notifications = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications');
   const splash = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen');
@@ -84,6 +90,10 @@ test('native platform branding stays on the canonical generated asset family', (
   assert.equal(fs.existsSync(path.join(root, 'assets/images/icon.png')), false);
   assert.equal(fs.existsSync(path.join(root, 'assets/images/fatedrop-logo.png')), false);
   assert.equal(fs.existsSync(path.join(root, 'assets/images/splash-icon.png')), false);
+});
+
+test('EAS native builds are forced to committed source', () => {
+  assert.equal(easConfig.cli?.requireCommit, true);
 });
 
 test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
