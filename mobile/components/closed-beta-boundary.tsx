@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,7 +7,7 @@ import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 
-export function ClosedBetaBoundary({ children }: { children: React.ReactNode }) {
+export function ClosedBetaBoundary({ children }: { children: ReactNode }) {
   const { snapshot, loading, syncing, refresh, signOut } = useFateDropId();
 
   if (loading || !snapshot?.user || snapshot.accessAllowed) return <>{children}</>;
