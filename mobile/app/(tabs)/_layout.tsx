@@ -6,7 +6,7 @@ import { AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { countUnreadCanonicalAlerts, fetchCanonicalAlerts, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
+import { countUnreadCanonicalAlerts, fetchCanonicalAlerts, subscribeCanonicalAlertInboxChanged, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
 
 const NAV_GOLD = FateDropColors.goldBright;
 
@@ -25,7 +25,7 @@ export default function TabLayout() {
       const alerts = await fetchCanonicalAlerts(100);
       setAlertCount(await countUnreadCanonicalAlerts(userId, alerts));
     } catch {
-      setAlertCount(0);
+      // Keep the last known unread count through a transient inbox failure.
     }
   }, [signedIn, userId]);
 
@@ -43,11 +43,15 @@ export default function TabLayout() {
     const unsubscribeReadState = subscribeCanonicalAlertReadState((changedUserId) => {
       if (changedUserId === userId) void refreshAlertCount();
     });
+    const unsubscribeInbox = subscribeCanonicalAlertInboxChanged(() => {
+      void refreshAlertCount();
+    });
 
     return () => {
       clearInterval(interval);
       appStateSubscription.remove();
       unsubscribeReadState();
+      unsubscribeInbox();
     };
   }, [refreshAlertCount, signedIn, userId]);
 
