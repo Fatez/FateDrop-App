@@ -12,6 +12,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck",
+    "eas-build-pre-install": "node ./scripts/materialize-ios-app-icon.cjs",
     "start:codespaces": "bash ./scripts/start-codespaces.sh"
   },
   "dependencies": {
