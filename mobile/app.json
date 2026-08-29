@@ -6,11 +6,13 @@
     "platforms": ["ios", "android"],
     "orientation": "portrait",
     "scheme": "fatedrop",
+    "icon": "./assets/images/app-icon-emblem.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "uk.co.fatedrop"
+      "bundleIdentifier": "uk.co.fatedrop",
+      "icon": "./assets/images/app-icon-emblem.png"
     },
     "android": {
       "package": "uk.co.fatedrop",
