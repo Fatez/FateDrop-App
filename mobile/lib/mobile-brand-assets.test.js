@@ -17,6 +17,7 @@ const tabs = read('app/(tabs)/_layout.tsx');
 const wordmarkData = read('constants/brand-wordmark-data.ts');
 const emblemData = read('constants/brand-emblem-data.ts');
 const appConfig = JSON.parse(read('app.json'));
+const easConfig = JSON.parse(read('eas.json'));
 
 test('final cosmic artwork is the shared FateDrop app background', () => {
   assert.match(sharedLegacy, /app-background-cosmic\.webp/);
@@ -65,9 +66,9 @@ test('center tool launcher uses the canonical shared FateDrop medallion at the a
   assert.doesNotMatch(navEmblem, /styles\.ring|styles\.diamond|styles\.vertical|styles\.horizontal/);
 });
 
-test('beta native build does not depend on the custom FateDrop home-screen icon', () => {
-  assert.equal(appConfig.expo.icon, undefined);
-  assert.equal(appConfig.expo.ios?.icon, undefined);
+test('native platform branding uses the canonical FateDrop home-screen icon', () => {
+  assert.equal(appConfig.expo.icon, './assets/images/app-icon-emblem.png');
+  assert.equal(appConfig.expo.ios?.icon, './assets/images/app-icon-emblem.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.backgroundImage, './assets/images/android-icon-background.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, './assets/images/android-icon-foreground.png');
   assert.equal(appConfig.expo.android.adaptiveIcon.monochromeImage, './assets/images/android-icon-monochrome.png');
@@ -80,6 +81,10 @@ test('beta native build does not depend on the custom FateDrop home-screen icon'
   assert.equal(fs.existsSync(path.join(root, 'assets/images/icon.png')), false);
   assert.equal(fs.existsSync(path.join(root, 'assets/images/fatedrop-logo.png')), false);
   assert.equal(fs.existsSync(path.join(root, 'assets/images/splash-icon.png')), false);
+});
+
+test('EAS refuses dirty source so native branding is built from committed config', () => {
+  assert.equal(easConfig.cli?.requireCommit, true);
 });
 
 test('all primary bottom navigation icons and labels use one FateDrop gold', () => {
