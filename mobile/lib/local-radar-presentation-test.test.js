@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const notifications = fs.readFileSync(path.join(__dirname, 'notifications.ts'), 'utf8');
 const preferences = fs.readFileSync(path.join(__dirname, '../app/notification-preferences.tsx'), 'utf8');
+const localRadarHelper = notifications.slice(notifications.indexOf('export async function sendLocalRadarPresentationTest'));
 
 test('Notifications exposes one Local Radar QA control and no retired Vanished test control', () => {
   assert.match(preferences, /TEST LOCAL RADAR ALERT/);
@@ -14,16 +15,16 @@ test('Notifications exposes one Local Radar QA control and no retired Vanished t
 });
 
 test('Local Radar presentation test uses the production notification route shape without stock persistence', () => {
-  assert.match(notifications, /export async function sendLocalRadarPresentationTest/);
-  assert.match(notifications, /route: 'local-radar'/);
-  assert.match(notifications, /stage: 'ECHO'/);
-  assert.match(notifications, /retailerName: 'Test Retailer'/);
-  assert.match(notifications, /productTitle: '\[TEST\] Pokémon TCG incoming stock'/);
-  assert.match(notifications, /branchCount: 2/);
-  assert.match(notifications, /test: true/);
-  assert.match(notifications, /canary: true/);
-  assert.doesNotMatch(notifications, /fetch\(/);
-  assert.doesNotMatch(notifications, /fatedrop_local_stock|upsertLocalStock|stock_observation/i);
+  assert.match(localRadarHelper, /export async function sendLocalRadarPresentationTest/);
+  assert.match(localRadarHelper, /route: 'local-radar'/);
+  assert.match(localRadarHelper, /stage: 'ECHO'/);
+  assert.match(localRadarHelper, /retailerName: 'Test Retailer'/);
+  assert.match(localRadarHelper, /productTitle: '\[TEST\] Pokémon TCG incoming stock'/);
+  assert.match(localRadarHelper, /branchCount: 2/);
+  assert.match(localRadarHelper, /test: true/);
+  assert.match(localRadarHelper, /canary: true/);
+  assert.doesNotMatch(localRadarHelper, /fetch\(/);
+  assert.doesNotMatch(localRadarHelper, /fatedrop_local_stock|upsertLocalStock|stock_observation/i);
 });
 
 test('retired Vanished local presentation helper is removed', () => {
