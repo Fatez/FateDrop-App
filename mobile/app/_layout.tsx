@@ -1,12 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
+import { router, Stack, type ErrorBoundaryProps, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
-import type { LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
+import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { LocalRadarNoticeProvider, useLocalRadarNotice } from '@/contexts/local-radar-notice-context';
@@ -51,7 +51,8 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 
 function FateDropShell() {
   const colorScheme = useColorScheme();
-  const { showNotice } = useLocalRadarNotice();
+  const pathname = usePathname();
+  const { notice, collapsed, showNotice, collapseNotice, expandNotice, dismissNotice } = useLocalRadarNotice();
 
   useEffect(() => {
     let active = true;
@@ -150,6 +151,13 @@ function FateDropShell() {
       <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
     </Stack>
     <PersistentBottomNav />
+    {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice
+      notice={notice}
+      collapsed={collapsed}
+      onCollapse={collapseNotice}
+      onExpand={expandNotice}
+      onDismiss={dismissNotice}
+    /> : null}
     <StatusBar style="light" />
   </ThemeProvider>;
 }
