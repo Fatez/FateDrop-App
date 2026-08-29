@@ -247,6 +247,32 @@ export default function FateMatchScreenV2() {
 
         <View style={styles.sectionHead}>
           <View>
+            <Text style={styles.sectionEyebrow}>FATEMATCH — LIVE NOW</Text>
+            <Text style={styles.sectionTitle}>Successful results</Text>
+          </View>
+          <Text style={styles.sectionCount}>{recentMatches.length}</Text>
+        </View>
+
+        {recentMatches.length ? recentMatches.map((match) => {
+          const matchCompanion = companionName(match.companionId);
+          return (
+            <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
+              <View style={styles.flex}>
+                <Text style={styles.matchLive}>{matchCompanion.toUpperCase()} FOUND THIS</Text>
+                <Text style={styles.matchTitle}>{match.title}</Text>
+                <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
+                <Text style={styles.matchPrice}>
+                  {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
+                  {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
+            </Pressable>
+          );
+        }) : <Text style={styles.empty}>No FateMatches yet. A match appears here only when an active FateFind genuinely qualifies.</Text>}
+
+        <View style={styles.sectionHead}>
+          <View>
             <Text style={styles.sectionEyebrow}>SEARCHING NOW</Text>
             <Text style={styles.sectionTitle}>Active FateFinds</Text>
           </View>
@@ -270,25 +296,6 @@ export default function FateMatchScreenV2() {
             </View>
           );
         }) : <Text style={styles.empty}>{signedIn ? 'No active FateFinds yet.' : 'Sign in to load your FateFinds.'}</Text>}
-
-        <Text style={styles.sectionEyebrow}>RECENT FATEMATCHES</Text>
-        {recentMatches.length ? recentMatches.map((match) => {
-          const matchCompanion = companionName(match.companionId);
-          return (
-            <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchCard}>
-              <View style={styles.flex}>
-                <Text style={styles.matchLive}>{matchCompanion.toUpperCase()} · FATEMATCH — LIVE NOW</Text>
-                <Text style={styles.matchTitle}>{match.title}</Text>
-                <Text style={styles.matchMeta}>{matchCompanion} found this · {match.retailerName} · {match.stockStatus}</Text>
-                <Text style={styles.matchPrice}>
-                  {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
-                  {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
-                </Text>
-              </View>
-              <Ionicons name="arrow-forward" size={17} color={FateDropColors.manifested} />
-            </Pressable>
-          );
-        }) : <Text style={styles.empty}>No FateMatches yet. A match appears here only when an active FateFind genuinely qualifies.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -341,6 +348,7 @@ const styles = StyleSheet.create({
   sectionEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginTop: 20 },
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700', marginTop: 3 },
   sectionAction: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900' },
+  sectionCount: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: FateDropTypography.sectionTitle, fontWeight: '700' },
   huntCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, marginBottom: 8 },
   huntIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0D`, borderWidth: 1, borderColor: `${FateDropColors.gold}30` },
   huntTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900' },
