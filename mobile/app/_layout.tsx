@@ -55,17 +55,29 @@ export default function RootLayout() {
 
   useEffect(() => {
     let active = true;
-    let subscription: { remove(): void } | undefined;
+    let responseSubscription: { remove(): void } | undefined;
+    let receivedSubscription: { remove(): void } | undefined;
+    const handledResponses = new Set<string>();
 
     void import('expo-notifications')
       .then((Notifications) => {
         if (!active) return;
-        subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+
+        const showLocalRadarNotice = (data: Record<string, unknown>, navigateToRadar: boolean) => {
+          setLocalRadarNotice(operatorNoticeFromData(data));
+          setLocalRadarNoticeCollapsed(false);
+          if (navigateToRadar) router.push('/local-radar');
+        };
+
+        const handleResponse = (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
+          if (!active || !response) return;
+          const identifier = response.notification.request.identifier;
+          if (identifier && handledResponses.has(identifier)) return;
+          if (identifier) handledResponses.add(identifier);
+
           const data = response.notification.request.content.data as Record<string, unknown>;
           if (data?.route === 'local-radar') {
-            setLocalRadarNotice(operatorNoticeFromData(data));
-            setLocalRadarNoticeCollapsed(false);
-            router.push('/local-radar');
+            showLocalRadarNotice(data, true);
             return;
           }
           if (data?.route === 'alerts') {
@@ -74,7 +86,24 @@ export default function RootLayout() {
           }
           const safeProductUrl = safeExternalHttpsUrl(response.notification.request.content.data?.productUrl);
           if (safeProductUrl) void Linking.openURL(safeProductUrl);
+        };
+
+        receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+          const data = notification.request.content.data as Record<string, unknown>;
+          if (data?.route === 'local-radar') showLocalRadarNotice(data, false);
         });
+
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          handleResponse(response);
+        });
+
+        void Notifications.getLastNotificationResponseAsync()
+          .then((response) => {
+            handleResponse(response);
+            if (response) return Notifications.clearLastNotificationResponseAsync();
+            return undefined;
+          })
+          .catch(() => null);
       })
       .catch(() => {
         // Expo Go does not provide full remote-push support on every platform.
@@ -83,7 +112,8 @@ export default function RootLayout() {
 
     return () => {
       active = false;
-      subscription?.remove();
+      responseSubscription?.remove();
+      receivedSubscription?.remove();
     };
   }, []);
 
@@ -126,7 +156,10 @@ export default function RootLayout() {
         {localRadarNotice ? <LocalRadarOperatorNotice
           notice={localRadarNotice}
           collapsed={localRadarNoticeCollapsed}
-          onCollapse={() => setLocalRadarNoticeCollapsed(true)}
+          onCollapse={() => {
+            setLocalRadarNoticeCollapsed(true);
+            router.push('/local-radar');
+          }}
           onExpand={() => setLocalRadarNoticeCollapsed(false)}
           onDismiss={() => setLocalRadarNotice(null)}
         /> : null}
