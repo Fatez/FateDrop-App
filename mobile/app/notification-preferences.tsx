@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { registerForStockAlerts, sendLocalRadarPresentationTest, sendVanishedPresentationTest, unregisterStockAlerts } from '@/lib/notifications';
+import { registerForStockAlerts, sendLocalRadarPresentationTest, unregisterStockAlerts } from '@/lib/notifications';
 import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
 type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'web' | 'discord';
@@ -67,22 +67,6 @@ export default function NotificationPreferencesScreen() {
     }
   };
 
-  const testVanished = async () => {
-    if (working) return;
-    setWorking('test-vanished');
-    setMessage(null);
-    try {
-      const result = await sendVanishedPresentationTest();
-      if (result.sent) setMessage('Vanished TEST alert sent to this device.');
-      else if (result.reason === 'permission-denied') setMessage('Vanished test could not run because iOS notification permission is off.');
-      else setMessage('Vanished test requires a physical device.');
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Vanished test could not be sent.');
-    } finally {
-      setWorking(null);
-    }
-  };
-
   const testLocalRadar = async () => {
     if (working) return;
     setWorking('test-local-radar');
@@ -120,13 +104,6 @@ export default function NotificationPreferencesScreen() {
               <Text style={styles.rowDetail}>QA only · fires the real Local Radar notification route and incoming-stock card without creating stock data.</Text>
             </View>
           </Pressable>
-          <Pressable disabled={Boolean(working)} onPress={() => void testVanished()} style={({ pressed }) => [styles.testRow, pressed && styles.pressed]}>
-            <View style={styles.testIcon}><Ionicons name="flask-outline" size={17} color={FateDropColors.coral} /></View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.testTitle}>{working === 'test-vanished' ? 'Sending Vanished test…' : 'TEST VANISHED ALERT'}</Text>
-              <Text style={styles.rowDetail}>QA only · fires a local iOS Vanished banner/sound without creating stock data.</Text>
-            </View>
-          </Pressable>
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
           {rows.slice(0, 6).map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
@@ -159,9 +136,6 @@ const styles = StyleSheet.create({
   localRadarTestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },
   localRadarTestIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.cyan}55` },
   localRadarTestTitle: { color: FateDropColors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
-  testRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.coral}55`, backgroundColor: `${FateDropColors.coral}0D` },
-  testIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.coral}55` },
-  testTitle: { color: FateDropColors.coral, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
   rowCopy: { flex: 1 },
   rowTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
   rowDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
