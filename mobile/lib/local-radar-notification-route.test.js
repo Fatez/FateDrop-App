@@ -11,7 +11,7 @@ const hardenedProductExpression = 'safeExternalHttpsUrl(response.notification.re
 test('Local Radar operator notification routes into the stable Local Radar screen', () => {
   assert.match(layout, /data\?\.route === 'local-radar'/);
   assert.match(layout, /router\.push\('\/local-radar'\)/);
-  assert.match(layout, /return;/);
+  assert.match(layout, /showLocalRadarNotice\(data, true\)/);
 });
 
 test('Local Radar routing preserves the descriptive Cloud and Web operator payload', () => {
@@ -24,9 +24,17 @@ test('Local Radar routing preserves the descriptive Cloud and Web operator paylo
   assert.match(layout, /branchCount: notificationCount\(data\.branchCount\)/);
 });
 
-test('notification catch expands first then collapses to return map space', () => {
+test('Local Radar alert is recovered on cold start and shown while the app is foregrounded', () => {
+  assert.match(layout, /getLastNotificationResponseAsync\(\)/);
+  assert.match(layout, /clearLastNotificationResponseAsync\(\)/);
+  assert.match(layout, /addNotificationReceivedListener/);
+  assert.match(layout, /showLocalRadarNotice\(data, false\)/);
+  assert.match(layout, /addNotificationResponseReceivedListener/);
+});
+
+test('notification catch expands first and the map action always opens Local Radar', () => {
   assert.match(layout, /setLocalRadarNoticeCollapsed\(false\)/);
-  assert.match(layout, /onCollapse=\{\(\) => setLocalRadarNoticeCollapsed\(true\)\}/);
+  assert.match(layout, /onCollapse=\{\(\) => \{[\s\S]*setLocalRadarNoticeCollapsed\(true\);[\s\S]*router\.push\('\/local-radar'\);[\s\S]*\}\}/);
   assert.match(notice, /LOCAL RADAR · INCOMING STOCK/);
   assert.match(notice, /Expected at \$\{branches\}/);
   assert.match(notice, /Check Local Radar to see if a participating store is near you\./);
