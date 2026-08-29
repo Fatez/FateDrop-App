@@ -65,16 +65,6 @@ export default function HomeScreenV3() {
           </View>
         </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Open the FateDrop Guide" onPress={() => router.push('/demo')} style={({ pressed }) => [styles.guideCard, pressed && styles.pressed]}>
-          <View style={styles.guideIcon}><Ionicons name="compass-outline" size={24} color={FateDropColors.goldBright} /></View>
-          <View style={styles.flex}>
-            <Text style={styles.guideEyebrow}>FATEDROP GUIDE</Text>
-            <Text style={styles.guideTitle}>How FateDrop works — whenever you need it.</Text>
-            <Text style={styles.guideCopy}>Replay the guided tour, learn every core tool and revisit Whisper → Echo → Manifested → Vanished whenever you need it.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
-        </Pressable>
-
         <View style={styles.sectionHead}>
           <View>
             <Text style={styles.sectionEyebrow}>NETWORK PULSE</Text>
@@ -146,11 +136,6 @@ const styles = StyleSheet.create({
   heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, ...heroShadow },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700', maxWidth: 330, marginTop: 5, ...heroShadow },
   heroSubtitle: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 19, maxWidth: 340, marginTop: 7, ...heroShadow },
-  guideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 18, marginBottom: 20, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.goldBright}45`, backgroundColor: 'rgba(19,17,12,.94)' },
-  guideIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}3D`, backgroundColor: `${FateDropColors.goldBright}12` },
-  guideEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
-  guideTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
-  guideCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 4 },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 18, marginTop: 6, marginBottom: 10 },
   sectionEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.25, paddingHorizontal: 18, marginBottom: 7 },
   sectionTitle: { color: FateDropColors.ivory, fontSize: 20, fontWeight: '900', marginTop: 2 },
