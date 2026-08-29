@@ -38,7 +38,7 @@ const guideSlides = [
     eyebrow: 'ECHO · FENN',
     title: 'The signal is getting stronger.',
     body: 'Echo means stronger evidence is building. It can include trusted preparation intelligence, but it still must not be treated as confirmed physical stock unless FateDrop says so explicitly.',
-    action: 'What to do: get ready. Check the retailer, product and evidence so you can move quickly if it Manifestes.',
+    action: 'What to do: get ready. Check the retailer, product and evidence so you can move quickly if it becomes Manifested.',
     accent: '#D9CDBB',
     source: require('@/assets/images/alert-fenn-hero-final.webp'),
   },
