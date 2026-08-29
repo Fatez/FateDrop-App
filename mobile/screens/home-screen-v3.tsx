@@ -69,7 +69,7 @@ export default function HomeScreenV3() {
           <View style={styles.guideIcon}><Ionicons name="compass-outline" size={24} color={FateDropColors.goldBright} /></View>
           <View style={styles.flex}>
             <Text style={styles.guideEyebrow}>FATEDROP GUIDE</Text>
-            <Text style={styles.guideTitle}>Not sure what a feature or signal means?</Text>
+            <Text style={styles.guideTitle}>How FateDrop works — whenever you need it.</Text>
             <Text style={styles.guideCopy}>Replay the guided tour, learn every core tool and revisit Whisper → Echo → Manifested → Vanished whenever you need it.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
@@ -112,7 +112,7 @@ export default function HomeScreenV3() {
         <View style={styles.actions}>
           <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
           <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push('/fatefind')} />
-          <Action title="FateDrop Guide" detail="Tour and feature explainers" icon="book-outline" onPress={() => router.push('/demo')} />
+          <Action title="How FateDrop works" detail="FateDrop Guide · tour and feature explainers" icon="book-outline" onPress={() => router.push('/demo')} />
         </View>
 
         <View style={styles.explainer}>
