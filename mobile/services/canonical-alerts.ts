@@ -71,7 +71,9 @@ type CanonicalAlertResponse = {
 };
 
 type CanonicalAlertReadStateListener = (userId: string) => void;
+type CanonicalAlertInboxListener = () => void;
 const readStateListeners = new Set<CanonicalAlertReadStateListener>();
+const inboxListeners = new Set<CanonicalAlertInboxListener>();
 const readStateMutationQueues = new Map<string, Promise<void>>();
 
 function readStateKey(userId: string) {
@@ -114,6 +116,15 @@ async function mutateCanonicalAlertReadState(
   } finally {
     if (readStateMutationQueues.get(userId) === nextQueue) readStateMutationQueues.delete(userId);
   }
+}
+
+export function publishCanonicalAlertInboxChanged() {
+  inboxListeners.forEach((listener) => listener());
+}
+
+export function subscribeCanonicalAlertInboxChanged(listener: CanonicalAlertInboxListener) {
+  inboxListeners.add(listener);
+  return () => { inboxListeners.delete(listener); };
 }
 
 export function subscribeCanonicalAlertReadState(listener: CanonicalAlertReadStateListener) {
