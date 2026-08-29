@@ -3,11 +3,11 @@ const fs = require('node:fs');
 const test = require('node:test');
 
 const read = (path) => fs.readFileSync(path, 'utf8');
-const onboarding = read('app/onboarding.tsx');
-const onboardingState = read('lib/onboarding-state.ts');
-const boundary = read('components/first-run-tour-boundary.tsx');
-const rootLayout = read('app/_layout.tsx');
-const more = read('screens/more-screen-v2.tsx');
+const onboarding = read('mobile/app/onboarding.tsx');
+const onboardingState = read('mobile/lib/onboarding-state.ts');
+const boundary = read('mobile/components/first-run-tour-boundary.tsx');
+const rootLayout = read('mobile/app/_layout.tsx');
+const more = read('mobile/screens/more-screen-v2.tsx');
 
 test('app guide stores only a versioned local completion flag', () => {
   assert.match(onboardingState, /APP_GUIDE_VERSION = 1/);
