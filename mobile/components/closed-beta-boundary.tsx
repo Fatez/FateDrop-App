@@ -38,7 +38,7 @@ export function ClosedBetaBoundary({ children }: { children: ReactNode }) {
         <Text style={styles.eyebrow}>FATEDROP · CLOSED BETA</Text>
         <Text style={styles.title}>Closed beta access required.</Text>
         <Text style={styles.copy}>
-          Sign in with your FateDrop ID to check your beta approval. If you have not requested access yet, create your FateDrop ID and request the closed beta on the FateDrop website.
+          Sign in with your FateDrop ID to check your beta approval. If you have not requested access yet, create your FateDrop ID on the FateDrop website. Registration creates your closed-beta request in Pending status.
         </Text>
 
         <Text style={styles.truth}>Installing FateDrop or receiving a TestFlight link does not grant beta access. Approval is tied to your FateDrop ID.</Text>
@@ -47,7 +47,7 @@ export function ClosedBetaBoundary({ children }: { children: ReactNode }) {
           <Ionicons name="log-in-outline" size={16} color={FateDropColors.text} />
           <Text style={styles.primaryText}>SIGN IN</Text>
         </Pressable>
-        <Pressable onPress={() => void Linking.openURL(`${FATEDROP_WEB_URL}/app-beta`)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+        <Pressable onPress={() => void Linking.openURL(`${FATEDROP_WEB_URL}/account/register`)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
           <Text style={styles.secondaryText}>REQUEST BETA ACCESS ON WEBSITE ↗</Text>
         </Pressable>
       </View>
