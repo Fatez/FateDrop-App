@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon-emblem.png",
     "scheme": "fatedrop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
