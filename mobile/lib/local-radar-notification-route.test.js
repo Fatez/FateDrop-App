@@ -40,7 +40,8 @@ test('incoming-stock panel renders only on Local Radar and can minimise to a per
   assert.match(layout, /onCollapse=\{collapseNotice\}/);
   assert.match(layout, /onExpand=\{expandNotice\}/);
   assert.match(layout, /onDismiss=\{dismissNotice\}/);
-  assert.match(context, /showNotice: \(nextNotice/);
+  assert.match(context, /const showNotice = useCallback\(\(nextNotice: LocalRadarOperatorNoticeData\) =>/);
+  assert.match(context, /setNotice\(nextNotice\)/);
   assert.match(context, /setCollapsed\(false\)/);
   assert.match(context, /collapseNotice = useCallback\(\(\) => setCollapsed\(true\)/);
   assert.match(notice, /LOCAL RADAR · INCOMING STOCK/);
