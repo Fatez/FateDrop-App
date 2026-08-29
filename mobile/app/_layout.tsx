@@ -14,6 +14,7 @@ import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { LocalRadarNoticeProvider, useLocalRadarNotice } from '@/contexts/local-radar-notice-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
+import { publishCanonicalAlertInboxChanged } from '@/services/canonical-alerts';
 
 export const unstable_settings = { anchor: '(tabs)' };
 
@@ -75,6 +76,7 @@ function FateDropShell() {
             return;
           }
           if (data?.route === 'alerts') {
+            publishCanonicalAlertInboxChanged();
             router.push('/alerts');
             return;
           }
@@ -84,7 +86,11 @@ function FateDropShell() {
 
         receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
           const data = notification.request.content.data as Record<string, unknown>;
-          if (data?.route === 'local-radar') handleLocalRadarData(data, false);
+          if (data?.route === 'local-radar') {
+            handleLocalRadarData(data, false);
+            return;
+          }
+          if (data?.route === 'alerts') publishCanonicalAlertInboxChanged();
         });
 
         responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => { handleResponse(response); });
