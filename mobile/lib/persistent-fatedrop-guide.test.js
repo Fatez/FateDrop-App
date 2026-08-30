@@ -11,10 +11,11 @@ const guide = read('app/demo.tsx');
 const onboarding = read('app/onboarding.tsx');
 const more = read('screens/more-screen-v2.tsx');
 
-test('Home keeps a prominent permanent FateDrop Guide entry', () => {
-  assert.match(home, /FATEDROP GUIDE/);
-  assert.match(home, /How FateDrop works/);
-  assert.match(home, /router\.push\('\/demo'\)/);
+test('Home keeps exactly one permanent FateDrop Guide entry at the bottom of Quick Actions', () => {
+  assert.doesNotMatch(home, /FATEDROP GUIDE/);
+  assert.doesNotMatch(home, /How FateDrop works — whenever you need it\./);
+  assert.match(home, /<Text style=\{styles\.sectionEyebrow\}>QUICK ACTIONS<\/Text>[\s\S]*<Action title="Search"[\s\S]*<Action title="FateFind"[\s\S]*<Action title="How FateDrop works" detail="FateDrop Guide · tour and feature explainers" icon="book-outline" onPress=\{\(\) => router\.push\('\/demo'\)\} \/>/);
+  assert.equal((home.match(/router\.push\('\/demo'\)/g) ?? []).length, 1);
 });
 
 test('persistent guide can replay the full guided tour', () => {
@@ -33,7 +34,7 @@ test('persistent guide explains and links the core collector features', () => {
   assert.match(guide, /Vanished/);
 });
 
-test('More retains a second replay entry so the guide is never one-shot only', () => {
+test('More retains a replay entry so the guide is never one-shot only', () => {
   assert.match(more, /title: 'App Guide'/);
   assert.match(more, /path: '\/onboarding'/);
 });

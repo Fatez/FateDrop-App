@@ -50,3 +50,11 @@ test('Local Radar guide keeps Expected Confirmed and Unknown physically scoped',
   assert.match(onboarding, /Confirmed requires exact physical evidence/);
   assert.match(onboarding, /Unknown stays unknown/);
 });
+
+test('guide uses the approved closed-beta welcome and FateDrop lore artwork without cropping', () => {
+  assert.match(onboarding, /WELCOME TO FATEDROP[\s\S]*source: require\('@\/assets\/images\/fatedrop-guide-closed-beta\.webp'\)/);
+  assert.match(onboarding, /LOCAL RADAR[\s\S]*source: require\('@\/assets\/images\/fatedrop-guide-lore\.webp'\)/);
+  assert.match(onboarding, /contentFit="contain"/);
+  assert.equal(fs.existsSync('mobile/assets/images/fatedrop-guide-closed-beta.webp'), true);
+  assert.equal(fs.existsSync('mobile/assets/images/fatedrop-guide-lore.webp'), true);
+});
