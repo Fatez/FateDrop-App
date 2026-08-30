@@ -8,7 +8,6 @@ export type LocalRadarMapShop = {
   storeCategory?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  [key: string]: unknown;
 };
 
 export type LocalRadarRegion = {
