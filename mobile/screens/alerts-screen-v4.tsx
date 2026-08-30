@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { countUnreadCanonicalAlertsByStage, fetchCanonicalAlerts, markCanonicalAlertStageSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
+import { countUnreadCanonicalAlertsByStage, fetchCanonicalAlerts, markCanonicalAlertStageSeen, subscribeCanonicalAlertInboxChanged, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import { openExternalRetailerLink, openTrackedRetailerLink } from '@/services/outbound-links';
 
 const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
@@ -64,21 +64,24 @@ export default function AlertsScreenV4() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   useEffect(() => {
+    if (!signedIn) return;
+    return subscribeCanonicalAlertInboxChanged(() => { void load(); });
+  }, [load, signedIn]);
+
+  const selectStage = useCallback((nextStage: CanonicalAlertStage) => {
+    setStage(nextStage);
     if (!signedIn || !userId || view !== 'signals') return;
-    const visibleAlerts = alerts.filter((alert) => alert.fateStage === stage);
+    const visibleAlerts = alerts.filter((alert) => alert.fateStage === nextStage);
     if (visibleAlerts.length === 0) return;
-    let cancelled = false;
     void (async () => {
       try {
-        await markCanonicalAlertStageSeen(userId, stage, visibleAlerts);
-        const nextUnread = await countUnreadCanonicalAlertsByStage(userId, alerts);
-        if (!cancelled) setUnreadCounts(nextUnread);
+        await markCanonicalAlertStageSeen(userId, nextStage, visibleAlerts);
+        setUnreadCounts(await countUnreadCanonicalAlertsByStage(userId, alerts));
       } catch {
         // Read-state persistence is presentation UX; keep the current dot if local storage is unavailable.
       }
     })();
-    return () => { cancelled = true; };
-  }, [alerts, signedIn, stage, userId, view]);
+  }, [alerts, signedIn, userId, view]);
 
   const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, alerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [alerts]);
   const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage), [alerts, stage]);
@@ -97,7 +100,7 @@ export default function AlertsScreenV4() {
         <View style={styles.switch}><Pressable onPress={() => setView('signals')} style={[styles.switchItem, view === 'signals' && styles.switchActive]}><Text style={[styles.switchText, view === 'signals' && styles.switchTextActive]}>SIGNALS</Text></Pressable><Pressable onPress={() => setView('matches')} style={[styles.switchItem, view === 'matches' && styles.switchActive]}><Text style={[styles.switchText, view === 'matches' && styles.switchTextActive]}>FATEMATCHES</Text></Pressable></View>
 
         {view === 'signals' ? <>
-          <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
+          <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => selectStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
           {!signedIn ? <SignIn /> : <>
             {error ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.warning} /><Text style={styles.errorText}>{error}</Text></View> : null}
             <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text><Text style={styles.sectionHint}>Tap an alert for a quick in-app look · ↗ opens in your browser.</Text></View><Text style={styles.sectionCount}>{filtered.length}</Text></View>

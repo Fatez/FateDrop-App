@@ -20,6 +20,8 @@ const alerts = [
 
 const screen = fs.readFileSync(path.join(__dirname, '..', 'screens', 'alerts-screen-v4.tsx'), 'utf8');
 const layout = fs.readFileSync(path.join(__dirname, '..', 'app', '(tabs)', '_layout.tsx'), 'utf8');
+const rootLayout = fs.readFileSync(path.join(__dirname, '..', 'app', '_layout.tsx'), 'utf8');
+const canonicalAlerts = fs.readFileSync(path.join(__dirname, '..', 'services', 'canonical-alerts.ts'), 'utf8');
 
 test('unseen canonical alerts are counted independently by lifecycle', () => {
   const counts = countUnreadCanonicalAlertsByStageFromState(alerts, createCanonicalAlertReadState('user-1'));
@@ -68,12 +70,24 @@ test('lifecycle unread dots use the shared lifecycle colour selected from FateDr
   assert.match(screen, /unreadCounts\[value\] > 0[\s\S]*backgroundColor: item\.color/);
 });
 
-test('opening the active lifecycle marks only that lifecycle seen', () => {
-  assert.match(screen, /markCanonicalAlertStageSeen\(userId, stage, visibleAlerts\)/);
+test('opening Alerts does not auto-clear the default lifecycle; explicit lifecycle selection marks only that stage seen', () => {
+  assert.match(screen, /const selectStage = useCallback\(\(nextStage: CanonicalAlertStage\) =>/);
+  assert.match(screen, /onPress=\{\(\) => selectStage\(value\)\}/);
+  assert.match(screen, /markCanonicalAlertStageSeen\(userId, nextStage, visibleAlerts\)/);
+  assert.doesNotMatch(screen, /markCanonicalAlertStageSeen\(userId, stage, visibleAlerts\)/);
   assert.doesNotMatch(screen, /markCanonicalAlertsSeen\(userId, next\)/);
 });
 
-test('bottom Alerts badge recalculates aggregate unread after lifecycle read-state changes', () => {
+test('foreground lifecycle push invalidates the canonical inbox and refreshes both badge and alert screen immediately', () => {
+  assert.match(canonicalAlerts, /export function publishCanonicalAlertInboxChanged\(\)/);
+  assert.match(canonicalAlerts, /export function subscribeCanonicalAlertInboxChanged/);
+  assert.match(rootLayout, /data\?\.route === 'alerts'\) publishCanonicalAlertInboxChanged\(\)/);
+  assert.match(layout, /subscribeCanonicalAlertInboxChanged\(\(\) => \{[\s\S]*refreshAlertCount\(\)/);
+  assert.match(screen, /subscribeCanonicalAlertInboxChanged\(\(\) => \{ void load\(\); \}\)/);
+});
+
+test('bottom Alerts badge recalculates after lifecycle read-state changes and survives transient fetch failure', () => {
   assert.match(layout, /changedUserId === userId\) void refreshAlertCount\(\)/);
-  assert.doesNotMatch(layout, /changedUserId === userId\) setAlertCount\(0\)/);
+  assert.match(layout, /Keep the last known unread count through a transient inbox failure/);
+  assert.doesNotMatch(layout, /catch \{\s*setAlertCount\(0\);\s*\}/);
 });
