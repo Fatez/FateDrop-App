@@ -22,6 +22,14 @@ export type CanonicalAlertPresentation = {
   sourceMsrp: string | null;
 };
 
+export type CanonicalLiveWindow = {
+  manifestedAt: string | null;
+  lastConfirmedLiveAt: string | null;
+  vanishedAt: string | null;
+  observedDurationSeconds: number | null;
+  historyComplete: boolean;
+};
+
 export type CanonicalMobileAlert = {
   id: string;
   fateStage: CanonicalAlertStage;
@@ -29,6 +37,8 @@ export type CanonicalMobileAlert = {
   message: string;
   retailer: string;
   detectedAt: string;
+  observedDurationSeconds?: number | null;
+  liveWindow?: CanonicalLiveWindow | null;
   confidence: number;
   productUrl: string;
   product: {
