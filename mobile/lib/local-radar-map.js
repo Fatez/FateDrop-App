@@ -6,11 +6,13 @@ const SUPERMARKET_RETAILER_IDS = new Set([
   'lidl-uk',
   'morrisons-uk',
   'sainsburys-uk',
+  'sainsburys',
   'tesco-uk',
 ]);
 
 const LARGE_RETAILER_IDS = new Set([
   'argos-uk',
+  'bm-uk',
   'bm-stores-uk',
   'currys-uk',
   'entertainer-uk',
@@ -36,6 +38,9 @@ const LARGE_RETAILER_IDS = new Set([
   'whsmith-travel-uk',
 ]);
 
+const SUPERMARKET_NAME_RE = /\b(aldi|asda|costco|iceland|lidl|morrisons|sainsbury'?s|tesco)\b/i;
+const LARGE_RETAILER_NAME_RE = /\b(argos|b&m|currys|the entertainer|entertainer|forbidden planet|frasers|game|hamleys|hmv|hobbycraft|home bargains|john lewis|menkind|miniso|original factory shop|poundland|ryman|selfridges|smyths|sports direct|tgjones|the works|waterstones|whsmith)\b/i;
+
 function normalizedCategory(value) {
   const text = String(value || '').trim().toLowerCase();
   if (text === 'supermarket' || text === 'supermarkets') return 'supermarket';
@@ -47,9 +52,14 @@ function normalizedCategory(value) {
 export function retailerCategory(shop) {
   const explicit = normalizedCategory(shop?.retailerCategory ?? shop?.retailerSegment ?? shop?.storeCategory);
   if (explicit) return explicit;
+
   const retailerId = String(shop?.retailerId || '').trim().toLowerCase();
   if (SUPERMARKET_RETAILER_IDS.has(retailerId)) return 'supermarket';
   if (LARGE_RETAILER_IDS.has(retailerId)) return 'large';
+
+  const identity = `${shop?.retailerName || ''} ${shop?.name || ''}`.trim();
+  if (SUPERMARKET_NAME_RE.test(identity)) return 'supermarket';
+  if (LARGE_RETAILER_NAME_RE.test(identity)) return 'large';
   return 'independent';
 }
 
