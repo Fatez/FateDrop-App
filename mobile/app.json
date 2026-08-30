@@ -43,10 +43,12 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/android-icon-monochrome.png",
           "color": "#A855F7",
           "defaultChannel": "stock-alerts"
         }
       ],
+      "./plugins/with-fatedrop-notification-icons.cjs",
       [
         "expo-splash-screen",
         {

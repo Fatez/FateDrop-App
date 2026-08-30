@@ -77,7 +77,7 @@ test('native platform branding uses the final FateDrop home-screen icon path', (
   const notifications = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications');
   const splash = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen');
 
-  assert.equal(notifications?.[1]?.icon, undefined, 'notifications must not reference the corrupt legacy icon');
+  assert.equal(notifications?.[1]?.icon, './assets/images/android-icon-monochrome.png', 'notifications must use the canonical monochrome Android icon');
   assert.equal(splash?.[1]?.image, undefined, 'splash must not reference the corrupt legacy image');
   assert.equal(fs.existsSync(path.join(root, 'assets/images/icon.png')), false);
   assert.equal(fs.existsSync(path.join(root, 'assets/images/fatedrop-logo.png')), false);
