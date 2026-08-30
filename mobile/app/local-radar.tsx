@@ -7,17 +7,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import {
+  clusterShops,
+  clusterZoomRegion,
+  filterShopsByCategory,
+  retailerCategory,
+  type LocalRadarRetailerCategory,
+} from '@/lib/local-radar-map';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
 
 const adapter = new ExpoLocationAdapter();
 const UK_REGION: Region = { latitude: 52.7, longitude: -1.5, latitudeDelta: 8.2, longitudeDelta: 7.6 };
+const MAP_MARKER_BUDGET = 72;
+const STORE_PREVIEW_LIMIT = 80;
+
+const STORE_FILTERS: Array<{ key: LocalRadarRetailerCategory; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'supermarket', label: 'Supermarkets' },
+  { key: 'large', label: 'Large retailers' },
+  { key: 'independent', label: 'Independents' },
+];
 
 function markerColor(shop: RadarShop) {
   const state = shopLocalState(shop);
   if (state === 'confirmed') return FateDropColors.mint;
   if (state === 'expected') return FateDropColors.cyan;
   return FateDropColors.goldBright;
+}
+
+function storeTypeLabel(shop: RadarShop) {
+  const category = retailerCategory(shop);
+  if (category === 'supermarket') return 'Supermarket';
+  if (category === 'large') return 'Large retailer';
+  return 'Independent';
 }
 
 function regionFor(area: UserArea | undefined, shops: RadarShop[]): Region {
@@ -58,6 +81,7 @@ export default function LocalRadarScreen() {
   const [radius, setRadius] = useState(25);
   const [shops, setShops] = useState<RadarShop[]>([]);
   const [selected, setSelected] = useState<RadarShop | null>(null);
+  const [storeFilter, setStoreFilter] = useState<LocalRadarRetailerCategory>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [region, setRegion] = useState<Region>(UK_REGION);
@@ -111,14 +135,37 @@ export default function LocalRadarScreen() {
     }
   };
 
-  const mappedShops = useMemo(() => shops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [shops]);
-  const prioritizedShops = shops;
-  const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
-  const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
+  const categoryCounts = useMemo(() => {
+    const counts = { all: shops.length, supermarket: 0, large: 0, independent: 0 };
+    for (const shop of shops) counts[retailerCategory(shop)] += 1;
+    return counts;
+  }, [shops]);
+
+  const filteredShops = useMemo(
+    () => scopedRetailerId ? shops : filterShopsByCategory(shops, storeFilter),
+    [scopedRetailerId, shops, storeFilter],
+  );
+
+  useEffect(() => {
+    setSelected(current => current && filteredShops.some(shop => shop.id === current.id) ? current : null);
+  }, [filteredShops]);
+
+  const mappedShops = useMemo(
+    () => filteredShops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'),
+    [filteredShops],
+  );
+  const mapPoints = useMemo(
+    () => clusterShops(mappedShops, region, { maxMarkers: MAP_MARKER_BUDGET }),
+    [mappedShops, region],
+  );
+  const prioritizedShops = useMemo(() => filteredShops.slice(0, STORE_PREVIEW_LIMIT), [filteredShops]);
+  const confirmed = useMemo(() => filteredShops.filter(shop => shopLocalState(shop) === 'confirmed').length, [filteredShops]);
+  const expected = useMemo(() => filteredShops.filter(shop => shopLocalState(shop) === 'expected').length, [filteredShops]);
   const navParams = areaParams(area, radius);
   const mapHeight = Math.max(330, Math.min(480, height * 0.48));
   const selectedExpected = selected ? expectedStockForShop(selected) : null;
   const scopedName = scopedRetailerName || 'this retailer';
+  const previewLimited = filteredShops.length > STORE_PREVIEW_LIMIT;
 
   return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground/><ScrollView contentContainerStyle={styles.content}>
     <View style={styles.topRow}>
@@ -128,14 +175,28 @@ export default function LocalRadarScreen() {
 
     <View style={[styles.mapShell, { height: mapHeight }]}>
       <MapView style={StyleSheet.absoluteFill} region={region} onRegionChangeComplete={setRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
-        {mappedShops.map(shop => <Marker key={shop.id} coordinate={{ latitude: Number(shop.latitude), longitude: Number(shop.longitude) }} pinColor={markerColor(shop)} title={shop.name} description={shopSignal(shop)} onPress={() => setSelected(shop)}/>)}
+        {mapPoints.map(point => point.kind === 'cluster' ? <Marker
+          key={point.id}
+          coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+          tracksViewChanges={false}
+          onPress={() => { setSelected(null); setRegion(clusterZoomRegion(point, region)); }}
+        ><View style={styles.clusterMarker}><Text style={styles.clusterCount}>{point.count}</Text></View></Marker> : <Marker
+          key={point.id}
+          coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+          pinColor={markerColor(point.shop)}
+          title={point.shop.name}
+          description={shopSignal(point.shop)}
+          tracksViewChanges={false}
+          onPress={() => setSelected(point.shop)}
+        />)}
       </MapView>
       <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>Confirmed</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
-      {area ? <View style={styles.mapStats}><StatusBadge label={`${shops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
-      {!area ? <View style={styles.mapPrompt}><Ionicons name="navigate-circle-outline" size={36} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>Search your area</Text><Text style={styles.mapPromptCopy}>{scopedRetailerId ? `Use your location or postcode to find known ${scopedName} branches.` : 'Nearby Pokémon-selling stores will appear here as real map pins.'}</Text></View> : null}
-      {area && scopedRetailerId && !loading && !shops.length ? <View style={styles.mapPrompt}><Ionicons name="storefront-outline" size={32} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>No nearby branch found</Text><Text style={styles.mapPromptCopy}>Local Radar did not find a canonical {scopedName} branch inside this radius. Increase the radius or try another location.</Text></View> : null}
+      {area ? <View style={styles.mapStats}><StatusBadge label={`${filteredShops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${mapPoints.length} map pins`} color={FateDropColors.goldBright}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
+      {!area ? <View style={styles.mapPrompt}><Ionicons name="navigate-circle-outline" size={36} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>Search your area</Text><Text style={styles.mapPromptCopy}>{scopedRetailerId ? `Use your location or postcode to find known ${scopedName} branches.` : 'Nearby Pokémon-selling stores will appear here as clustered map pins.'}</Text></View> : null}
+      {area && scopedRetailerId && !loading && !filteredShops.length ? <View style={styles.mapPrompt}><Ionicons name="storefront-outline" size={32} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>No nearby branch found</Text><Text style={styles.mapPromptCopy}>Local Radar did not find a canonical {scopedName} branch inside this radius. Increase the radius or try another location.</Text></View> : null}
+      {area && !scopedRetailerId && storeFilter !== 'all' && !loading && !filteredShops.length ? <View style={styles.mapPrompt}><Ionicons name="options-outline" size={32} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>No stores match this filter</Text><Text style={styles.mapPromptCopy}>Try another store type or increase your Local Radar radius.</Text></View> : null}
       {selected ? <View style={styles.selectedCard}>
-        <View style={styles.selectedCopy}><Text style={[styles.selectedSignal,{color:markerColor(selected)}]}>{shopSignal(selected)}</Text><Text style={styles.selectedName}>{selected.name}</Text><Text style={styles.selectedMeta}>{selected.distanceMiles != null ? `${selected.distanceMiles.toFixed(1)} miles · ` : ''}{selected.address || selected.postcode || 'Location pending'}</Text>{selectedExpected ? <Text style={styles.selectedMeta}>{selectedExpected.title}{selectedExpected.label ? ` · ${selectedExpected.label}` : ''}</Text> : null}</View>
+        <View style={styles.selectedCopy}><Text style={[styles.selectedSignal,{color:markerColor(selected)}]}>{shopSignal(selected)} · {storeTypeLabel(selected)}</Text><Text style={styles.selectedName}>{selected.name}</Text><Text style={styles.selectedMeta}>{selected.distanceMiles != null ? `${selected.distanceMiles.toFixed(1)} miles · ` : ''}{selected.address || selected.postcode || 'Location pending'}</Text>{selectedExpected ? <Text style={styles.selectedMeta}>{selectedExpected.title}{selectedExpected.label ? ` · ${selectedExpected.label}` : ''}</Text> : null}</View>
         <Pressable onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:selected.id, ...navParams } })} style={styles.selectedButton}><Text style={styles.selectedButtonText}>Open</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.text}/></Pressable>
       </View> : null}
     </View>
@@ -147,20 +208,29 @@ export default function LocalRadarScreen() {
       {area ? <View style={styles.radiusRow}>{[5,10,25,50].map(value => <Pressable key={value} onPress={() => setRadius(value)} disabled={loading} style={[styles.radiusChip, radius === value && styles.radiusChipActive]}><Text style={[styles.radiusText, radius === value && styles.radiusTextActive]}>{value} mi</Text></Pressable>)}</View> : null}
     </View>
 
+    {area && !scopedRetailerId ? <View style={styles.storeFilterCard}>
+      <View style={styles.filterHeader}><Text style={styles.filterTitle}>Store type</Text><Text style={styles.filterMeta}>Filter both the map and nearby-store preview</Text></View>
+      <View style={styles.storeFilterRow}>{STORE_FILTERS.map(option => <Pressable
+        key={option.key}
+        onPress={() => setStoreFilter(option.key)}
+        style={[styles.storeFilterChip, storeFilter === option.key && styles.storeFilterChipActive]}
+      ><Text style={[styles.storeFilterText, storeFilter === option.key && styles.storeFilterTextActive]}>{option.label} · {categoryCounts[option.key]}</Text></Pressable>)}</View>
+    </View> : null}
+
     {scopedRetailerId ? <View style={styles.scopeCard}><Ionicons name="link-outline" size={18} color={FateDropColors.cyan}/><Text style={styles.scopeText}>This Local Radar view is scoped to branches tied to the same FateDrop retailer ID as {scopedName}. It does not match stores by name or infer physical stock from the retailer’s online catalogue.</Text></View> : <>
       <Text style={styles.question}>What would you like Local Radar to show?</Text>
       <View style={styles.actions}>
-        <Pressable onPress={() => router.push({ pathname:'/local-radar-stock', params:navParams })} style={styles.actionCard}><View style={[styles.actionIcon,{backgroundColor:`${FateDropColors.mint}15`}]}><Ionicons name="storefront-outline" size={25} color={FateDropColors.mint}/></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>Local Stores</Text><Text style={styles.actionMeta}>Nearby Pokémon retailers with Expected stock when credible arrival information exists, and Confirmed only from exact physical-store evidence.</Text></View><Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright}/></Pressable>
+        <Pressable onPress={() => router.push({ pathname:'/local-radar-stock', params:navParams })} style={styles.actionCard}><View style={[styles.actionIcon,{backgroundColor:`${FateDropColors.mint}15`}]}><Ionicons name="storefront-outline" size={25} color={FateDropColors.mint}/></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>Local Stores</Text><Text style={styles.actionMeta}>Open the full virtualised store list. Expected stock appears only when credible arrival information exists, and Confirmed only from exact physical-store evidence.</Text></View><Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright}/></Pressable>
         <Pressable onPress={() => router.push({ pathname:'/local-radar-events', params:navParams })} style={styles.actionCard}><View style={[styles.actionIcon,{backgroundColor:`${FateDropColors.violetLight}15`}]}><Ionicons name="calendar-outline" size={25} color={FateDropColors.violetLight}/></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>Events</Text><Text style={styles.actionMeta}>Card shows, trade nights, tournaments and collector activity around you.</Text></View><Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright}/></Pressable>
       </View>
     </>}
 
-    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearby stores'}</Text><Text style={styles.sectionMeta}>Expected-stock branches are prioritised, then distance</Text></View>{prioritizedShops.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
+    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearby stores'}</Text><Text style={styles.sectionMeta}>{previewLimited ? `Showing the first ${STORE_PREVIEW_LIMIT} of ${filteredShops.length} results. Open Local Stores for the full list.` : 'Expected-stock branches are prioritised, then distance.'}</Text></View>{prioritizedShops.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{storeTypeLabel(shop)} · {shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
 
     <View style={styles.truthCard}><Ionicons name="shield-checkmark-outline" size={19} color={FateDropColors.goldBright}/><Text style={styles.truthText}>A store pin means FateDrop knows the physical branch — not that stock is guaranteed. Expected information is advisory. Confirmed only appears when FateDrop has genuine exact-branch physical availability evidence. Online stock remains separate.</Text></View>
   </ScrollView></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  safe:{flex:1,backgroundColor:FateDropColors.background},content:{padding:16,paddingBottom:120},topRow:{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8},back:{width:38,height:38,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},titleWrap:{flex:1},eyebrow:{color:FateDropColors.goldBright,fontSize:8,fontWeight:'900',letterSpacing:1.1},title:{color:FateDropColors.text,fontFamily:Fonts?.serif,fontSize:19,lineHeight:22,fontWeight:'700',marginTop:1},searchCard:{padding:11,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:10,marginBottom:2},locate:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:10,borderRadius:11,backgroundColor:FateDropColors.violet},locateText:{color:FateDropColors.text,fontWeight:'900',fontSize:11},manual:{flexDirection:'row',gap:7,marginTop:7},input:{flex:1,color:FateDropColors.text,paddingHorizontal:11,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.cardElevated,fontSize:11},setButton:{justifyContent:'center',paddingHorizontal:16,borderRadius:10,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:9,marginTop:7},radiusRow:{flexDirection:'row',gap:6,marginTop:8},radiusChip:{flex:1,alignItems:'center',paddingVertical:7,borderRadius:9,backgroundColor:FateDropColors.cardElevated,borderWidth:1,borderColor:'transparent'},radiusChipActive:{borderColor:FateDropColors.gold},radiusText:{color:FateDropColors.muted,fontSize:9,fontWeight:'800'},radiusTextActive:{color:FateDropColors.goldBright},mapShell:{overflow:'hidden',borderRadius:22,borderWidth:1,borderColor:FateDropColors.border,backgroundColor:FateDropColors.cardElevated},mapLegend:{position:'absolute',top:10,left:10,flexDirection:'row',gap:7,paddingHorizontal:9,paddingVertical:7,borderRadius:12,backgroundColor:'rgba(8,14,20,.88)'},legendItem:{flexDirection:'row',alignItems:'center',gap:4},dot:{width:7,height:7,borderRadius:4},legendText:{color:FateDropColors.text,fontSize:8,fontWeight:'800'},mapStats:{position:'absolute',top:44,left:10,right:10,flexDirection:'row',flexWrap:'wrap',gap:5},mapPrompt:{position:'absolute',top:'35%',left:30,right:30,alignItems:'center',padding:18,borderRadius:17,backgroundColor:'rgba(8,14,20,.90)'},mapPromptTitle:{color:FateDropColors.text,fontSize:16,fontWeight:'900',marginTop:5},mapPromptCopy:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,textAlign:'center',marginTop:3},selectedCard:{position:'absolute',left:10,right:10,bottom:10,flexDirection:'row',alignItems:'center',gap:10,padding:11,borderRadius:15,backgroundColor:'rgba(8,14,20,.95)',borderWidth:1,borderColor:FateDropColors.border},selectedCopy:{flex:1},selectedSignal:{fontSize:8,fontWeight:'900',letterSpacing:.7},selectedName:{color:FateDropColors.text,fontSize:13,fontWeight:'900',marginTop:2},selectedMeta:{color:FateDropColors.muted,fontSize:9,marginTop:3},selectedButton:{flexDirection:'row',alignItems:'center',gap:3,paddingHorizontal:12,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.violet},selectedButtonText:{color:FateDropColors.text,fontSize:10,fontWeight:'900'},question:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginTop:16,marginBottom:9},actions:{gap:8},actionCard:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},actionIcon:{width:48,height:48,borderRadius:15,alignItems:'center',justifyContent:'center'},actionCopy:{flex:1},actionTitle:{color:FateDropColors.text,fontSize:15,fontWeight:'900'},actionMeta:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,marginTop:3},scopeCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:12,backgroundColor:`${FateDropColors.cyan}0B`,borderWidth:1,borderColor:`${FateDropColors.cyan}22`},scopeText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14},sectionHead:{marginTop:20,marginBottom:8},sectionTitle:{color:FateDropColors.text,fontSize:17,fontWeight:'900'},sectionMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},storeRow:{flexDirection:'row',alignItems:'center',gap:9,padding:11,borderRadius:14,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:7},storeDot:{width:9,height:9,borderRadius:5},storeCopy:{flex:1},storeName:{color:FateDropColors.text,fontSize:12,fontWeight:'900'},storeMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},truthCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:16,backgroundColor:`${FateDropColors.gold}0B`,borderWidth:1,borderColor:`${FateDropColors.gold}22`},truthText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14}
+  safe:{flex:1,backgroundColor:FateDropColors.background},content:{padding:16,paddingBottom:120},topRow:{flexDirection:'row',alignItems:'center',gap:10,marginBottom:8},back:{width:38,height:38,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},titleWrap:{flex:1},eyebrow:{color:FateDropColors.goldBright,fontSize:8,fontWeight:'900',letterSpacing:1.1},title:{color:FateDropColors.text,fontFamily:Fonts?.serif,fontSize:19,lineHeight:22,fontWeight:'700',marginTop:1},searchCard:{padding:11,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:10,marginBottom:2},locate:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,padding:10,borderRadius:11,backgroundColor:FateDropColors.violet},locateText:{color:FateDropColors.text,fontWeight:'900',fontSize:11},manual:{flexDirection:'row',gap:7,marginTop:7},input:{flex:1,color:FateDropColors.text,paddingHorizontal:11,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.cardElevated,fontSize:11},setButton:{justifyContent:'center',paddingHorizontal:16,borderRadius:10,backgroundColor:FateDropColors.cardElevated},error:{color:FateDropColors.coral,fontSize:9,marginTop:7},radiusRow:{flexDirection:'row',gap:6,marginTop:8},radiusChip:{flex:1,alignItems:'center',paddingVertical:7,borderRadius:9,backgroundColor:FateDropColors.cardElevated,borderWidth:1,borderColor:'transparent'},radiusChipActive:{borderColor:FateDropColors.gold},radiusText:{color:FateDropColors.muted,fontSize:9,fontWeight:'800'},radiusTextActive:{color:FateDropColors.goldBright},mapShell:{overflow:'hidden',borderRadius:22,borderWidth:1,borderColor:FateDropColors.border,backgroundColor:FateDropColors.cardElevated},mapLegend:{position:'absolute',top:10,left:10,flexDirection:'row',gap:7,paddingHorizontal:9,paddingVertical:7,borderRadius:12,backgroundColor:'rgba(8,14,20,.88)'},legendItem:{flexDirection:'row',alignItems:'center',gap:4},dot:{width:7,height:7,borderRadius:4},legendText:{color:FateDropColors.text,fontSize:8,fontWeight:'800'},mapStats:{position:'absolute',top:44,left:10,right:10,flexDirection:'row',flexWrap:'wrap',gap:5},clusterMarker:{minWidth:38,height:38,paddingHorizontal:8,borderRadius:19,alignItems:'center',justifyContent:'center',backgroundColor:FateDropColors.violet,borderWidth:2,borderColor:FateDropColors.goldBright},clusterCount:{color:FateDropColors.text,fontSize:11,fontWeight:'900'},mapPrompt:{position:'absolute',top:'35%',left:30,right:30,alignItems:'center',padding:18,borderRadius:17,backgroundColor:'rgba(8,14,20,.90)'},mapPromptTitle:{color:FateDropColors.text,fontSize:16,fontWeight:'900',marginTop:5},mapPromptCopy:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,textAlign:'center',marginTop:3},selectedCard:{position:'absolute',left:10,right:10,bottom:10,flexDirection:'row',alignItems:'center',gap:10,padding:11,borderRadius:15,backgroundColor:'rgba(8,14,20,.95)',borderWidth:1,borderColor:FateDropColors.border},selectedCopy:{flex:1},selectedSignal:{fontSize:8,fontWeight:'900',letterSpacing:.7},selectedName:{color:FateDropColors.text,fontSize:13,fontWeight:'900',marginTop:2},selectedMeta:{color:FateDropColors.muted,fontSize:9,marginTop:3},selectedButton:{flexDirection:'row',alignItems:'center',gap:3,paddingHorizontal:12,paddingVertical:9,borderRadius:10,backgroundColor:FateDropColors.violet},selectedButtonText:{color:FateDropColors.text,fontSize:10,fontWeight:'900'},storeFilterCard:{padding:11,borderRadius:16,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginTop:9},filterHeader:{flexDirection:'row',alignItems:'baseline',justifyContent:'space-between',gap:8},filterTitle:{color:FateDropColors.text,fontSize:12,fontWeight:'900'},filterMeta:{color:FateDropColors.muted,fontSize:8},storeFilterRow:{flexDirection:'row',flexWrap:'wrap',gap:6,marginTop:8},storeFilterChip:{paddingHorizontal:10,paddingVertical:8,borderRadius:11,backgroundColor:FateDropColors.cardElevated,borderWidth:1,borderColor:'transparent'},storeFilterChipActive:{borderColor:FateDropColors.gold,backgroundColor:`${FateDropColors.gold}12`},storeFilterText:{color:FateDropColors.muted,fontSize:9,fontWeight:'800'},storeFilterTextActive:{color:FateDropColors.goldBright},question:{color:FateDropColors.text,fontSize:18,fontWeight:'900',marginTop:16,marginBottom:9},actions:{gap:8},actionCard:{flexDirection:'row',alignItems:'center',gap:11,padding:14,borderRadius:18,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border},actionIcon:{width:48,height:48,borderRadius:15,alignItems:'center',justifyContent:'center'},actionCopy:{flex:1},actionTitle:{color:FateDropColors.text,fontSize:15,fontWeight:'900'},actionMeta:{color:FateDropColors.secondary,fontSize:10,lineHeight:15,marginTop:3},scopeCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:12,backgroundColor:`${FateDropColors.cyan}0B`,borderWidth:1,borderColor:`${FateDropColors.cyan}22`},scopeText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14},sectionHead:{marginTop:20,marginBottom:8},sectionTitle:{color:FateDropColors.text,fontSize:17,fontWeight:'900'},sectionMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},storeRow:{flexDirection:'row',alignItems:'center',gap:9,padding:11,borderRadius:14,backgroundColor:FateDropColors.glass,borderWidth:1,borderColor:FateDropColors.border,marginBottom:7},storeDot:{width:9,height:9,borderRadius:5},storeCopy:{flex:1},storeName:{color:FateDropColors.text,fontSize:12,fontWeight:'900'},storeMeta:{color:FateDropColors.muted,fontSize:9,marginTop:2},truthCard:{flexDirection:'row',gap:9,padding:13,borderRadius:15,marginTop:16,backgroundColor:`${FateDropColors.gold}0B`,borderWidth:1,borderColor:`${FateDropColors.gold}22`},truthText:{flex:1,color:FateDropColors.secondary,fontSize:9,lineHeight:14}
 });

@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AbstractHero, FateDropBackground, FilterChip, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
+import { filterShopsByCategory, retailerCategory, type LocalRadarRetailerCategory } from '@/lib/local-radar-map';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
 import {
   ageLabel,
@@ -29,6 +30,19 @@ function stockStatus(shop: RadarShop) {
   return { label: 'AVAILABILITY UNKNOWN', color: FateDropColors.muted };
 }
 
+function storeFilterFromParam(value: string | string[] | undefined): LocalRadarRetailerCategory {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (candidate === 'supermarket' || candidate === 'large' || candidate === 'independent') return candidate;
+  return 'all';
+}
+
+function storeTypeLabel(shop: RadarShop) {
+  const category = retailerCategory(shop);
+  if (category === 'supermarket') return 'Supermarket';
+  if (category === 'large') return 'Large retailer';
+  return 'Independent';
+}
+
 export default function LocalRadarStockScreen() {
   const params = useLocalSearchParams() as RadarRouteParams;
   const initialArea = useMemo(() => areaFromParams(params), [params]);
@@ -39,6 +53,7 @@ export default function LocalRadarStockScreen() {
   const [shops, setShops] = useState<RadarShop[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [storeFilter, setStoreFilter] = useState<LocalRadarRetailerCategory>(() => storeFilterFromParam(params.storeType));
   const [filter, setFilter] = useState<'all' | 'confirmed' | 'expected'>('all');
 
   const load = useCallback(async (nextArea: UserArea, nextRadius = radius) => {
@@ -75,15 +90,22 @@ export default function LocalRadarStockScreen() {
     catch { setError('Enter a valid UK postcode.'); }
   };
 
-  const filtered = useMemo(() => shops.filter(shop => {
+  const categoryCounts = useMemo(() => {
+    const counts = { all: shops.length, supermarket: 0, large: 0, independent: 0 };
+    for (const shop of shops) counts[retailerCategory(shop)] += 1;
+    return counts;
+  }, [shops]);
+
+  const categoryFiltered = useMemo(() => filterShopsByCategory(shops, storeFilter), [shops, storeFilter]);
+  const filtered = useMemo(() => categoryFiltered.filter(shop => {
     const state = shopLocalState(shop);
     if (filter === 'confirmed') return state === 'confirmed';
     if (filter === 'expected') return state === 'expected';
     return true;
-  }), [filter, shops]);
+  }), [categoryFiltered, filter]);
 
-  const confirmed = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'confirmed').length, [shops]);
-  const expected = useMemo(() => shops.filter(shop => shopLocalState(shop) === 'expected').length, [shops]);
+  const confirmed = useMemo(() => categoryFiltered.filter(shop => shopLocalState(shop) === 'confirmed').length, [categoryFiltered]);
+  const expected = useMemo(() => categoryFiltered.filter(shop => shopLocalState(shop) === 'expected').length, [categoryFiltered]);
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Local Radar</Text></Pressable>
@@ -95,9 +117,15 @@ export default function LocalRadarStockScreen() {
       <View style={styles.manual}><TextInput value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholder="UK postcode" placeholderTextColor={FateDropColors.muted} style={styles.input}/><Pressable onPress={() => void handlePostcodeSearch()} style={styles.setButton}><Text style={styles.primaryText}>Set</Text></Pressable></View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
-    {area ? <View style={styles.summary}><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/><StatusBadge label={`${shops.length} nearby`} color={FateDropColors.violetLight}/></View> : null}
+    {area ? <View style={styles.summary}><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/><StatusBadge label={`${categoryFiltered.length} nearby`} color={FateDropColors.violetLight}/></View> : null}
     {area ? <><Text style={styles.heading}>Radius</Text><View style={styles.filters}>{[5,10,25,50].map(value => <FilterChip key={value} label={`${value} miles`} active={radius === value} onPress={() => setRadius(value)}/>)}</View></> : null}
-    <Text style={styles.heading}>Show</Text><View style={styles.filters}><FilterChip label="All stores" active={filter === 'all'} onPress={() => setFilter('all')}/><FilterChip label="Confirmed" active={filter === 'confirmed'} onPress={() => setFilter('confirmed')}/><FilterChip label="Expected" active={filter === 'expected'} onPress={() => setFilter('expected')}/></View>
+    <Text style={styles.heading}>Store type</Text><View style={styles.filters}>
+      <FilterChip label={`All · ${categoryCounts.all}`} active={storeFilter === 'all'} onPress={() => setStoreFilter('all')}/>
+      <FilterChip label={`Supermarkets · ${categoryCounts.supermarket}`} active={storeFilter === 'supermarket'} onPress={() => setStoreFilter('supermarket')}/>
+      <FilterChip label={`Large retailers · ${categoryCounts.large}`} active={storeFilter === 'large'} onPress={() => setStoreFilter('large')}/>
+      <FilterChip label={`Independents · ${categoryCounts.independent}`} active={storeFilter === 'independent'} onPress={() => setStoreFilter('independent')}/>
+    </View>
+    <Text style={styles.heading}>Stock signal</Text><View style={styles.filters}><FilterChip label="All" active={filter === 'all'} onPress={() => setFilter('all')}/><FilterChip label="Confirmed" active={filter === 'confirmed'} onPress={() => setFilter('confirmed')}/><FilterChip label="Expected" active={filter === 'expected'} onPress={() => setFilter('expected')}/></View>
     <View style={styles.listHeading}><Text style={styles.heading}>Nearby stores</Text><StatusBadge label={`${filtered.length} results`} color={FateDropColors.cyan}/></View>
   </>;
 
@@ -118,7 +146,7 @@ export default function LocalRadarStockScreen() {
       >
         <View style={[styles.icon, { borderColor: status.color }]}><Ionicons name="storefront" size={20} color={status.color}/></View>
         <View style={styles.flex}>
-          <Text style={[styles.signal, { color: status.color }]}>{shopSignal(item)}</Text>
+          <Text style={[styles.signal, { color: status.color }]}>{shopSignal(item)} · {storeTypeLabel(item)}</Text>
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.meta}>{status.label}</Text>
           {state === 'expected' && expectedStock ? <><Text style={styles.product}>Expected stock: {expectedStock.title}</Text>{expectedStock.label ? <Text style={styles.expected}>{expectedStock.label}</Text> : null}</> : null}
