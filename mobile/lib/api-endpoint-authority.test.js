@@ -46,7 +46,7 @@ test('Account signup and membership links use the canonical Web gateway', () => 
 });
 
 test('personal alert inbox is fetched from the canonical authenticated mobile route', () => {
-  assert.match(alerts, /FATEDROP_WEB_URL.*\/api\/mobile\/alerts\?limit=/s);
+  assert.match(alerts, /FATEDROP_WEB_URL.*\/api\/mobile\/alerts\?state=\$\{state\}&limit=\$\{limit\}/s);
   assert.match(alerts, /authorization: `Bearer \$\{token\}`/);
 });
 
