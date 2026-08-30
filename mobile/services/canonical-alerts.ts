@@ -14,6 +14,9 @@ const ALERT_READ_STATE_PREFIX = 'fatedrop:canonical-alerts:read:v1';
 
 export type CanonicalAlertStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED';
 
+type CanonicalAlertQueryState = 'whisper' | 'echo' | 'manifested' | 'vanished';
+const CANONICAL_ALERT_QUERY_STATES: readonly CanonicalAlertQueryState[] = ['whisper', 'echo', 'manifested', 'vanished'];
+
 export type CanonicalAlertPresentation = {
   referenceKind: string | null;
   referenceBasis: string | null;
@@ -157,15 +160,41 @@ export async function markCanonicalAlertsSeen(userId: string, alerts: CanonicalM
   });
 }
 
+async function fetchCanonicalAlertStage(
+  token: string,
+  state: CanonicalAlertQueryState,
+  limit: number,
+): Promise<CanonicalMobileAlert[]> {
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?state=${state}&limit=${limit}`, {
+    headers: { accept: 'application/json', authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => null) as CanonicalAlertResponse | null;
+  if (!response.ok) throw new Error(data?.error || `Alert inbox ${state} HTTP ${response.status}`);
+  if (!data?.success || !Array.isArray(data.alerts)) {
+    throw new Error(`Canonical ${state} alert inbox unavailable`);
+  }
+  return data.alerts.filter((alert) => Boolean(alert?.id && alert?.title && alert?.fateStage));
+}
+
 export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileAlert[]> {
   const token = await getStoredSessionToken();
   if (!token) return [];
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
-  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?limit=${safeLimit}`, {
-    headers: { accept: 'application/json', authorization: `Bearer ${token}` },
+
+  // Each lifecycle stage has an independent canonical window. Do not read a single
+  // mixed newest-N feed and then bucket it locally: a Whisper burst must never make
+  // Manifested, Echo or Vanished appear to be zero. Fail the refresh if any stage
+  // cannot be read rather than silently presenting a false zero.
+  const stageWindows = await Promise.all(
+    CANONICAL_ALERT_QUERY_STATES.map((state) => fetchCanonicalAlertStage(token, state, safeLimit)),
+  );
+  const byId = new Map<string, CanonicalMobileAlert>();
+  for (const alerts of stageWindows) {
+    for (const alert of alerts) byId.set(alert.id, alert);
+  }
+  return [...byId.values()].sort((a, b) => {
+    const right = Date.parse(b.detectedAt);
+    const left = Date.parse(a.detectedAt);
+    return (Number.isFinite(right) ? right : 0) - (Number.isFinite(left) ? left : 0);
   });
-  const data = await response.json().catch(() => null) as CanonicalAlertResponse | null;
-  if (!response.ok) throw new Error(data?.error || `Alert inbox HTTP ${response.status}`);
-  if (!data?.success || !Array.isArray(data.alerts)) return [];
-  return data.alerts.filter((alert) => Boolean(alert?.id && alert?.title && alert?.fateStage));
 }
