@@ -7,13 +7,12 @@ const source = fs.readFileSync(path.join(__dirname, '../services/network-signals
 
 test('signed-in Alerts use the canonical authenticated Web alert inbox', () => {
   assert.match(source, /getStoredSessionToken/);
-  assert.match(source, /FATEDROP_WEB_URL\}\/api\/mobile\/alerts\?limit=/);
-  assert.match(source, /authorization: `Bearer \$\{token\}`/);
+  assert.match(source, /fetchCanonicalAlerts\(limit\)/);
   assert.match(source, /if \(canonicalAlerts\) return canonicalAlerts/);
+  assert.doesNotMatch(source, /api\/mobile\/alerts\?limit=/);
 });
 
 test('canonical inbox failures do not silently fall back to raw detections for signed-in users', () => {
-  assert.match(source, /if \(!response\.ok\) throw new Error/);
-  assert.match(source, /Do not replace it with raw/);
+  assert.match(source, /Do not\s+\/\/ replace a failed personal contract with raw detections/);
   assert.doesNotMatch(source, /fetchSignedInCanonicalAlerts\([^)]*\)\.catch/);
 });

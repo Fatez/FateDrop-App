@@ -16,20 +16,88 @@ export type FateDropEntitlement = { configuredTier:'free'|'plus'|'pro'; effectiv
 export type CrossPlatformWishlistItem = { id:string; userId:string; productIdentityId:string|null; query:string; title:string; tcg:string|null; imageUrl:string|null; source:string; createdAt:number; updatedAt:number };
 export type CrossPlatformFateFind = Record<string, unknown> & { id:string; userId:string; enabled:boolean };
 export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
-export type CrossPlatformNotificationPreferences = { whisper:boolean; echo:boolean; manifested:boolean; vanished:boolean; priceChange:boolean; fateMatch:boolean; web:boolean; push:boolean; discord:boolean; quietHours:boolean; quietStart:string|null; quietEnd:string|null; timezone:string; updatedAt:number };
+export type CrossPlatformNotificationPreferences = {
+  whisper:boolean;
+  echo:boolean;
+  manifested:boolean;
+  vanished:boolean;
+  priceChange:boolean;
+  fateMatch:boolean;
+  sealedTcg:boolean;
+  singleCards:boolean;
+  accessories:boolean;
+  merchandise:boolean;
+  unknownProducts:boolean;
+  english:boolean;
+  japanese:boolean;
+  korean:boolean;
+  simplifiedChinese:boolean;
+  traditionalChinese:boolean;
+  otherLanguages:boolean;
+  unknownLanguage:boolean;
+  allSets:boolean;
+  selectedSetKeys:string[];
+  unknownSets:boolean;
+  web:boolean;
+  push:boolean;
+  discord:boolean;
+  quietHours:boolean;
+  quietStart:string|null;
+  quietEnd:string|null;
+  timezone:string;
+  updatedAt:number;
+};
 export type FateDropSyncSnapshot = { contractVersion:2; accessAllowed:boolean; betaAccess:FateDropBetaAccess; syncedAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement; wishlist:CrossPlatformWishlistItem[]; fateFinds:CrossPlatformFateFind[]; fateMatches:CrossPlatformFateMatch[]; notificationPreferences:CrossPlatformNotificationPreferences; pendingMigrations:string[] };
 type SessionResponse = { contractVersion:number; accessAllowed:boolean; betaAccess:FateDropBetaAccess; sessionToken?:string; expiresAt?:number; user:FateDropIdentity; entitlement?:FateDropEntitlement; membership?:FateDropEntitlement };
 
 function baseUrl(){ return FATEDROP_WEB_URL; }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string;code?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
-const defaultPreferences:CrossPlatformNotificationPreferences={ whisper:true,echo:true,manifested:true,vanished:true,priceChange:true,fateMatch:true,web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0 };
+const defaultPreferences:CrossPlatformNotificationPreferences={
+  whisper:true,echo:true,manifested:true,vanished:true,priceChange:true,fateMatch:true,
+  sealedTcg:true,singleCards:true,accessories:false,merchandise:false,unknownProducts:true,
+  english:true,japanese:true,korean:true,simplifiedChinese:true,traditionalChinese:true,otherLanguages:true,unknownLanguage:true,
+  allSets:true,selectedSetKeys:[],unknownSets:true,
+  web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0,
+};
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
 const fallbackBetaAccess:FateDropBetaAccess={status:'pending',approved:false,requestedAt:null,approvedAt:null,approvedBy:null,updatedAt:null};
 
 function isCompanionId(value:unknown):value is FateFindCompanionId{return value==='koru'||value==='fenn'||value==='oru'||value==='nyxen';}
 function lifecyclePreference(value:unknown){return typeof value==='boolean'?value:true;}
+function booleanPreference(value:unknown,fallback:boolean){return typeof value==='boolean'?value:fallback;}
+const setKeyPattern=/^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+function normalizeSelectedSetKeys(value:unknown){
+  if(!Array.isArray(value))return [];
+  return [...new Set(value
+    .filter((item):item is string=>typeof item==='string')
+    .map((item)=>item.trim().toLowerCase())
+    .filter((item)=>item.length<=120&&setKeyPattern.test(item)))]
+    .slice(0,200);
+}
 function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences>|undefined):CrossPlatformNotificationPreferences{
-  return {...defaultPreferences,...(input||{}),whisper:lifecyclePreference(input?.whisper),echo:lifecyclePreference(input?.echo),manifested:lifecyclePreference(input?.manifested),vanished:lifecyclePreference(input?.vanished)};
+  return {
+    ...defaultPreferences,
+    ...(input||{}),
+    whisper:lifecyclePreference(input?.whisper),
+    echo:lifecyclePreference(input?.echo),
+    manifested:lifecyclePreference(input?.manifested),
+    vanished:lifecyclePreference(input?.vanished),
+    sealedTcg:booleanPreference(input?.sealedTcg,defaultPreferences.sealedTcg),
+    singleCards:booleanPreference(input?.singleCards,defaultPreferences.singleCards),
+    accessories:booleanPreference(input?.accessories,defaultPreferences.accessories),
+    merchandise:booleanPreference(input?.merchandise,defaultPreferences.merchandise),
+    unknownProducts:booleanPreference(input?.unknownProducts,defaultPreferences.unknownProducts),
+    english:booleanPreference(input?.english,defaultPreferences.english),
+    japanese:booleanPreference(input?.japanese,defaultPreferences.japanese),
+    korean:booleanPreference(input?.korean,defaultPreferences.korean),
+    simplifiedChinese:booleanPreference(input?.simplifiedChinese,defaultPreferences.simplifiedChinese),
+    traditionalChinese:booleanPreference(input?.traditionalChinese,defaultPreferences.traditionalChinese),
+    otherLanguages:booleanPreference(input?.otherLanguages,defaultPreferences.otherLanguages),
+    unknownLanguage:booleanPreference(input?.unknownLanguage,defaultPreferences.unknownLanguage),
+    allSets:booleanPreference(input?.allSets,defaultPreferences.allSets),
+    selectedSetKeys:normalizeSelectedSetKeys(input?.selectedSetKeys),
+    unknownSets:booleanPreference(input?.unknownSets,defaultPreferences.unknownSets),
+  };
 }
 function normalizeEntitlement(input:FateDropEntitlement|undefined):FateDropEntitlement{return input||fallbackEntitlement;}
 function normalizeBetaAccess(input:FateDropBetaAccess|undefined):FateDropBetaAccess{

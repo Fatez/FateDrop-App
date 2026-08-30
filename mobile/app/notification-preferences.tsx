@@ -1,27 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { registerForStockAlerts, sendLocalRadarPresentationTest, unregisterStockAlerts } from '@/lib/notifications';
+import { FALLBACK_ALERT_LANGUAGES, fetchAlertFacetOptions, type AlertFacetOptions, type AlertLanguageGroup } from '@/services/alert-facets';
 import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
-type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'web' | 'discord';
+type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
 
-const rows: { key: PreferenceKey; title: string; detail: string }[] = [
+const signalRows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'whisper', title: 'Whisper', detail: 'Product or catalogue movement before stock is confirmed.' },
   { key: 'echo', title: 'Echo', detail: 'Queue, traffic, security or access-readiness changes.' },
   { key: 'manifested', title: 'Manifested', detail: 'Verified purchasable availability.' },
   { key: 'vanished', title: 'Vanished', detail: 'Previously verified availability is no longer present.' },
   { key: 'fateMatch', title: 'FateMatch', detail: 'A FateMatch hunt has found a qualifying live offer.' },
   { key: 'priceChange', title: 'Price change', detail: 'Relevant movement in observed item pricing.' },
+];
+const productRows: { key: PreferenceKey; title: string; detail: string }[] = [
+  { key: 'sealedTcg', title: 'Sealed TCG & decks', detail: 'ETBs, booster products, tins, collections and deck products.' },
+  { key: 'singleCards', title: 'Single & promo cards', detail: 'Individual card and promo-card alerts.' },
+  { key: 'accessories', title: 'Accessories', detail: 'Sleeves, binders, playmats, deck boxes and protection.' },
+  { key: 'merchandise', title: 'Merchandise', detail: 'Pins, plush, figures, clothing and other non-TCG merchandise.' },
+  { key: 'unknownProducts', title: 'Unknown products', detail: 'Keep ambiguous listings visible until FateDrop can classify them confidently.' },
+];
+const surfaceRows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'web', title: 'Web inbox', detail: 'Keep eligible alert history available on the FateDrop dashboard.' },
   { key: 'discord', title: 'Discord', detail: 'Allow eligible alerts to use your linked Discord delivery preferences.' },
 ];
+const languagePreferenceKey: Record<AlertLanguageGroup, PreferenceKey> = {
+  english: 'english',
+  japanese: 'japanese',
+  korean: 'korean',
+  simplified_chinese: 'simplifiedChinese',
+  traditional_chinese: 'traditionalChinese',
+  other: 'otherLanguages',
+  unknown: 'unknownLanguage',
+};
 
 function pushStatusMessage(result: { enabled: boolean; reason?: string }) {
   if (result.enabled) return 'Push notifications enabled on this device.';
@@ -36,7 +55,23 @@ export default function NotificationPreferencesScreen() {
   const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, sets: [] });
+  const [facetError, setFacetError] = useState<string | null>(null);
+  const [setSearch, setSetSearch] = useState('');
   const preferences = snapshot?.notificationPreferences;
+  const visibleSets = useMemo(() => {
+    const query = setSearch.trim().toLowerCase();
+    if (!query) return facetOptions.sets;
+    return facetOptions.sets.filter((set) => set.name.toLowerCase().includes(query) || set.key.includes(query));
+  }, [facetOptions.sets, setSearch]);
+
+  useEffect(() => {
+    let active = true;
+    fetchAlertFacetOptions()
+      .then((options) => { if (active) { setFacetOptions(options); setFacetError(null); } })
+      .catch((cause) => { if (active) setFacetError(cause instanceof Error ? cause.message : 'The live set registry is temporarily unavailable.'); });
+    return () => { active = false; };
+  }, []);
 
   const toggle = async (key: PreferenceKey) => {
     if (!preferences || working) return;
@@ -47,6 +82,23 @@ export default function NotificationPreferencesScreen() {
       await refresh();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Preference could not be updated.');
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const toggleSet = async (setKey: string) => {
+    if (!preferences || working) return;
+    const selectedSetKeys = preferences.selectedSetKeys.includes(setKey)
+      ? preferences.selectedSetKeys.filter((key) => key !== setKey)
+      : [...preferences.selectedSetKeys, setKey].sort();
+    setWorking(`set:${setKey}`);
+    setMessage(null);
+    try {
+      await updateRemoteNotificationPreferences({ selectedSetKeys });
+      await refresh();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Set preference could not be updated.');
     } finally {
       setWorking(null);
     }
@@ -106,10 +158,34 @@ export default function NotificationPreferencesScreen() {
           </Pressable>
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
-          {rows.slice(0, 6).map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
+          {signalRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
+
+          <Text style={styles.sectionLabel}>SMART PRODUCT FILTER</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Monitor everything. Interrupt selectively.</Text><Text style={styles.explainerCopy}>Accessories and merchandise default off. Unknown products stay on so uncertain classification fails safely.</Text></View>
+          {productRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
+
+          <Text style={styles.sectionLabel}>COLLECTOR MARKET / LANGUAGE</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Choose the card markets you collect.</Text><Text style={styles.explainerCopy}>English, Japanese, Korean, Simplified Chinese and Traditional Chinese remain separate. FateDrop never guesses when evidence is ambiguous.</Text></View>
+          {facetOptions.languages.map((language) => {
+            const key = languagePreferenceKey[language.key];
+            const detail = language.key === 'english' ? 'UK and explicitly English catalogue products.' : language.key === 'unknown' ? 'Listings whose language cannot yet be verified.' : `${language.label} card products.`;
+            return <PreferenceRow key={language.key} title={language.label} detail={detail} enabled={Boolean(preferences[key])} disabled={Boolean(working)} onPress={() => void toggle(key)} />;
+          })}
+
+          <Text style={styles.sectionLabel}>SETS</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Follow everything or build a precise set watch.</Text><Text style={styles.explainerCopy}>Set matching comes from Cloud evidence. Products without a reliable match remain Unknown.</Text></View>
+          <PreferenceRow title="All recognised sets" detail="Automatically include current and newly added sets." enabled={preferences.allSets} disabled={Boolean(working)} onPress={() => void toggle('allSets')} />
+          {!preferences.allSets ? <>
+            <PreferenceRow title="Unknown sets" detail="Keep products visible when FateDrop cannot safely identify their set." enabled={preferences.unknownSets} disabled={Boolean(working)} onPress={() => void toggle('unknownSets')} />
+            <View style={styles.setSummary}><View style={styles.rowCopy}><Text style={styles.rowTitle}>{preferences.selectedSetKeys.length} selected</Text><Text style={styles.rowDetail}>{facetOptions.sets.length ? 'Choose recognised sets below.' : 'Saved selections are preserved while the live registry is unavailable.'}</Text></View></View>
+            {facetOptions.sets.length ? <TextInput accessibilityLabel="Search sets" autoCapitalize="none" autoCorrect={false} onChangeText={setSetSearch} placeholder="Search recognised sets" placeholderTextColor={FateDropColors.muted} style={styles.search} value={setSearch} /> : null}
+            {visibleSets.map((set) => <SetRow key={set.key} title={set.name} setKey={set.key} enabled={preferences.selectedSetKeys.includes(set.key)} disabled={Boolean(working)} onPress={() => void toggleSet(set.key)} />)}
+            {facetOptions.sets.length && visibleSets.length === 0 ? <Text style={styles.noSets}>No recognised sets match that search.</Text> : null}
+            {facetError ? <Text style={styles.facetError}>{facetError}</Text> : null}
+          </> : null}
 
           <Text style={styles.sectionLabel}>SURFACES</Text>
-          {rows.slice(6).map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
+          {surfaceRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
 
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <Text style={styles.sync}>{syncing ? 'Syncing with FateDrop ID…' : 'Preferences are stored against your FateDrop ID.'}</Text>
@@ -123,6 +199,10 @@ function PreferenceRow({ title, detail, enabled, disabled, onPress }: { title: s
   return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}><View style={styles.rowCopy}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowDetail}>{detail}</Text></View><View style={[styles.switch, enabled && styles.switchOn]}><View style={[styles.knob, enabled && styles.knobOn]} /></View></Pressable>;
 }
 
+function SetRow({ title, setKey, enabled, disabled, onPress }: { title: string; setKey: string; enabled: boolean; disabled: boolean; onPress: () => void }) {
+  return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.setRow, pressed && styles.pressed]}><View style={[styles.checkbox, enabled && styles.checkboxOn]}>{enabled ? <Ionicons name="checkmark" size={14} color={FateDropColors.text} /> : null}</View><View style={styles.rowCopy}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowDetail}>{setKey}</Text></View></Pressable>;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 80 },
@@ -132,7 +212,17 @@ const styles = StyleSheet.create({
   title: { color: FateDropColors.text, fontSize: 27, lineHeight: 30, fontWeight: '900', letterSpacing: -0.7, marginTop: 7 },
   copy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 16, marginTop: 8 },
   sectionLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1.4, marginTop: 8, marginBottom: 7 },
+  explainer: { padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.cyan}22`, backgroundColor: `${FateDropColors.cyan}08` },
+  explainerTitle: { color: FateDropColors.text, fontSize: 11, fontWeight: '900' },
+  explainerCopy: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.9)' },
+  setRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, marginBottom: 7, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.9)' },
+  setSummary: { flexDirection: 'row', padding: 13, marginBottom: 8, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
+  search: { minHeight: 44, paddingHorizontal: 13, marginBottom: 8, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass, color: FateDropColors.text, fontSize: 11 },
+  checkbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: '#252938' },
+  checkboxOn: { borderColor: FateDropColors.violet, backgroundColor: 'rgba(124,58,237,.72)' },
+  noSets: { color: FateDropColors.secondary, fontSize: 9, padding: 12, textAlign: 'center' },
+  facetError: { color: FateDropColors.warning, fontSize: 9, lineHeight: 14, marginBottom: 8 },
   localRadarTestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },
   localRadarTestIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.cyan}55` },
   localRadarTestTitle: { color: FateDropColors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
