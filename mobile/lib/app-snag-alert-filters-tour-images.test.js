@@ -9,6 +9,7 @@ const home = read('mobile/screens/home-screen-v3.tsx');
 const stories = read('mobile/app/stories.tsx');
 const profileCustomisation = read('mobile/constants/profile-customisation.ts');
 const profileCustomisationService = read('mobile/services/profile-customisation.ts');
+const profileWallpaperArt = read('mobile/components/profile-wallpaper-art.tsx');
 
 test('lifecycle market controls live between stage tabs and companion watch heading', () => {
   assert.match(alerts, /stagePreferenceKey:[\s\S]*WHISPER: 'whisper'[\s\S]*ECHO: 'echo'[\s\S]*MANIFESTED: 'manifested'[\s\S]*VANISHED: 'vanished'/);
@@ -56,6 +57,12 @@ test('profile wallpaper picker uses the full high-quality supplied wallpaper lib
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-fenn-hero-final\.webp/);
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-koru-hero-final\.webp/);
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
+});
+
+test('Home wallpaper focal points keep Koru visible and Oru motto clear of the iPhone sensor area', () => {
+  assert.match(profileWallpaperArt, /koruHome: '62% center'/);
+  assert.match(profileWallpaperArt, /oru: 'center 42%'/);
+  assert.match(profileWallpaperArt, /contentPosition=\{profileWallpaperContentPositions\[wallpaperId\] \?\? 'center'\}/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
