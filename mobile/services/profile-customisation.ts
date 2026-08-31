@@ -6,7 +6,6 @@ export const PROFILE_WALLPAPER_IDS = [
   'default',
   'oru',
   'fenn',
-  'koru',
   'nyxen',
   'fatedrop1',
   'fatedrop2',
