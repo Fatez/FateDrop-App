@@ -16,7 +16,7 @@ const guideSlides = [
     body: 'FateDrop turns retailer changes into simple collector signals. This guide explains the core journey and exactly what each alert means.',
     action: 'You can replay this guide any time from More → App Guide.',
     accent: FateDropColors.cyan,
-    source: require('@/assets/images/FDAlerts.png'),
+    source: require('@/assets/images/app-guide-welcome.png'),
   },
   {
     eyebrow: 'THE COLLECTOR JOURNEY',
@@ -64,7 +64,7 @@ const guideSlides = [
     body: 'Local Radar keeps nearby-store intelligence separate from online stock. Expected means credible incoming-store intelligence. Confirmed requires exact physical evidence. Unknown stays unknown.',
     action: 'Tap a Local Radar push to open the map and its incoming-stock panel. You are ready to use FateDrop.',
     accent: FateDropColors.blue,
-    source: require('@/assets/images/fatedrop-portal-hero.png'),
+    source: require('@/assets/images/app-guide-local-radar.png'),
   },
 ] as const;
 
