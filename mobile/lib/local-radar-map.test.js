@@ -22,7 +22,7 @@ test('store filters consume Cloud retailerGroup and never classify by client ret
   assert.doesNotMatch(source, /SUPERMARKET_RETAILER_IDS|LARGE_RETAILER_IDS|NAME_RE/);
 });
 
-test('dense UK-scale datasets stay beneath the bounded native marker budget', async () => {
+test('dense UK-scale datasets stay beneath the hardened native marker budget', async () => {
   const { clusterShops } = await load();
   const shops = Array.from({ length: 4373 }, (_, index) => ({
     id: `shop-${index}`,
@@ -30,11 +30,23 @@ test('dense UK-scale datasets stay beneath the bounded native marker budget', as
     longitude: -7 + (index % 71) * 0.1,
   }));
   const points = clusterShops(shops, { latitude: 54, longitude: -2, latitudeDelta: 12, longitudeDelta: 12 }, { maxMarkers: 72 });
-  assert.ok(points.length <= 72, `expected no more than 72 markers, got ${points.length}`);
+  assert.ok(points.length <= 36, `expected no more than 36 native map points, got ${points.length}`);
   assert.equal(points.reduce((sum, point) => sum + point.count, 0), shops.length);
 });
 
-test('zoomed viewport renders individual stores only after density falls below budget', async () => {
+test('dense zoomed view stays clustered until individual marker count is safe', async () => {
+  const { clusterShops } = await load();
+  const shops = Array.from({ length: 30 }, (_, index) => ({
+    id: `dense-${index}`,
+    latitude: 51.5 + (index % 10) * 0.001,
+    longitude: -0.1 + Math.floor(index / 10) * 0.001,
+  }));
+  const points = clusterShops(shops, { latitude: 51.505, longitude: -0.099, latitudeDelta: 0.05, longitudeDelta: 0.05 }, { maxMarkers: 72 });
+  assert.ok(points.some((point) => point.kind === 'cluster'), 'expected dense viewport to remain clustered');
+  assert.ok(points.length <= 36);
+});
+
+test('zoomed viewport renders individual stores only after density is safe', async () => {
   const { clusterShops } = await load();
   const inside = Array.from({ length: 12 }, (_, index) => ({ id: `inside-${index}`, latitude: 51.5 + index * 0.001, longitude: -0.1 }));
   const outside = Array.from({ length: 200 }, (_, index) => ({ id: `outside-${index}`, latitude: 55 + index * 0.001, longitude: -3 }));
@@ -43,9 +55,22 @@ test('zoomed viewport renders individual stores only after density falls below b
   assert.ok(points.every((point) => point.kind === 'shop'));
 });
 
-test('server marker budgets are clamped defensively', async () => {
+test('server marker budgets cannot override the iOS safety ceiling', async () => {
   const { clusterShops } = await load();
   const shops = Array.from({ length: 1000 }, (_, index) => ({ id: String(index), latitude: 51 + (index % 50) * 0.01, longitude: -1 + (index % 50) * 0.01 }));
-  const points = clusterShops(shops, { latitude: 51.25, longitude: -0.75, latitudeDelta: 1, longitudeDelta: 1 }, { maxMarkers: 10000 });
-  assert.ok(points.length <= 100);
+  const points = clusterShops(shops, { latitude: 51.25, longitude: -0.75, latitudeDelta: 1, longitudeDelta: 1 }, { maxMarkers: 10000, maxIndividualMarkers: 10000 });
+  assert.ok(points.length <= 36);
+  assert.ok(points.some((point) => point.kind === 'cluster'));
+});
+
+test('cluster expansion is progressive rather than an aggressive one-tap burst', async () => {
+  const { clusterZoomRegion } = await load();
+  const next = clusterZoomRegion(
+    { latitude: 51.5, longitude: -0.1 },
+    { latitude: 52, longitude: -1, latitudeDelta: 1, longitudeDelta: 0.8 },
+  );
+  assert.equal(next.latitude, 51.5);
+  assert.equal(next.longitude, -0.1);
+  assert.equal(next.latitudeDelta, 0.6);
+  assert.equal(next.longitudeDelta, 0.48);
 });
