@@ -8,6 +8,10 @@ import { FATEDROP_WEB_URL } from '@/constants/api';
 import { PUSH_TOKEN_KEY } from '@/lib/watchlist';
 import { getStoredSessionToken, syncFateDropId, updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
 
+const PUSH_REGISTRATION_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+
+let lastRegistrationRefreshAt = 0;
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true }),
 });
@@ -33,14 +37,7 @@ async function ensureNotificationPermission() {
   return { granted: true as const };
 }
 
-export async function registerForStockAlerts() {
-  const sessionToken = await getStoredSessionToken();
-  if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
-  const permission = await ensureNotificationPermission();
-  if (!permission.granted) return { enabled: false, reason: permission.reason };
-  const projectId = expoProjectId();
-  if (!projectId) return { enabled: false, reason: 'eas-project-id-required' };
-  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+async function postPushEndpoint(sessionToken: string, token: string) {
   const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/push`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${sessionToken}` },
@@ -48,10 +45,71 @@ export async function registerForStockAlerts() {
   });
   const data = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) throw new Error(data?.error || `Push registration failed with HTTP ${response.status}`);
+}
+
+async function retirePreviousEndpoint(sessionToken: string, previousToken: string | null, currentToken: string) {
+  if (!previousToken || previousToken === currentToken) return;
+  await fetch(`${FATEDROP_WEB_URL}/api/mobile/push`, {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${sessionToken}` },
+    body: JSON.stringify({ token: previousToken }),
+  }).catch(() => null);
+}
+
+async function acquireAndPersistExpoPushToken(sessionToken: string) {
+  const projectId = expoProjectId();
+  if (!projectId) return { enabled: false, reason: 'eas-project-id-required' as const };
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  const previousToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+
+  // Register the replacement before retiring the old endpoint so a transient
+  // network failure cannot leave the account with no enabled device endpoint.
+  await postPushEndpoint(sessionToken, token);
   await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
+  await retirePreviousEndpoint(sessionToken, previousToken, token);
+  lastRegistrationRefreshAt = Date.now();
+  return { enabled: true, token };
+}
+
+export async function registerForStockAlerts() {
+  const sessionToken = await getStoredSessionToken();
+  if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' };
+  const permission = await ensureNotificationPermission();
+  if (!permission.granted) return { enabled: false, reason: permission.reason };
+  const registration = await acquireAndPersistExpoPushToken(sessionToken);
+  if (!registration.enabled) return registration;
   await updateRemoteNotificationPreferences({ push: true });
   await syncFateDropId();
-  return { enabled: true, token };
+  return registration;
+}
+
+export async function refreshStockAlertRegistration({ force = false }: { force?: boolean } = {}) {
+  if (!Device.isDevice) return { refreshed: false, reason: 'physical-device-required' as const };
+  if (!force && Date.now() - lastRegistrationRefreshAt < PUSH_REGISTRATION_REFRESH_INTERVAL_MS) {
+    return { refreshed: false, reason: 'recently-refreshed' as const };
+  }
+  const [sessionToken, permission] = await Promise.all([
+    getStoredSessionToken(),
+    Notifications.getPermissionsAsync(),
+  ]);
+  if (!sessionToken) return { refreshed: false, reason: 'fatedrop-id-required' as const };
+  if (permission.status !== 'granted') return { refreshed: false, reason: 'permission-not-granted' as const };
+  const registration = await acquireAndPersistExpoPushToken(sessionToken);
+  return registration.enabled
+    ? { refreshed: true, token: registration.token }
+    : { refreshed: false, reason: registration.reason };
+}
+
+export async function stockAlertDeviceReadiness() {
+  const permission = await Notifications.getPermissionsAsync();
+  return {
+    physicalDevice: Device.isDevice,
+    permission: permission.status,
+    iosAllowsAlert: permission.ios?.allowsAlert !== false,
+    iosAllowsSound: permission.ios?.allowsSound !== false,
+    iosAllowsBadge: permission.ios?.allowsBadge !== false,
+    easProjectConfigured: Boolean(expoProjectId()),
+  };
 }
 
 export async function unregisterStockAlerts() {

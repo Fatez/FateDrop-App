@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
+import { TCG_REGISTRY } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { registerForStockAlerts, sendLocalRadarPresentationTest, unregisterStockAlerts } from '@/lib/notifications';
+import { registerForStockAlerts, sendLocalRadarPresentationTest, stockAlertDeviceReadiness, unregisterStockAlerts } from '@/lib/notifications';
 import {
   FALLBACK_ALERT_LANGUAGES,
   FALLBACK_ALERT_MARKETS,
@@ -23,7 +24,7 @@ import {
   type LifecycleMarketStage,
 } from '@/services/notification-preference-contract';
 
-type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
+type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'manifestedReminders' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
 
 const signalRows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'whisper', title: 'Whisper', detail: 'Product or catalogue movement before stock is confirmed.' },
@@ -76,6 +77,7 @@ export default function NotificationPreferencesScreen() {
   const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, markets: FALLBACK_ALERT_MARKETS, sets: [] });
   const [facetError, setFacetError] = useState<string | null>(null);
   const [setSearch, setSetSearch] = useState('');
+  const [deviceWarning, setDeviceWarning] = useState<string | null>(null);
   const preferences = snapshot?.notificationPreferences;
   const visibleSets = useMemo(() => {
     const query = setSearch.trim().toLowerCase();
@@ -94,6 +96,20 @@ export default function NotificationPreferencesScreen() {
       .catch((cause) => { if (active) setFacetError(cause instanceof Error ? cause.message : 'The live set registry is temporarily unavailable.'); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    void stockAlertDeviceReadiness().then((readiness) => {
+      if (!active) return;
+      if (!readiness.physicalDevice) setDeviceWarning('Push requires a physical device.');
+      else if (!readiness.easProjectConfigured) setDeviceWarning('This build is not linked to the canonical FateDrop push project.');
+      else if (readiness.permission !== 'granted') setDeviceWarning('iPhone notification permission is not granted.');
+      else if (!readiness.iosAllowsAlert) setDeviceWarning('iPhone banners and Notification Centre alerts are disabled for FateDrop.');
+      else if (!readiness.iosAllowsSound) setDeviceWarning('FateDrop alarms may arrive silently because iPhone sounds are disabled.');
+      else setDeviceWarning(null);
+    }).catch(() => null);
+    return () => { active = false; };
+  }, [preferences?.push]);
 
   const toggle = async (key: PreferenceKey) => {
     if (!preferences || working) return;
@@ -125,6 +141,8 @@ export default function NotificationPreferencesScreen() {
       setWorking(null);
     }
   };
+
+  const setReminderCap=async(value:number)=>{if(!preferences||working)return;setWorking('manifested-reminder-cap');setMessage(null);try{await updateRemoteNotificationPreferences({manifestedRemindersMaxPerDay:value});await refresh();}catch(cause){setMessage(cause instanceof Error?cause.message:'Reminder cap could not be updated.');}finally{setWorking(null);}};
 
   const toggleLifecycleMarket = async (stage: LifecycleMarketStage, market: 'all' | LifecycleMarketGroup) => {
     if (!preferences || working) return;
@@ -184,8 +202,12 @@ export default function NotificationPreferencesScreen() {
         </View>
 
         {!signedIn || !preferences ? <View style={styles.empty}><Text style={styles.emptyTitle}>FateDrop ID required</Text><Text style={styles.emptyCopy}>Sign in before changing account-level delivery preferences.</Text><Pressable onPress={() => router.push('/account')} style={styles.primary}><Text style={styles.primaryText}>SIGN IN</Text></Pressable></View> : <>
+          <Text style={styles.sectionLabel}>MY TCGS</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>{(snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon']).map((code) => TCG_REGISTRY.find((entry) => entry.code === code)?.shortName ?? code).join(' · ')}</Text><Text style={styles.explainerCopy}>Change your selected games and each game’s lifecycle choices. This never turns the entire app into a global game mode.</Text><Pressable onPress={() => router.push('/tcg-onboarding')} style={styles.primary}><Text style={styles.primaryText}>EDIT MY TCGS & ALERTS</Text></Pressable></View>
+
           <Text style={styles.sectionLabel}>DEVICE</Text>
           <PreferenceRow title="Push on this device" detail="Native device alert permission and FateDrop push registration." enabled={Boolean(preferences.push)} disabled={Boolean(working)} onPress={() => void togglePush()} />
+          {deviceWarning ? <Pressable onPress={() => void Linking.openSettings()} style={styles.deviceWarning}><Ionicons name="warning-outline" size={17} color={FateDropColors.manifested} /><View style={styles.rowCopy}><Text style={styles.deviceWarningTitle}>IPHONE DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceWarning} Tap to open Settings.</Text></View></Pressable> : null}
           <Pressable disabled={Boolean(working)} onPress={() => void testLocalRadar()} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
             <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
             <View style={styles.rowCopy}>
@@ -196,6 +218,11 @@ export default function NotificationPreferencesScreen() {
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
           {signalRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
+
+          <Text style={styles.sectionLabel}>MANIFESTED AVAILABILITY REMINDERS</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Keep outstanding stock visible without inventing another drop.</Text><Text style={styles.explainerCopy}>Off by default. A reminder requires the same open canonical stock episode and fresh re-confirmation; it never creates a second Manifested event.</Text></View>
+          <PreferenceRow title="Still observed available" detail="Optional, quiet-hours-aware engagement reminder." enabled={preferences.manifestedReminders} disabled={Boolean(working)} onPress={() => void toggle('manifestedReminders')} />
+          {preferences.manifestedReminders?<View style={styles.marketStage}><View style={styles.marketStageHead}><View style={styles.rowCopy}><Text style={styles.rowTitle}>Daily cap</Text><Text style={styles.rowDetail}>Maximum reminders in a rolling 24-hour window.</Text></View></View><View style={styles.marketPills}>{[1,2,3].map((value)=><MarketPill key={value} title={`${value}/day`} enabled={preferences.manifestedRemindersMaxPerDay===value} disabled={Boolean(working)} onPress={()=>void setReminderCap(value)}/>)}</View></View>:null}
 
           <Text style={styles.sectionLabel}>SMART PRODUCT FILTER</Text>
           <View style={styles.explainer}><Text style={styles.explainerTitle}>Monitor everything. Interrupt selectively.</Text><Text style={styles.explainerCopy}>Accessories and merchandise default off. Unknown products stay on so uncertain classification fails safely.</Text></View>
@@ -288,6 +315,8 @@ const styles = StyleSheet.create({
   localRadarTestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },
   localRadarTestIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.cyan}55` },
   localRadarTestTitle: { color: FateDropColors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
+  deviceWarning: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginBottom: 8, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.manifested}55`, backgroundColor: `${FateDropColors.manifested}0D` },
+  deviceWarningTitle: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: .45 },
   rowCopy: { flex: 1 },
   rowTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
   rowDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },

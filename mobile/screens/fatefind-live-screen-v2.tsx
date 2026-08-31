@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AbstractHero, FateDropBackground, FilterChip, StatusBadge } from '@/components/fatedrop-ui';
 import { FATEDROP_WEB_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
+import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
+import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { rrpBasisLabel } from '@/lib/value-compare';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import { LocalWishlistRepository } from '@/services/wishlist';
@@ -48,7 +50,7 @@ async function parseVerdictResponse(response: Response) {
   return data;
 }
 
-async function requestCloudVerdict(query: string, leftId?: string, rightId?: string) {
+async function requestCloudVerdict(query: string, tcgCode: TcgCode, leftId?: string, rightId?: string) {
   const pair = leftId && rightId ? { leftId, rightId } : {};
 
   // Primary path: the FateDrop Cloud engine owns the canonical verdict.
@@ -56,7 +58,7 @@ async function requestCloudVerdict(query: string, leftId?: string, rightId?: str
     const response = await fetch(`${SIGNAL_ENGINE_URL}/api/fatefind/matches`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'verdict', query, ...pair }),
+      body: JSON.stringify({ mode: 'verdict', query, tcgCode, ...pair }),
     });
     const direct = await parseVerdictResponse(response);
     if (direct) return direct;
@@ -69,7 +71,7 @@ async function requestCloudVerdict(query: string, leftId?: string, rightId?: str
     const response = await fetch(`${FATEDROP_WEB_URL}/api/fatefind/verdict`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, ...pair }),
+      body: JSON.stringify({ query, tcgCode, ...pair }),
     });
     const gateway = await parseVerdictResponse(response);
     if (gateway) return gateway;
@@ -80,8 +82,8 @@ async function requestCloudVerdict(query: string, leftId?: string, rightId?: str
   throw new Error('fatefind-cloud-unavailable');
 }
 
-async function requestLiveComparisonGroups(query: string) {
-  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/true-price?q=${encodeURIComponent(query)}`, {
+async function requestLiveComparisonGroups(query: string, tcgCode: TcgCode) {
+  const response = await fetch(`${SIGNAL_ENGINE_URL}/api/true-price?q=${encodeURIComponent(query)}&tcg=${encodeURIComponent(tcgCode)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!response.ok) throw new Error('fatefind-live-comparison-unavailable');
@@ -91,9 +93,13 @@ async function requestLiveComparisonGroups(query: string) {
 }
 
 export default function FateFindLiveScreenV2() {
-  const params = useLocalSearchParams<{ query?: string | string[] }>();
+  const params = useLocalSearchParams<{ query?: string | string[]; tcg?: string | string[] }>();
+  const { snapshot } = useFateDropId();
   const incomingQuery = firstParam(params.query) || '';
+  const incomingTcg = firstParam(params.tcg);
+  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
   const [query, setQuery] = useState(incomingQuery);
+  const [tcgCode, setTcgCode] = useState<TcgCode>('pokemon');
   const [groups, setGroups] = useState<TruePriceGroup[]>([]);
   const [verdict, setVerdict] = useState<FateRankVerdict | null>(null);
   const [pairVerdict, setPairVerdict] = useState<FatePairVerdict | null>(null);
@@ -109,10 +115,25 @@ export default function FateFindLiveScreenV2() {
   const [compareRightId, setCompareRightId] = useState('');
 
   useEffect(() => { if (incomingQuery) setQuery(incomingQuery); }, [incomingQuery]);
+  useEffect(() => {
+    const requested = isTcgCode(incomingTcg) && selectedTcgCodes.includes(incomingTcg) ? incomingTcg : null;
+    setTcgCode((current) => requested ?? (selectedTcgCodes.includes(current) ? current : selectedTcgCodes[0]));
+  }, [incomingTcg, selectedTcgCodes]);
   useFocusEffect(useCallback(() => { void wishlist.list().then((items) => setSaved(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId))); }, []));
+
+  const tcgDefinition = TCG_REGISTRY.find((entry) => entry.code === tcgCode) ?? TCG_REGISTRY[0];
 
   useEffect(() => {
     const clean = query.trim();
+    if (!tcgDefinition.live) {
+      setGroups([]);
+      setVerdict(null);
+      setPairVerdict(null);
+      setError('');
+      setCloudNotice(`${tcgDefinition.shortName} is saved as an interest. FateFind stays inactive until its canonical catalogue and retailer evidence are verified.`);
+      setCanonicalAvailable(false);
+      return;
+    }
     if (clean.length < 2) {
       setGroups([]);
       setVerdict(null);
@@ -127,7 +148,7 @@ export default function FateFindLiveScreenV2() {
       setError('');
       setCloudNotice('');
       try {
-        const data = await requestCloudVerdict(clean);
+        const data = await requestCloudVerdict(clean, tcgCode);
         setGroups(data.groups);
         setVerdict(data.verdict);
         setPairVerdict(null);
@@ -135,7 +156,7 @@ export default function FateFindLiveScreenV2() {
         setCloudNotice(data.notice || 'Canonical FateDrop Cloud verdict is live.');
       } catch {
         try {
-          const liveGroups = await requestLiveComparisonGroups(clean);
+          const liveGroups = await requestLiveComparisonGroups(clean, tcgCode);
           setGroups(liveGroups);
           setVerdict(null);
           setPairVerdict(null);
@@ -153,7 +174,7 @@ export default function FateFindLiveScreenV2() {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, tcgCode, tcgDefinition.live, tcgDefinition.shortName]);
 
   useEffect(() => {
     const options = groups.filter((group) => group.offers.length > 0);
@@ -175,7 +196,7 @@ export default function FateFindLiveScreenV2() {
 
   useEffect(() => {
     const clean = query.trim();
-    if (clean.length < 2 || !compareLeftId || !compareRightId) {
+    if (!tcgDefinition.live || clean.length < 2 || !compareLeftId || !compareRightId) {
       setPairVerdict(null);
       setPairError('');
       setPairLoading(false);
@@ -191,7 +212,7 @@ export default function FateFindLiveScreenV2() {
     let active = true;
     setPairLoading(true);
     setPairError('');
-    void requestCloudVerdict(clean, compareLeftId, compareRightId)
+    void requestCloudVerdict(clean, tcgCode, compareLeftId, compareRightId)
       .then((data) => {
         if (!active) return;
         if (!data.pairVerdict) throw new Error('fatefind-cloud-pair-verdict-missing');
@@ -206,7 +227,7 @@ export default function FateFindLiveScreenV2() {
       })
       .finally(() => { if (active) setPairLoading(false); });
     return () => { active = false; };
-  }, [query, compareLeftId, compareRightId]);
+  }, [query, tcgCode, tcgDefinition.live, compareLeftId, compareRightId]);
 
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const compareOptions = useMemo(() => displayed.filter((group) => group.offers.length > 0), [displayed]);
@@ -228,6 +249,8 @@ export default function FateFindLiveScreenV2() {
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text} /><Text style={styles.backText}>Back</Text></Pressable>
     <AbstractHero eyebrow="FateFind" title="Find the right deal now. Keep hunting if it is not there yet." subtitle="FateFind is FateDrop's intelligent value finder. It combines verified RRP/reference maths with visible True Price, returns one Cloud Fate Verdict, and can keep searching under your conditions until a qualifying offer becomes a FateMatch." icon="telescope" />
+    <Text style={styles.label}>Trading card game</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>{TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => <FilterChip key={entry.code} label={`${entry.shortName}${entry.live ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />)}</ScrollView>
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>

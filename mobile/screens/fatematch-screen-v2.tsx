@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
+import { FateDropBackground, FateDropHeader, FilterChip } from '@/components/fatedrop-ui';
 import { FateDropColors, FateDropTypography, Fonts } from '@/constants/theme';
+import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { saveRemoteFateFind, type FateFindCompanionId } from '@/services/fatedrop-id';
 
@@ -35,11 +36,12 @@ function companionFromFateFind(item: Record<string, unknown>) {
 }
 
 export default function FateMatchScreenV2() {
-  const params = useLocalSearchParams<{ query?: string | string[]; maxDelivered?: string | string[]; maxItem?: string | string[]; maxAboveRrp?: string | string[] }>();
+  const params = useLocalSearchParams<{ query?: string | string[]; tcg?: string | string[]; maxDelivered?: string | string[]; maxItem?: string | string[]; maxAboveRrp?: string | string[] }>();
   const { snapshot, signedIn, can, refresh, syncing } = useFateDropId();
   const incomingQuery = first(params.query)?.trim() ?? '';
   const setupMode = incomingQuery.length > 0;
   const [query, setQuery] = useState('');
+  const [tcgCode, setTcgCode] = useState<TcgCode>('pokemon');
   const [maxItem, setMaxItem] = useState('');
   const [maxDelivered, setMaxDelivered] = useState('');
   const [rrpPreset, setRrpPreset] = useState<RrpPreset>('0');
@@ -65,7 +67,15 @@ export default function FateMatchScreenV2() {
     }
   }, [params.maxAboveRrp, params.maxDelivered, params.maxItem, params.query]);
 
+  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
+  useEffect(() => {
+    const requested = first(params.tcg);
+    const selectedRequest = isTcgCode(requested) && selectedTcgCodes.includes(requested) ? requested : null;
+    setTcgCode((current) => selectedRequest ?? (selectedTcgCodes.includes(current) ? current : selectedTcgCodes[0]));
+  }, [params.tcg, selectedTcgCodes]);
+
   const premium = can('advanced_fate_match');
+  const tcgDefinition = TCG_REGISTRY.find((entry) => entry.code === tcgCode) ?? TCG_REGISTRY[0];
   const maxPercentAboveRrp = rrpPreset === 'custom' ? toPercent(customPercent) : Number(rrpPreset);
   const selectedCompanion = COMPANIONS.find((companion) => companion.id === companionId) ?? COMPANIONS[0];
 
@@ -78,10 +88,12 @@ export default function FateMatchScreenV2() {
     if (!query.trim()) return setError('Tell FateDrop which product to find.');
     if (!signedIn) return setError('Sign in to FateDrop ID first.');
     if (!premium) return setError('Hosted FateFind monitoring is a Premium capability.');
+    if (!tcgDefinition.live) return setError(`${tcgDefinition.shortName} is interest-only until its canonical catalogue and retailer monitoring are verified.`);
     if (maxPercentAboveRrp == null) return setError('Enter a valid maximum percentage above RRP.');
 
     try {
       await saveRemoteFateFind({
+        tcgCode,
         query: query.trim(),
         maxPercentAboveRrp,
         maxItemPricePence: toPence(maxItem),
@@ -147,6 +159,13 @@ export default function FateMatchScreenV2() {
             ) : null}
 
             <View style={styles.form}>
+              <Text style={styles.formEyebrow}>TRADING CARD GAME</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetRow}>
+                {TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => (
+                  <FilterChip key={entry.code} label={`${entry.shortName}${entry.live ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />
+                ))}
+              </ScrollView>
+
               <Text style={styles.formEyebrow}>PRODUCT</Text>
               <TextInput
                 value={query}
@@ -223,9 +242,9 @@ export default function FateMatchScreenV2() {
               </View>
               <Text style={styles.helper}>This chooses the companion who delivers your personal FateFind result. Their network roles stay unchanged: Oru = Whisper, Fenn = Echo, Koru = Manifested, Nyxen = Vanished.</Text>
 
-              <Pressable disabled={syncing || !premium} onPress={() => void save()} style={[styles.save, (!premium || syncing) && styles.disabled]}>
+              <Pressable disabled={syncing || !premium || !tcgDefinition.live} onPress={() => void save()} style={[styles.save, (!premium || syncing || !tcgDefinition.live) && styles.disabled]}>
                 <Ionicons name="telescope-outline" size={17} color={FateDropColors.ink} />
-                <Text style={styles.saveText}>{syncing ? 'Syncing…' : 'START FATEFIND'}</Text>
+                <Text style={styles.saveText}>{syncing ? 'Syncing…' : tcgDefinition.live ? 'START FATEFIND' : 'TCG COMING SOON'}</Text>
               </Pressable>
 
               {status ? <Text style={styles.success}>{status}</Text> : null}
@@ -260,7 +279,7 @@ export default function FateMatchScreenV2() {
               <View style={styles.flex}>
                 <Text style={styles.matchLive}>{matchCompanion} found this</Text>
                 <Text style={styles.matchTitle}>{match.title}</Text>
-                <Text style={styles.matchMeta}>{match.retailerName} · {match.stockStatus}</Text>
+                <Text style={styles.matchMeta}>{TCG_REGISTRY.find((entry) => entry.code === match.tcgCode)?.shortName ?? match.tcgCode} · {match.retailerName} · {match.stockStatus}</Text>
                 <Text style={styles.matchPrice}>
                   {match.itemPricePence != null ? `£${(match.itemPricePence / 100).toFixed(2)}` : 'Price unavailable'}
                   {match.percentAboveRrp != null ? ` · ${match.percentAboveRrp > 0 ? '+' : ''}${match.percentAboveRrp.toFixed(1)}% vs RRP` : ''}
@@ -283,6 +302,7 @@ export default function FateMatchScreenV2() {
 
         {activeHunts.length ? activeHunts.map((item) => {
           const queryText = String(item.query || item.queryText || 'FateFind');
+          const itemTcg = isTcgCode(item.tcgCode) ? item.tcgCode : 'pokemon';
           const percent = typeof item.maxPercentAboveRrp === 'number' ? item.maxPercentAboveRrp : null;
           const companion = companionFromFateFind(item as Record<string, unknown>);
           return (
@@ -290,7 +310,7 @@ export default function FateMatchScreenV2() {
               <View style={styles.huntIcon}><Ionicons name="telescope" size={18} color={FateDropColors.goldBright} /></View>
               <View style={styles.flex}>
                 <Text style={styles.huntTitle}>{queryText}</Text>
-                <Text style={styles.huntMeta}>FateFind active · {companion}{percent != null ? ` · max +${percent}% vs RRP` : ''}</Text>
+                <Text style={styles.huntMeta}>{TCG_REGISTRY.find((entry) => entry.code === itemTcg)?.shortName ?? itemTcg} · FateFind active · {companion}{percent != null ? ` · max +${percent}% vs RRP` : ''}</Text>
               </View>
               <View style={styles.liveDot} />
             </View>
