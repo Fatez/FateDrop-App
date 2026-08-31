@@ -6,6 +6,7 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 const alerts = read('mobile/screens/alerts-screen-v4.tsx');
 const onboarding = read('mobile/app/onboarding.tsx');
 const home = read('mobile/screens/home-screen-v3.tsx');
+const stories = read('mobile/app/stories.tsx');
 const profileCustomisation = read('mobile/constants/profile-customisation.ts');
 const profileCustomisationService = read('mobile/services/profile-customisation.ts');
 
@@ -31,8 +32,25 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
 
-test('profile wallpaper picker includes the supplied FateDrop wallpaper', () => {
-  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'fatedrop1'/);
+test('profile wallpaper picker includes FateDrop and the Home Koru artwork', () => {
+  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'/);
+  assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
+  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
+  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru · Network'/);
   assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
   assert.match(profileCustomisation, /fatedrop1: \{ name: 'FateDrop'/);
+});
+
+test('selected profile wallpaper also drives the active Home hero', () => {
+  assert.match(home, /loadProfileCustomisation\(identity\)/);
+  assert.match(home, /setHomeWallpaperId\(customisation\.wallpaperId\)/);
+  assert.match(home, /<ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} \/>/);
+  assert.doesNotMatch(home, /source=\{require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)\}/);
+});
+
+test('Stories intro keeps the label but removes the redundant non-transparent wordmark', () => {
+  assert.match(stories, /FATEDROP STORIES/);
+  assert.match(stories, /How FateDrop works\./);
+  assert.doesNotMatch(stories, /fatedrop-wordmark\.png/);
+  assert.doesNotMatch(stories, /introWordmark/);
 });
