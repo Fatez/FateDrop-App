@@ -16,6 +16,7 @@ export const profileCompanionSources = {
 } as const;
 
 export const profileWallpaperSources: Record<ProfileWallpaperId, number | { uri: string }> = {
+  koruHome: require('../assets/images/home-koru-hero.webp'),
   default: DEFAULT_PROFILE_WALLPAPER_SOURCE,
   oru: require('../assets/images/alert-oru-hero-final.webp'),
   fenn: require('../assets/images/alert-fenn-hero-final.webp'),
@@ -25,6 +26,7 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number | { uri:
 };
 
 export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; accent: string }> = {
+  koruHome: { name: 'Koru · Network', accent: '#7C6EFF' },
   default: { name: 'Default', accent: '#D6BA73' },
   oru: { name: 'Oru', accent: '#A5B46D' },
   fenn: { name: 'Fenn', accent: '#C3A361' },
