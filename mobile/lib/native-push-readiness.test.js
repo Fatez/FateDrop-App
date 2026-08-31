@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
 const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
+const rootLayout = fs.readFileSync(path.join(root, 'app/_layout.tsx'), 'utf8');
 
 test('FateDrop has stable native application identifiers', () => {
   assert.equal(app.expo.name, 'FateDrop');
@@ -17,6 +18,7 @@ test('FateDrop has stable native application identifiers', () => {
 });
 
 test('EAS has explicit internal beta and production build profiles', () => {
+  assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(eas.build.preview.distribution, 'internal');
   assert.equal(eas.build.production.autoIncrement, true);
 });
@@ -29,4 +31,12 @@ test('current App is linked to the canonical FateDrop EAS project without changi
   assert.match(notifications, /Constants\.easConfig\?\.projectId/);
   assert.match(notifications, /reason: 'eas-project-id-required'/);
   assert.match(notifications, /getExpoPushTokenAsync\(\{ projectId \}\)/);
+});
+
+test('foreground push presentation is installed when the app shell boots', () => {
+  assert.match(rootLayout, /import ['"]@\/lib\/notifications['"];/);
+  assert.match(notifications, /Notifications\.setNotificationHandler/);
+  assert.match(notifications, /shouldShowBanner:\s*true/);
+  assert.match(notifications, /shouldShowList:\s*true/);
+  assert.match(notifications, /shouldPlaySound:\s*true/);
 });
