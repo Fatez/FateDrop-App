@@ -21,6 +21,7 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number | { uri:
   fenn: require('../assets/images/alert-fenn-hero-final.webp'),
   koru: require('../assets/images/alert-koru-hero-final.webp'),
   nyxen: require('../assets/images/alert-nyxen-hero-final.webp'),
+  fatedrop1: require('../assets/images/fatedrop-app-wallpaper1.png'),
 };
 
 export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; accent: string }> = {
@@ -29,6 +30,7 @@ export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; ac
   fenn: { name: 'Fenn', accent: '#C3A361' },
   koru: { name: 'Koru', accent: '#7BDCF4' },
   nyxen: { name: 'Nyxen', accent: '#EF4D5A' },
+  fatedrop1: { name: 'FateDrop', accent: '#D6BA73' },
 };
 
 export const profileCompanionMeta = {
