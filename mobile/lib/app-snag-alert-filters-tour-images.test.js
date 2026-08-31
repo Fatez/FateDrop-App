@@ -59,12 +59,10 @@ test('profile wallpaper picker uses the full high-quality supplied wallpaper lib
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
 });
 
-test('replacement wallpaper 09 stays centered while wallpaper 12 sits slightly lower', () => {
-  assert.match(profileWallpaperArt, /fatedrop12: \{[\s\S]*scale: 1\.1[\s\S]*translateY: 20/);
-  assert.doesNotMatch(profileWallpaperArt, /fatedrop9: \{/);
-  assert.match(profileWallpaperArt, /style=\{\[StyleSheet\.absoluteFillObject, profileWallpaperTransforms\[wallpaperId\]\]\}/);
+test('wallpaper artwork renders centered without per-wallpaper transform overrides', () => {
+  assert.match(profileWallpaperArt, /style=\{StyleSheet\.absoluteFillObject\}/);
   assert.match(profileWallpaperArt, /contentPosition="center"/);
-  assert.doesNotMatch(profileWallpaperArt, /koruHome: \{|oru: \{|62% center|center 42%/);
+  assert.doesNotMatch(profileWallpaperArt, /profileWallpaperTransforms|translateX|translateY|scale: 1\.1/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
