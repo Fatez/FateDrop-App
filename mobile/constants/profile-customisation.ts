@@ -19,7 +19,6 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   default: require('../assets/images/default-image.png'),
   oru: require('../assets/images/profile-wallpaper-oru.jpeg'),
   fenn: require('../assets/images/profile-wallpaper-fenn.jpeg'),
-  koru: require('../assets/images/home-koru-hero.png.png'),
   nyxen: require('../assets/images/profile-wallpaper-nyxen.jpeg'),
   fatedrop1: require('../assets/images/fatedrop-app-wallpaper1.png'),
   fatedrop2: require('../assets/images/fdwallpaper2.png'),
@@ -38,11 +37,10 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
 };
 
 export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; accent: string }> = {
-  koruHome: { name: 'Koru · Network', accent: '#7C6EFF' },
+  koruHome: { name: 'Koru', accent: '#7C6EFF' },
   default: { name: 'Default', accent: '#D6BA73' },
   oru: { name: 'Oru', accent: '#A5B46D' },
   fenn: { name: 'Fenn', accent: '#D9CDBB' },
-  koru: { name: 'Koru', accent: '#7C6EFF' },
   nyxen: { name: 'Nyxen', accent: '#EF4D5A' },
   fatedrop1: { name: 'FateDrop', accent: '#D6BA73' },
   fatedrop2: { name: 'FateDrop · Cavern', accent: '#C9A96A' },
