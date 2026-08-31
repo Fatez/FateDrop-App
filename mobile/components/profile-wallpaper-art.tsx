@@ -5,15 +5,10 @@ import { profileWallpaperSources } from '@/constants/profile-customisation';
 import type { ProfileWallpaperId } from '@/services/profile-customisation';
 
 const profileWallpaperTransforms: Partial<Record<ProfileWallpaperId, ImageStyle>> = {
-  // Screenshot 1 / wallpaper 12: move the artwork left so Koru sits nearer
-  // the visual centre of the Home hero while keeping a small crop buffer.
+  // Wallpaper 12 needs to sit slightly lower in the Home hero so a little more
+  // of the bottom is cropped. Keep a small scale buffer to avoid exposing edges.
   fatedrop12: {
-    transform: [{ scale: 1.1 }, { translateX: -36 }],
-  },
-  // Screenshot 2 / wallpaper 09: move the artwork down so the baked-in
-  // FateDrop text clears the iPhone Dynamic Island / speaker area.
-  fatedrop9: {
-    transform: [{ scale: 1.1 }, { translateY: 38 }],
+    transform: [{ scale: 1.1 }, { translateY: 20 }],
   },
 };
 
