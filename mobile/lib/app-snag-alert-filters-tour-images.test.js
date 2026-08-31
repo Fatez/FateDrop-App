@@ -32,15 +32,29 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
 
-test('profile wallpaper picker includes the full supplied FateDrop library and keeps Koru as default', () => {
-  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop2'[^\]]*'fatedrop3'[^\]]*'fatedrop4'[^\]]*'fatedrop5'[^\]]*'fatedrop6'/);
+test('profile wallpaper picker uses the full high-quality supplied wallpaper library and keeps Koru as default', () => {
+  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop14'/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
-  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
+
+  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /default: require\('\.\.\/assets\/images\/default-image\.png'\)/);
+  assert.match(profileCustomisation, /oru: require\('\.\.\/assets\/images\/profile-wallpaper-oru\.jpeg'\)/);
+  assert.match(profileCustomisation, /fenn: require\('\.\.\/assets\/images\/profile-wallpaper-fenn\.jpeg'\)/);
+  assert.match(profileCustomisation, /koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /nyxen: require\('\.\.\/assets\/images\/profile-wallpaper-nyxen\.jpeg'\)/);
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru · Network'/);
+
   assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
-  for (let index = 2; index <= 6; index += 1) {
+  for (let index = 2; index <= 12; index += 1) {
     assert.match(profileCustomisation, new RegExp(`fatedrop${index}: require\\('\\.\\.\\/assets\\/images\\/fdwallpaper${index}\\.png'\\)`));
   }
+  assert.match(profileCustomisation, /fatedrop13: require\('\.\.\/assets\/images\/fdwallpaper13\.jpg'\)/);
+  assert.match(profileCustomisation, /fatedrop14: require\('\.\.\/assets\/images\/fdwallpaper14\.png'\)/);
+
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-oru-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-fenn-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-koru-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
