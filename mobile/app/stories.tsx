@@ -78,7 +78,6 @@ function StoriesIntro({ onBegin }: { onBegin: () => void }) {
             <Ionicons name="book-outline" size={13} color={FateDropColors.goldBright} />
             <Text style={styles.introKickerText}>FATEDROP STORIES</Text>
           </View>
-          <Image source={require('@/assets/images/fatedrop-wordmark.png')} style={styles.introWordmark} contentFit="contain" contentPosition="left center" />
           <Text style={styles.introTitle}>How FateDrop works.</Text>
           <Text style={styles.introDetail}>A ten-page journey through FateFind, verification, True Price and the signal behind the search.</Text>
 
@@ -196,14 +195,12 @@ const styles = StyleSheet.create({
   introCopy: { paddingHorizontal: 22, paddingBottom: 18 },
   introKicker: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: 'rgba(6,9,15,.58)' },
   introKickerText: { color: FateDropColors.goldBright, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25 },
-  introWordmark: { width: 190, height: 52, marginTop: 12 },
-  introTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 34, fontWeight: '800', marginTop: 4 },
+  introTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 34, fontWeight: '800', marginTop: 14 },
   introDetail: { color: 'rgba(245,242,235,.76)', fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 390 },
   beginButton: { minHeight: 66, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginTop: 18, paddingLeft: 17, paddingRight: 10, paddingVertical: 9, borderRadius: 19, borderWidth: 1, borderColor: `${FateDropColors.gold}77`, backgroundColor: 'rgba(8,12,19,.86)' },
   beginLabel: { color: FateDropColors.ivory, fontSize: 12.5, fontWeight: '900', letterSpacing: 1.15 },
   beginMeta: { color: FateDropColors.secondary, fontSize: 9.5, marginTop: 4 },
   beginArrow: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.goldBright },
-
   readerRoot: { flex: 1, backgroundColor: '#030407' },
   mangaPage: { width: '100%', height: '100%', backgroundColor: '#030407' },
   readerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },

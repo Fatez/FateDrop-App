@@ -6,10 +6,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
+import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
 
 const stageMeta: Record<NetworkSignalState, { label: string; companion: string; color: string }> = {
   whisper: { label: 'Whisper', companion: 'Oru', color: FateDropColors.whisper },
@@ -23,13 +25,16 @@ const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished:
 export default function HomeScreenV3() {
   const insets = useSafeAreaInsets();
   const { snapshot, signedIn, refresh } = useFateDropId();
+  const identity = snapshot?.user.fateId || 'guest';
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
   const [pulseError, setPulseError] = useState(false);
+  const [homeWallpaperId, setHomeWallpaperId] = useState<ProfileWallpaperId>('koruHome');
 
   const load = useCallback(async () => {
-    const [nextPulse] = await Promise.all([
+    const [nextPulse, , customisation] = await Promise.all([
       fetchNetworkPulse(7).catch(() => null),
       signedIn ? refresh().catch(() => null) : Promise.resolve(null),
+      loadProfileCustomisation(identity).catch(() => null),
     ]);
     if (nextPulse) {
       setPulse(nextPulse);
@@ -37,7 +42,8 @@ export default function HomeScreenV3() {
     } else {
       setPulseError(true);
     }
-  }, [refresh, signedIn]);
+    if (customisation) setHomeWallpaperId(customisation.wallpaperId);
+  }, [identity, refresh, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -53,7 +59,7 @@ export default function HomeScreenV3() {
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Image source={require('../assets/images/home-koru-hero.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
           <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
@@ -112,8 +118,27 @@ export default function HomeScreenV3() {
         <View style={styles.actions}>
           <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
           <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push('/fatefind')} />
-          <Action title="True Price" detail="Compare real cost to verified RRP" icon="pricetag-outline" onPress={() => router.push('/true-price')} />
+          <Action title="Events" detail="Card shows, tournaments and meet-ups" icon="calendar-outline" onPress={() => router.push('/encounters')} />
         </View>
+
+        <View style={styles.eventSectionHead}>
+          <Text style={styles.eventSectionEyebrow}>FATE ENCOUNTERS</Text>
+          <Text style={styles.eventSectionTitle}>Find your next encounter.</Text>
+          <Text style={styles.eventSectionCopy}>Card shows, trade nights, tournaments and collector meet-ups — discover what is happening beyond the screen.</Text>
+        </View>
+
+        <Pressable accessibilityRole="button" accessibilityLabel="Explore FateDrop events" onPress={() => router.push('/encounters')} style={({ pressed }) => [styles.eventPromo, pressed && styles.pressed]}>
+          <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <View style={styles.eventPromoShade} />
+          <View style={styles.eventPromoContent}>
+            <Text style={styles.eventPromoEyebrow}>EVENTS · CARD SHOWS · COMMUNITY</Text>
+            <Text style={styles.eventPromoTitle}>Where collectors become the community.</Text>
+            <View style={styles.eventPromoCta}>
+              <Text style={styles.eventPromoCtaText}>EXPLORE EVENTS</Text>
+              <Ionicons name="arrow-forward" size={15} color={FateDropColors.ivory} />
+            </View>
+          </View>
+        </Pressable>
 
         <View style={styles.explainer}>
           <Ionicons name="sparkles-outline" size={20} color={FateDropColors.goldBright} />
@@ -165,11 +190,22 @@ const styles = StyleSheet.create({
   miniStat: { flex: 1, padding: 12, minHeight: 108, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   miniValue: { color: FateDropColors.ivory, fontSize: 22, fontWeight: '900', marginTop: 9 },
   miniLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', lineHeight: 12, marginTop: 3 },
-  actions: { paddingHorizontal: 18, gap: 8, marginBottom: 20 },
+  actions: { paddingHorizontal: 18, gap: 8, marginBottom: 24 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   actionIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}10` },
   actionTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900' },
   actionDetail: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
+  eventSectionHead: { paddingHorizontal: 18, marginBottom: 11 },
+  eventSectionEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35 },
+  eventSectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 28, fontWeight: '700', marginTop: 4 },
+  eventSectionCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 5, maxWidth: 340 },
+  eventPromo: { height: 232, marginHorizontal: 18, marginBottom: 24, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.goldBright}55`, backgroundColor: FateDropColors.surface },
+  eventPromoShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,6,11,.28)' },
+  eventPromoContent: { position: 'absolute', left: 16, right: 16, bottom: 15 },
+  eventPromoEyebrow: { color: FateDropColors.goldBright, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.05, ...heroShadow },
+  eventPromoTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, lineHeight: 25, fontWeight: '700', maxWidth: 280, marginTop: 4, ...heroShadow },
+  eventPromoCta: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 11, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.goldBright}77`, backgroundColor: 'rgba(6,9,15,.72)' },
+  eventPromoCtaText: { color: FateDropColors.ivory, fontSize: 9, fontWeight: '900', letterSpacing: .8 },
   explainer: { flexDirection: 'row', gap: 11, marginHorizontal: 18, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
   explainerTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },
   explainerCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 4 },
