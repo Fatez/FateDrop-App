@@ -42,6 +42,14 @@ jobs:
         working-directory: mobile
         run: npm ci
 
+      - name: Audit mobile production dependencies
+        working-directory: mobile
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verify Expo native dependency health
+        working-directory: mobile
+        run: npx expo-doctor
+
       - name: Lint and typecheck mobile
         working-directory: mobile
         run: npm run verify
