@@ -14,6 +14,8 @@ const home = read('screens/home-screen-v3.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 const alerts = read('screens/alerts-screen-v4.tsx');
 const tabs = read('app/(tabs)/_layout.tsx');
+const profileCustomisation = read('constants/profile-customisation.ts');
+const profileCustomisationService = read('services/profile-customisation.ts');
 const wordmarkData = read('constants/brand-wordmark-data.ts');
 const emblemData = read('constants/brand-emblem-data.ts');
 const appConfig = JSON.parse(read('app.json'));
@@ -41,8 +43,11 @@ test('active Home and Profile are the primary full-wordmark identity surfaces', 
   assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
 
-test('active Home keeps the approved Koru hero and network-first experience', () => {
-  assert.match(home, /home-koru-hero\.webp/);
+test('active Home keeps Koru as the approved default hero while allowing the selected wallpaper', () => {
+  assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\}/);
+  assert.match(home, /useState<ProfileWallpaperId>\('koruHome'\)/);
+  assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
+  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);
   assert.match(home, /THE FATE NETWORK IS LIVE/);
   assert.match(home, /Know what moved\. Hunt what matters\./);
