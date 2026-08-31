@@ -59,10 +59,12 @@ test('profile wallpaper picker uses the full high-quality supplied wallpaper lib
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
 });
 
-test('Home wallpaper focal points keep Koru visible and Oru motto clear of the iPhone sensor area', () => {
-  assert.match(profileWallpaperArt, /koruHome: '62% center'/);
-  assert.match(profileWallpaperArt, /oru: 'center 42%'/);
-  assert.match(profileWallpaperArt, /contentPosition=\{profileWallpaperContentPositions\[wallpaperId\] \?\? 'center'\}/);
+test('Home wallpaper focal points use explicit transforms that Expo Image will actually render', () => {
+  assert.match(profileWallpaperArt, /koruHome: \{[\s\S]*scale: 1\.1[\s\S]*translateX: -30/);
+  assert.match(profileWallpaperArt, /oru: \{[\s\S]*scale: 1\.1[\s\S]*translateY: 34/);
+  assert.match(profileWallpaperArt, /style=\{\[StyleSheet\.absoluteFillObject, profileWallpaperTransforms\[wallpaperId\]\]\}/);
+  assert.match(profileWallpaperArt, /contentPosition="center"/);
+  assert.doesNotMatch(profileWallpaperArt, /62% center|center 42%/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
