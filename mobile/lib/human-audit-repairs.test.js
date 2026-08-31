@@ -55,10 +55,11 @@ test('mobile account and canonical alert services share the centralized current 
   assert.match(apiConstants, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fatedrop\.co\.uk'/);
   assert.match(apiConstants, /CANONICAL_FATEDROP_WEB_HOST = 'fatedrop\.co\.uk'/);
   assert.match(apiConstants, /canonicalWebBaseUrl\(process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL\)/);
-  for (const service of [idService, alertService, signalService]) {
+  for (const service of [idService, alertService]) {
     assert.match(service, /FATEDROP_WEB_URL/);
     assert.doesNotMatch(service, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
   }
+  assert.match(signalService, /fetchCanonicalAlerts/);
   assert.doesNotMatch(apiConstants, /DEFAULT_FATEDROP_WEB_URL = 'https:\/\/fate-drop\.com'/);
 });
 

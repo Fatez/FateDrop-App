@@ -25,11 +25,32 @@ export type CanonicalAlertPresentation = {
   sourceMsrp: string | null;
 };
 
+export type CanonicalAlertFacets = {
+  version: number;
+  languageGroup: 'english' | 'japanese' | 'korean' | 'simplified_chinese' | 'traditional_chinese' | 'other' | 'unknown';
+  languageCode: string | null;
+  marketCode: string | null;
+  marketGroup?: 'english' | 'japanese' | 'korean' | 'simplified_chinese' | 'traditional_chinese' | 'other' | 'unknown';
+  marketStatus?: 'verified' | 'reused' | 'candidate' | 'unknown' | 'conflict';
+  languageLabel: string;
+  setKey: string | null;
+  setName: string | null;
+  confidence: { language: number; market?: number; set: number };
+  source: { language: string; market?: string; set: string };
+};
+
 export type CanonicalMobileAlert = {
   id: string;
   fateStage: CanonicalAlertStage;
+  productId: string;
+  offerId: string;
+  retailerId: string;
   title: string;
   message: string;
+  signalKind: string | null;
+  deliveryPolicy: 'interrupt' | 'inbox_only' | 'history_only' | 'anomaly_quarantine';
+  interruptEligible: boolean;
+  facets: CanonicalAlertFacets;
   retailer: string;
   detectedAt: string;
   confidence: number;
@@ -41,6 +62,7 @@ export type CanonicalMobileAlert = {
     pricePence: number | null;
     rrpPence: number | null;
     deliveredPricePence: number | null;
+    stockStatus: string | null;
   };
   priceIntelligence: {
     rrpPence: number | null;
@@ -59,11 +81,12 @@ export type CanonicalMobileAlert = {
   };
   presentation?: CanonicalAlertPresentation | null;
   delivery?: {
-    discord?: {
-      status: 'sent' | 'failed' | 'skipped';
-      attemptedAt: string;
+    discord: {
+      status: string;
+      attemptedAt: string | null;
       issue: string | null;
-    };
+      providerMessageId: string | null;
+    } | null;
   };
 };
 

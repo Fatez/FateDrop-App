@@ -65,16 +65,6 @@ export default function HomeScreenV3() {
           </View>
         </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Open the FateDrop Guide" onPress={() => router.push('/demo')} style={({ pressed }) => [styles.guideCard, pressed && styles.pressed]}>
-          <View style={styles.guideIcon}><Ionicons name="compass-outline" size={24} color={FateDropColors.goldBright} /></View>
-          <View style={styles.flex}>
-            <Text style={styles.guideEyebrow}>FATEDROP GUIDE</Text>
-            <Text style={styles.guideTitle}>How FateDrop works — whenever you need it.</Text>
-            <Text style={styles.guideCopy}>Replay the guided tour, learn every core tool and revisit Whisper → Echo → Manifested → Vanished whenever you need it.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
-        </Pressable>
-
         <View style={styles.sectionHead}>
           <View>
             <Text style={styles.sectionEyebrow}>NETWORK PULSE</Text>
@@ -108,11 +98,21 @@ export default function HomeScreenV3() {
           <MiniStat value={signedIn ? String(saved) : '—'} label="WISHLIST" icon="bookmark-outline" onPress={() => router.push('/(tabs)/watchlist')} />
         </View>
 
+        <Pressable accessibilityRole="button" accessibilityLabel="Open the FateDrop Guide" onPress={() => router.push('/demo')} style={({ pressed }) => [styles.guideCard, pressed && styles.pressed]}>
+          <View style={styles.guideIcon}><Ionicons name="compass-outline" size={24} color={FateDropColors.goldBright} /></View>
+          <View style={styles.flex}>
+            <Text style={styles.guideEyebrow}>FATEDROP GUIDE</Text>
+            <Text style={styles.guideTitle}>How FateDrop works — whenever you need it.</Text>
+            <Text style={styles.guideCopy}>Replay the guided tour, learn every core tool and revisit Whisper → Echo → Manifested → Vanished whenever you need it.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
+        </Pressable>
+
         <Text style={styles.sectionEyebrow}>QUICK ACTIONS</Text>
         <View style={styles.actions}>
           <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
           <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push('/fatefind')} />
-          <Action title="How FateDrop works" detail="FateDrop Guide · tour and feature explainers" icon="book-outline" onPress={() => router.push('/demo')} />
+          <Action title="True Price" detail="Compare real cost to verified RRP" icon="pricetag-outline" onPress={() => router.push('/true-price')} />
         </View>
 
         <View style={styles.explainer}>

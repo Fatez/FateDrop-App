@@ -29,8 +29,8 @@ test('stale Expo/Codespaces Web overrides cannot redirect authenticated App traf
   assert.doesNotMatch(api, /OBSOLETE_FATEDROP_WEB_HOSTS/);
 });
 
-test('Web-backed App services consume one canonical exported endpoint', () => {
-  for (const source of [alerts, identity, signals, notifications]) {
+test('direct Web-backed App services consume one canonical exported endpoint', () => {
+  for (const source of [alerts, identity, notifications]) {
     assert.match(source, /FATEDROP_WEB_URL/);
     assert.doesNotMatch(source, /process\.env\.EXPO_PUBLIC_FATEDROP_WEB_URL/);
     assert.doesNotMatch(source, /DEFAULT_WEB_URL/);
@@ -60,4 +60,5 @@ test('network truth remains Cloud-owned rather than routed through Web diagnosti
   assert.match(signals, /\/api\/signal-summary/);
   assert.match(signals, /\/api\/signals/);
   assert.doesNotMatch(signals, /\/api\/mobile\/signal-health/);
+  assert.match(signals, /fetchCanonicalAlerts/);
 });

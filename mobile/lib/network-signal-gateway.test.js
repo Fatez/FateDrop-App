@@ -18,5 +18,6 @@ test('public raw signal feed remains a direct versioned Cloud contract', () => {
 });
 
 test('signed-in personal alert history remains on the authenticated Web gateway', () => {
-  assert.match(source, /FATEDROP_WEB_URL\}\/api\/mobile\/alerts/);
+  assert.match(source, /fetchCanonicalAlerts/);
+  assert.doesNotMatch(source, /api\/mobile\/alerts\?limit=/);
 });
