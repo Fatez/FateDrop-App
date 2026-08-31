@@ -8,7 +8,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { FALLBACK_ALERT_MARKETS } from '@/services/alert-facets';
 import { countUnreadCanonicalAlertsByStage, fetchCanonicalAlerts, markCanonicalAlertStageSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
+import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
+import {
+  LIFECYCLE_MARKET_GROUPS,
+  nextLifecycleMarketSelection,
+  type LifecycleMarketGroup,
+  type LifecycleMarketStage,
+  type LifecycleMarketSelection,
+} from '@/services/notification-preference-contract';
 import { openExternalRetailerLink, openTrackedRetailerLink } from '@/services/outbound-links';
 
 const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
@@ -19,6 +28,14 @@ const meta: Record<CanonicalAlertStage, { label: string; companion: string; colo
   MANIFESTED: { label: 'Manifested', companion: 'Koru', color: FateDropColors.manifested, hero: require('../assets/images/alert-koru-hero-final.webp') },
   VANISHED: { label: 'Vanished', companion: 'Nyxen', color: FateDropColors.vanished, hero: require('../assets/images/alert-nyxen-hero-final.webp') },
 };
+const stagePreferenceKey: Record<CanonicalAlertStage, LifecycleMarketStage> = {
+  WHISPER: 'whisper',
+  ECHO: 'echo',
+  MANIFESTED: 'manifested',
+  VANISHED: 'vanished',
+};
+const marketLabels = new Map(FALLBACK_ALERT_MARKETS.map(({ key, label }) => [key, label]));
+const lifecycleMarketOptions = LIFECYCLE_MARKET_GROUPS.map((key) => ({ key, label: marketLabels.get(key) ?? key }));
 const emptyUnreadCounts = (): Record<CanonicalAlertStage, number> => ({ WHISPER: 0, ECHO: 0, MANIFESTED: 0, VANISHED: 0 });
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 const money = (pence: number | null | undefined) => pence == null ? '—' : `£${(pence / 100).toFixed(2)}`;
@@ -42,7 +59,12 @@ export default function AlertsScreenV4() {
   const [unreadCounts, setUnreadCounts] = useState<Record<CanonicalAlertStage, number>>(emptyUnreadCounts);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [marketWorking, setMarketWorking] = useState<string | null>(null);
+  const [marketMessage, setMarketMessage] = useState<string | null>(null);
   const userId = snapshot?.user?.id ?? null;
+  const preferences = snapshot?.notificationPreferences ?? null;
+  const activePreferenceStage = stagePreferenceKey[stage];
+  const marketSelection = preferences?.lifecycleMarkets?.[activePreferenceStage] ?? 'all';
 
   useEffect(() => {
     const incomingStage = first(params.stage)?.toUpperCase();
@@ -81,6 +103,23 @@ export default function AlertsScreenV4() {
     return () => { cancelled = true; };
   }, [alerts, signedIn, stage, userId, view]);
 
+  const toggleLifecycleMarket = async (option: 'all' | LifecycleMarketGroup) => {
+    if (!signedIn || !preferences || marketWorking) return;
+    const nextSelection = nextLifecycleMarketSelection(marketSelection, option);
+    setMarketWorking(option);
+    setMarketMessage(null);
+    try {
+      await updateRemoteNotificationPreferences({ lifecycleMarkets: { [activePreferenceStage]: nextSelection } });
+      const [nextAlerts] = await Promise.all([fetchCanonicalAlerts(100), refresh()]);
+      setAlerts(nextAlerts);
+      setUnreadCounts(userId ? await countUnreadCanonicalAlertsByStage(userId, nextAlerts) : emptyUnreadCounts());
+    } catch (cause) {
+      setMarketMessage(cause instanceof Error ? cause.message : 'Market preference could not be updated.');
+    } finally {
+      setMarketWorking(null);
+    }
+  };
+
   const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, alerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [alerts]);
   const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage), [alerts, stage]);
   const active = meta[stage];
@@ -100,6 +139,14 @@ export default function AlertsScreenV4() {
         {view === 'signals' ? <>
           <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
           {!signedIn ? <SignIn /> : <>
+            <LifecycleMarketFilter
+              color={active.color}
+              disabled={Boolean(marketWorking)}
+              label={active.label}
+              onToggle={(option) => void toggleLifecycleMarket(option)}
+              selection={marketSelection}
+            />
+            {marketMessage ? <View style={styles.marketError}><Ionicons name="warning-outline" size={15} color={FateDropColors.warning} /><Text style={styles.marketErrorText}>{marketMessage}</Text></View> : null}
             {error ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.warning} /><Text style={styles.errorText}>{error}</Text></View> : null}
             <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text><Text style={styles.sectionHint}>Tap an alert for a quick in-app look · ↗ opens in your browser.</Text></View><Text style={styles.sectionCount}>{filtered.length}</Text></View>
             {filtered.length ? filtered.map((alert) => <AlertRow key={alert.id} alert={alert} />) : !loading && !error ? <View style={styles.empty}><Ionicons name="radio-outline" size={24} color={active.color} /><Text style={styles.emptyTitle}>Quiet by design</Text><Text style={styles.emptyCopy}>No {active.label.toLowerCase()} alert has met FateDrop policy for your inbox. We do not fill the feed with weak signals.</Text></View> : null}
@@ -108,6 +155,49 @@ export default function AlertsScreenV4() {
       </ScrollView>
     </View>
   );
+}
+
+function LifecycleMarketFilter({ color, disabled, label, onToggle, selection }: {
+  color: string;
+  disabled: boolean;
+  label: string;
+  onToggle: (option: 'all' | LifecycleMarketGroup) => void;
+  selection: LifecycleMarketSelection;
+}) {
+  const status = selection === 'all' ? 'ALL MARKETS' : `${selection.length} SELECTED`;
+  return <View style={[styles.marketFilter, { borderColor: `${color}42` }]}>
+    <View style={styles.marketFilterHead}>
+      <View style={styles.flex}>
+        <Text style={[styles.marketFilterEyebrow, { color }]}>CARD MARKET · {label.toUpperCase()}</Text>
+        <Text style={styles.marketFilterHint}>Choose which verified product markets can appear in this {label.toLowerCase()} feed.</Text>
+      </View>
+      <Text style={styles.marketFilterStatus}>{status}</Text>
+    </View>
+    <View style={styles.marketPills}>
+      <MarketPill color={color} disabled={disabled} enabled={selection === 'all'} onPress={() => onToggle('all')} title="All" />
+      {lifecycleMarketOptions.map((market) => <MarketPill
+        key={market.key}
+        color={color}
+        disabled={disabled}
+        enabled={selection !== 'all' && selection.includes(market.key)}
+        onPress={() => onToggle(market.key)}
+        title={market.label}
+      />)}
+    </View>
+  </View>;
+}
+
+function MarketPill({ color, disabled, enabled, onPress, title }: { color: string; disabled: boolean; enabled: boolean; onPress: () => void; title: string }) {
+  return <Pressable
+    accessibilityRole="button"
+    accessibilityState={{ disabled, selected: enabled }}
+    disabled={disabled}
+    onPress={onPress}
+    style={[styles.marketPill, enabled && { borderColor: `${color}A6`, backgroundColor: `${color}16` }, disabled && styles.marketPillDisabled]}
+  >
+    <View style={[styles.marketPillDot, { borderColor: enabled ? color : FateDropColors.border, backgroundColor: enabled ? color : 'transparent' }]} />
+    <Text style={[styles.marketPillText, enabled && { color }]}>{title}</Text>
+  </Pressable>;
 }
 
 function AlertRow({ alert }: { alert: CanonicalMobileAlert }) {
@@ -168,6 +258,7 @@ const styles = StyleSheet.create({
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 }, heroEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3, ...heroShadow }, heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, fontWeight: '700', marginTop: 4, ...heroShadow }, heroSub: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 340, ...heroShadow },
   switch: { flexDirection: 'row', marginHorizontal: 18, marginTop: 12, padding: 4, borderRadius: 14, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, switchItem: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 10 }, switchActive: { backgroundColor: FateDropColors.card }, switchText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' }, switchTextActive: { color: FateDropColors.goldBright },
   tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 18, marginTop: 10 }, tab: { flex: 1, padding: 9, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 }, tabLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' }, tabUnreadDot: { width: 6, height: 6, borderRadius: 3 }, tabCount: { color: FateDropColors.ivory, fontSize: 18, fontWeight: '900', marginTop: 3 },
+  marketFilter: { marginHorizontal: 18, marginTop: 10, padding: 13, borderRadius: 16, borderWidth: 1, backgroundColor: FateDropColors.surface }, marketFilterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, marketFilterEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: .9 }, marketFilterHint: { color: FateDropColors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 }, marketFilterStatus: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 1 }, marketPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 11 }, marketPill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card }, marketPillDisabled: { opacity: .55 }, marketPillDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1 }, marketPillText: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '800' }, marketError: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 18, marginTop: 7 }, marketErrorText: { color: FateDropColors.warning, flex: 1, fontSize: 9, lineHeight: 13 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginHorizontal: 18, marginTop: 20, marginBottom: 8 }, sectionEyebrow: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, sectionTitle: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900', marginTop: 2 }, sectionHint: { color: FateDropColors.muted, fontSize: 9, lineHeight: 13, marginTop: 4 }, sectionCount: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900' },
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 24, marginBottom: 7, padding: 7, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, alertBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 6 }, alertDot: { width: 8, height: 8, borderRadius: 4 }, alertTop: { flexDirection: 'row', justifyContent: 'space-between' }, alertStage: { fontSize: 8, fontWeight: '900' }, alertTime: { color: FateDropColors.muted, fontSize: 9 }, alertTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900', marginTop: 3 }, alertFacets: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '800', marginTop: 3 }, alertValue: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800', marginTop: 5 }, alertReference: { color: FateDropColors.goldBright, fontSize: 9, marginTop: 3 }, alertMeta: { color: FateDropColors.secondary, fontSize: 9, marginTop: 4 }, alertTruePrice: { color: FateDropColors.manifested, fontSize: 9, fontWeight: '800', marginTop: 3 }, externalButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}45`, backgroundColor: FateDropColors.cardElevated },
   error: { flexDirection: 'row', gap: 9, margin: 18, padding: 13, borderRadius: 15, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, errorText: { color: FateDropColors.secondary, flex: 1, fontSize: 11 },
