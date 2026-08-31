@@ -2,7 +2,7 @@ import { Marker } from 'react-native-maps';
 
 import { FateDropColors } from '@/constants/theme';
 import type { LocalRadarClusterPoint, LocalRadarMapPoint } from '@/lib/local-radar-map';
-import { shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
+import { shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
 
 const FIXED_MAP_MARKER_SLOTS = 36;
 const HIDDEN_MARKER_COORDINATE = { latitude: 0, longitude: 0 };
@@ -12,9 +12,9 @@ const MARKER_SLOT_IDS = Array.from(
 );
 
 function shopMarkerColor(shop: RadarShop) {
-  const stockState = String(shop.stockState || '').toUpperCase();
-  if (stockState === 'CONFIRMED') return FateDropColors.mint;
-  if (stockState === 'EXPECTED') return FateDropColors.cyan;
+  const state = shopLocalState(shop);
+  if (state === 'confirmed') return FateDropColors.mint;
+  if (state === 'expected') return FateDropColors.cyan;
   return FateDropColors.goldBright;
 }
 
