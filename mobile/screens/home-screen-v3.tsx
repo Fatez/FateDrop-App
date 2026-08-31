@@ -6,10 +6,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
+import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
 
 const stageMeta: Record<NetworkSignalState, { label: string; companion: string; color: string }> = {
   whisper: { label: 'Whisper', companion: 'Oru', color: FateDropColors.whisper },
@@ -23,13 +25,16 @@ const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished:
 export default function HomeScreenV3() {
   const insets = useSafeAreaInsets();
   const { snapshot, signedIn, refresh } = useFateDropId();
+  const identity = snapshot?.user.fateId || 'guest';
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
   const [pulseError, setPulseError] = useState(false);
+  const [homeWallpaperId, setHomeWallpaperId] = useState<ProfileWallpaperId>('koruHome');
 
   const load = useCallback(async () => {
-    const [nextPulse] = await Promise.all([
+    const [nextPulse, , customisation] = await Promise.all([
       fetchNetworkPulse(7).catch(() => null),
       signedIn ? refresh().catch(() => null) : Promise.resolve(null),
+      loadProfileCustomisation(identity).catch(() => null),
     ]);
     if (nextPulse) {
       setPulse(nextPulse);
@@ -37,7 +42,8 @@ export default function HomeScreenV3() {
     } else {
       setPulseError(true);
     }
-  }, [refresh, signedIn]);
+    if (customisation) setHomeWallpaperId(customisation.wallpaperId);
+  }, [identity, refresh, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -53,7 +59,7 @@ export default function HomeScreenV3() {
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Image source={require('../assets/images/home-koru-hero.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
           <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
