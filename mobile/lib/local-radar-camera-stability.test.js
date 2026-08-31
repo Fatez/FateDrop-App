@@ -18,3 +18,10 @@ test('cluster taps animate imperatively and reject overlapping native camera ani
   assert.match(screen, /mapRef\.current\?\.animateToRegion\(nextRegion, 260\)/);
   assert.match(screen, /setTimeout\(\(\) => \{[\s\S]*?clusterAnimationInFlight\.current = false;[\s\S]*?\}, 650\);/);
 });
+
+test('cluster markers stay native-only on iOS instead of mounting React child views', () => {
+  assert.match(screen, /title=\{`\$\{point\.count\} nearby stores`\}/);
+  assert.match(screen, /description="Tap to zoom"/);
+  assert.match(screen, /pinColor=\{FateDropColors\.violetLight\}/);
+  assert.doesNotMatch(screen, /<View style=\{styles\.clusterMarker\}><Text style=\{styles\.clusterCount\}>/);
+});
