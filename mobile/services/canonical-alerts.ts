@@ -30,11 +30,13 @@ export type CanonicalAlertFacets = {
   languageGroup: 'english' | 'japanese' | 'korean' | 'simplified_chinese' | 'traditional_chinese' | 'other' | 'unknown';
   languageCode: string | null;
   marketCode: string | null;
+  marketGroup?: 'english' | 'japanese' | 'korean' | 'simplified_chinese' | 'traditional_chinese' | 'other' | 'unknown';
+  marketStatus?: 'verified' | 'reused' | 'candidate' | 'unknown' | 'conflict';
   languageLabel: string;
   setKey: string | null;
   setName: string | null;
-  confidence: { language: number; set: number };
-  source: { language: string; set: string };
+  confidence: { language: number; market?: number; set: number };
+  source: { language: string; market?: string; set: string };
 };
 
 export type CanonicalMobileAlert = {
