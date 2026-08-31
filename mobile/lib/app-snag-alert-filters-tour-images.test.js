@@ -32,13 +32,15 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
 
-test('profile wallpaper picker includes FateDrop and the Home Koru artwork', () => {
-  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'/);
+test('profile wallpaper picker includes the full supplied FateDrop library and keeps Koru as default', () => {
+  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop2'[^\]]*'fatedrop3'[^\]]*'fatedrop4'[^\]]*'fatedrop5'[^\]]*'fatedrop6'/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
   assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru · Network'/);
   assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
-  assert.match(profileCustomisation, /fatedrop1: \{ name: 'FateDrop'/);
+  for (let index = 2; index <= 6; index += 1) {
+    assert.match(profileCustomisation, new RegExp(`fatedrop${index}: require\\('\\.\\.\\/assets\\/images\\/fdwallpaper${index}\\.png'\\)`));
+  }
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
