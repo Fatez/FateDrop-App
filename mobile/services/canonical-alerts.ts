@@ -41,6 +41,7 @@ export type CanonicalAlertFacets = {
 
 export type CanonicalMobileAlert = {
   id: string;
+  tcgCode: string;
   fateStage: CanonicalAlertStage;
   productId: string;
   offerId: string;

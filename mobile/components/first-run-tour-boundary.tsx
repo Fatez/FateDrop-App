@@ -11,7 +11,7 @@ export function FirstRunTourBoundary({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    if (loading || !snapshot?.user || !snapshot.accessAllowed || pathname === '/onboarding') return () => { active = false; };
+    if (loading || !snapshot?.user || !snapshot.accessAllowed || snapshot.tcgPreferences?.onboardingCompleted !== true || pathname === '/onboarding' || pathname === '/tcg-onboarding') return () => { active = false; };
 
     void hasCompletedAppGuide().then((complete) => {
       if (!active || complete) return;
@@ -19,7 +19,7 @@ export function FirstRunTourBoundary({ children }: { children: ReactNode }) {
     });
 
     return () => { active = false; };
-  }, [loading, pathname, snapshot?.accessAllowed, snapshot?.user]);
+  }, [loading, pathname, snapshot?.accessAllowed, snapshot?.tcgPreferences?.onboardingCompleted, snapshot?.user]);
 
   return <>{children}</>;
 }

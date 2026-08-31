@@ -7,6 +7,7 @@ import {
   normalizeLifecycleMarkets,
   type LifecycleMarketPreferences,
 } from '@/services/notification-preference-contract';
+import { isTcgCode, normalizeTcgCodes, recommendedTcgAlerts, type TcgAlertPreferences, type TcgCode } from '@/constants/tcg-registry';
 
 const TOKEN_KEY = 'fatedrop.id.session.v1';
 const LEGACY_TOKEN_KEY = 'fatedrop:id:session:v1';
@@ -20,7 +21,7 @@ export type FateDropIdentity = { id:string; fateId:string; email:string; handle:
 export type FateDropEntitlement = { configuredTier:'free'|'plus'|'pro'; effectiveTier:'free'|'plus'|'pro'; status:string; active:boolean; capabilities:FateCapability[]; trialEndsAt:number|null; currentPeriodEnd:number|null; cancelAtPeriodEnd:boolean; updatedAt:number };
 export type CrossPlatformWishlistItem = { id:string; userId:string; productIdentityId:string|null; query:string; title:string; tcg:string|null; imageUrl:string|null; source:string; createdAt:number; updatedAt:number };
 export type CrossPlatformFateFind = Record<string, unknown> & { id:string; userId:string; enabled:boolean };
-export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
+export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; tcgCode:TcgCode; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
 export type CrossPlatformNotificationPreferences = {
   whisper:boolean;
   echo:boolean;
@@ -28,6 +29,8 @@ export type CrossPlatformNotificationPreferences = {
   vanished:boolean;
   priceChange:boolean;
   fateMatch:boolean;
+  manifestedReminders:boolean;
+  manifestedRemindersMaxPerDay:number;
   sealedTcg:boolean;
   singleCards:boolean;
   accessories:boolean;
@@ -53,13 +56,15 @@ export type CrossPlatformNotificationPreferences = {
   timezone:string;
   updatedAt:number;
 };
-export type FateDropSyncSnapshot = { contractVersion:2; accessAllowed:boolean; betaAccess:FateDropBetaAccess; syncedAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement; wishlist:CrossPlatformWishlistItem[]; fateFinds:CrossPlatformFateFind[]; fateMatches:CrossPlatformFateMatch[]; notificationPreferences:CrossPlatformNotificationPreferences; pendingMigrations:string[] };
-type SessionResponse = { contractVersion:number; accessAllowed:boolean; betaAccess:FateDropBetaAccess; sessionToken?:string; expiresAt?:number; user:FateDropIdentity; entitlement?:FateDropEntitlement; membership?:FateDropEntitlement };
+export type CrossPlatformTcgPreferences={selectedTcgCodes:TcgCode[];onboardingCompleted:boolean;alertPreferences:TcgAlertPreferences};
+export type FateDropSyncSnapshot = { contractVersion:2; accessAllowed:boolean; betaAccess:FateDropBetaAccess; syncedAt:number; user:FateDropIdentity; entitlement:FateDropEntitlement; wishlist:CrossPlatformWishlistItem[]; fateFinds:CrossPlatformFateFind[]; fateMatches:CrossPlatformFateMatch[]; notificationPreferences:CrossPlatformNotificationPreferences;tcgPreferences:CrossPlatformTcgPreferences; pendingMigrations:string[] };
+type SessionResponse = { contractVersion:number; accessAllowed:boolean; betaAccess:FateDropBetaAccess; sessionToken?:string; expiresAt?:number; user:FateDropIdentity; entitlement?:FateDropEntitlement; membership?:FateDropEntitlement;tcgPreferences?:CrossPlatformTcgPreferences };
 
 function baseUrl(){ return FATEDROP_WEB_URL; }
 async function parseJson<T>(response:Response):Promise<T>{ const data=await response.json().catch(()=>null) as (T&{error?:string;code?:string})|null; if(!response.ok) throw new Error(data?.error||`FateDrop request failed (${response.status})`); if(!data) throw new Error('FateDrop returned an empty response.'); return data; }
 const defaultPreferences:CrossPlatformNotificationPreferences={
   whisper:true,echo:true,manifested:true,vanished:true,priceChange:true,fateMatch:true,
+  manifestedReminders:false,manifestedRemindersMaxPerDay:1,
   sealedTcg:true,singleCards:true,accessories:false,merchandise:false,unknownProducts:true,
   english:true,japanese:true,korean:true,simplifiedChinese:true,traditionalChinese:true,otherLanguages:true,unknownLanguage:true,
   lifecycleMarkets:DEFAULT_LIFECYCLE_MARKETS,
@@ -68,6 +73,7 @@ const defaultPreferences:CrossPlatformNotificationPreferences={
 };
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
 const fallbackBetaAccess:FateDropBetaAccess={status:'pending',approved:false,requestedAt:null,approvedAt:null,approvedBy:null,updatedAt:null};
+const defaultTcgPreferences:CrossPlatformTcgPreferences={selectedTcgCodes:['pokemon'],onboardingCompleted:false,alertPreferences:recommendedTcgAlerts(['pokemon'])};
 
 function isCompanionId(value:unknown):value is FateFindCompanionId{return value==='koru'||value==='fenn'||value==='oru'||value==='nyxen';}
 function lifecyclePreference(value:unknown){return typeof value==='boolean'?value:true;}
@@ -89,6 +95,8 @@ function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences
     echo:lifecyclePreference(input?.echo),
     manifested:lifecyclePreference(input?.manifested),
     vanished:lifecyclePreference(input?.vanished),
+    manifestedReminders:booleanPreference(input?.manifestedReminders,defaultPreferences.manifestedReminders),
+    manifestedRemindersMaxPerDay:Math.max(0,Math.min(3,Math.trunc(Number(input?.manifestedRemindersMaxPerDay??defaultPreferences.manifestedRemindersMaxPerDay)))),
     sealedTcg:booleanPreference(input?.sealedTcg,defaultPreferences.sealedTcg),
     singleCards:booleanPreference(input?.singleCards,defaultPreferences.singleCards),
     accessories:booleanPreference(input?.accessories,defaultPreferences.accessories),
@@ -116,14 +124,16 @@ function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
   const betaAccess=normalizeBetaAccess(snapshot.betaAccess);
   const accessAllowed=snapshot.accessAllowed===true&&betaAccess.approved;
   const entitlement=normalizeEntitlement(snapshot.entitlement);
+  const selectedTcgCodes=normalizeTcgCodes(snapshot.tcgPreferences?.selectedTcgCodes);
   return {
     ...snapshot,
     contractVersion:2,
     accessAllowed,
     betaAccess,
     entitlement:accessAllowed?entitlement:{...entitlement,capabilities:[]},
-    fateMatches:(snapshot.fateMatches||[]).map((match)=>({...match,companionId:isCompanionId(match.companionId)?match.companionId:'koru'})),
+    fateMatches:(snapshot.fateMatches||[]).map((match)=>({...match,tcgCode:isTcgCode(match.tcgCode)?match.tcgCode:'pokemon',companionId:isCompanionId(match.companionId)?match.companionId:'koru'})),
     notificationPreferences:normalizePreferences(snapshot.notificationPreferences),
+    tcgPreferences:{selectedTcgCodes,onboardingCompleted:snapshot.tcgPreferences?.onboardingCompleted===true,alertPreferences:snapshot.tcgPreferences?.alertPreferences||recommendedTcgAlerts(selectedTcgCodes)},
   };
 }
 function snapshotFromSession(result:SessionResponse):FateDropSyncSnapshot{
@@ -137,7 +147,7 @@ function snapshotFromSession(result:SessionResponse):FateDropSyncSnapshot{
     syncedAt:Math.floor(Date.now()/1000),
     user:result.user,
     entitlement:accessAllowed?entitlement:{...entitlement,capabilities:[]},
-    wishlist:[],fateFinds:[],fateMatches:[],notificationPreferences:defaultPreferences,pendingMigrations:[],
+    wishlist:[],fateFinds:[],fateMatches:[],notificationPreferences:defaultPreferences,tcgPreferences:result.tcgPreferences||defaultTcgPreferences,pendingMigrations:[],
   });
 }
 
@@ -199,3 +209,4 @@ export type CrossPlatformNotificationPreferenceUpdate = Omit<Partial<CrossPlatfo
   lifecycleMarkets?: Partial<LifecycleMarketPreferences>;
 };
 export async function updateRemoteNotificationPreferences(input:CrossPlatformNotificationPreferenceUpdate){await parseJson(await authenticatedFetch('/api/notification-preferences',{method:'PATCH',body:JSON.stringify(input)}));return syncFateDropId();}
+export async function updateRemoteTcgPreferences(input:{selectedTcgCodes:TcgCode[];alertPreferences:TcgAlertPreferences}){await parseJson(await authenticatedFetch('/api/tcg-preferences',{method:'PATCH',body:JSON.stringify(input)}));return syncFateDropId();}

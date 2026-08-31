@@ -8,7 +8,9 @@ import '@/lib/notifications';
 
 import { ClosedBetaBoundary } from '@/components/closed-beta-boundary';
 import { FirstRunTourBoundary } from '@/components/first-run-tour-boundary';
+import { TcgOnboardingBoundary } from '@/components/tcg-onboarding-boundary';
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
+import { PushRegistrationBoundary } from '@/components/push-registration-boundary';
 import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
@@ -119,6 +121,7 @@ function FateDropShell() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="account" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="tcg-onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="companion/index" options={{ headerShown: false }} />
       <Stack.Screen name="profile-customisation" options={{ headerShown: false }} />
       <Stack.Screen name="stories" options={{ headerShown: false }} />
@@ -148,7 +151,7 @@ function FateDropShell() {
       <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
       <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
     </Stack>
-    {pathname !== '/onboarding' ? <PersistentBottomNav /> : null}
+    {pathname !== '/onboarding' && pathname !== '/tcg-onboarding' ? <PersistentBottomNav /> : null}
     {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice notice={notice} collapsed={collapsed} onCollapse={collapseNotice} onExpand={expandNotice} onDismiss={dismissNotice} /> : null}
     <StatusBar style="light" />
   </ThemeProvider>;
@@ -156,13 +159,9 @@ function FateDropShell() {
 
 export default function RootLayout() {
   return <FateDropIdProvider>
-    <ClosedBetaBoundary>
-      <FirstRunTourBoundary>
-        <LocalRadarNoticeProvider>
-          <FateDropShell />
-        </LocalRadarNoticeProvider>
-      </FirstRunTourBoundary>
-    </ClosedBetaBoundary>
+    <PushRegistrationBoundary><ClosedBetaBoundary>
+      <TcgOnboardingBoundary><FirstRunTourBoundary><LocalRadarNoticeProvider><FateDropShell /></LocalRadarNoticeProvider></FirstRunTourBoundary></TcgOnboardingBoundary>
+    </ClosedBetaBoundary></PushRegistrationBoundary>
   </FateDropIdProvider>;
 }
 

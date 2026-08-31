@@ -8,6 +8,7 @@ const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
 const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
 const rootLayout = fs.readFileSync(path.join(root, 'app/_layout.tsx'), 'utf8');
+const pushBoundary = fs.readFileSync(path.join(root, 'components/push-registration-boundary.tsx'), 'utf8');
 
 test('FateDrop has stable native application identifiers', () => {
   assert.equal(app.expo.name, 'FateDrop');
@@ -39,4 +40,15 @@ test('foreground push presentation is installed when the app shell boots', () =>
   assert.match(notifications, /shouldShowBanner:\s*true/);
   assert.match(notifications, /shouldShowList:\s*true/);
   assert.match(notifications, /shouldPlaySound:\s*true/);
+});
+
+test('signed-in devices self-heal Expo registration after app activation and token roll', () => {
+  assert.match(rootLayout, /PushRegistrationBoundary/);
+  assert.match(notifications, /refreshStockAlertRegistration/);
+  assert.match(notifications, /getPermissionsAsync\(\)/);
+  assert.match(notifications, /acquireAndPersistExpoPushToken/);
+  assert.match(notifications, /Register the replacement before retiring the old endpoint/);
+  assert.match(pushBoundary, /AppState\.addEventListener\('change'/);
+  assert.match(pushBoundary, /Notifications\.addPushTokenListener/);
+  assert.match(pushBoundary, /refreshStockAlertRegistration\(\{ force \}\)/);
 });

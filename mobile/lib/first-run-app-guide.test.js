@@ -28,7 +28,10 @@ test('guide is skippable and replayable from More without persistent bottom nav'
   assert.match(onboarding, /completeAppGuide\(\)/);
   assert.match(more, /title: 'App Guide'/);
   assert.match(more, /path: '\/onboarding'/);
-  assert.match(rootLayout, /pathname !== '\/onboarding' \? <PersistentBottomNav \/>/);
+  assert.match(
+    rootLayout,
+    /pathname !== '\/onboarding' && pathname !== '\/tcg-onboarding' \? <PersistentBottomNav \/>/,
+  );
 });
 
 test('guide preserves the four canonical alert meanings', () => {
