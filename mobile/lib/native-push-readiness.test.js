@@ -18,6 +18,7 @@ test('FateDrop has stable native application identifiers', () => {
 });
 
 test('EAS has explicit internal beta and production build profiles', () => {
+  assert.equal(eas.cli.appVersionSource, 'remote');
   assert.equal(eas.build.preview.distribution, 'internal');
   assert.equal(eas.build.production.autoIncrement, true);
 });
