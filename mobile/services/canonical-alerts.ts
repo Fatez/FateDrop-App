@@ -25,6 +25,22 @@ export type CanonicalAlertPresentation = {
   sourceMsrp: string | null;
 };
 
+export type CanonicalAlertLiveWindow = {
+  manifestedAt: string | null;
+  lastConfirmedLiveAt: string | null;
+  vanishedAt: string | null;
+  observedDurationSeconds: number | null;
+  historyComplete: boolean;
+};
+
+export type CanonicalAlertOpportunity = {
+  eventKind: 'listing_discovered' | 'evidence_changed' | 'retailer_behaviour_changed' | 'availability_started' | 'new_retailer_available' | 'availability_ended';
+  current: boolean;
+  currentViewKind: 'still_available' | null;
+  firstManifestedAt: string | null;
+  lastVerifiedAt: string | null;
+};
+
 export type CanonicalAlertFacets = {
   version: number;
   languageGroup: 'english' | 'japanese' | 'korean' | 'simplified_chinese' | 'traditional_chinese' | 'other' | 'unknown';
@@ -54,6 +70,8 @@ export type CanonicalMobileAlert = {
   facets: CanonicalAlertFacets;
   retailer: string;
   detectedAt: string;
+  liveWindow?: CanonicalAlertLiveWindow | null;
+  opportunity?: CanonicalAlertOpportunity | null;
   confidence: number;
   productUrl: string;
   product: {
@@ -188,8 +206,10 @@ async function fetchCanonicalAlertStage(
   token: string,
   state: CanonicalAlertQueryState,
   limit: number,
+  currentOnly = false,
 ): Promise<CanonicalMobileAlert[]> {
-  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?state=${state}&limit=${limit}`, {
+  const currentQuery = currentOnly ? '&current=true' : '';
+  const response = await fetch(`${FATEDROP_WEB_URL}/api/mobile/alerts?state=${state}&limit=${limit}${currentQuery}`, {
     headers: { accept: 'application/json', authorization: `Bearer ${token}` },
   });
   const data = await response.json().catch(() => null) as CanonicalAlertResponse | null;
@@ -198,6 +218,22 @@ async function fetchCanonicalAlertStage(
     throw new Error(`Canonical ${state} alert inbox unavailable`);
   }
   return data.alerts.filter((alert) => Boolean(alert?.id && alert?.title && alert?.fateStage));
+}
+
+export function canonicalAlertIsCurrentOpportunity(alert: CanonicalMobileAlert) {
+  return alert.fateStage === 'MANIFESTED'
+    && alert.liveWindow?.historyComplete === true
+    && alert.liveWindow.vanishedAt === null
+    && alert.liveWindow.lastConfirmedLiveAt !== null
+    && alert.opportunity?.current !== false;
+}
+
+export async function fetchCanonicalLiveOpportunities(limit = 16): Promise<CanonicalMobileAlert[]> {
+  const token = await getStoredSessionToken();
+  if (!token) return [];
+  const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
+  const alerts = await fetchCanonicalAlertStage(token, 'manifested', safeLimit, true);
+  return alerts.filter(canonicalAlertIsCurrentOpportunity).slice(0, safeLimit);
 }
 
 export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileAlert[]> {
