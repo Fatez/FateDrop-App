@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
+import '@/lib/notifications';
 
 import { ClosedBetaBoundary } from '@/components/closed-beta-boundary';
 import { FirstRunTourBoundary } from '@/components/first-run-tour-boundary';
