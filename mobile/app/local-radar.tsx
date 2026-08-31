@@ -87,7 +87,14 @@ export default function LocalRadarScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [region, setRegion] = useState<Region>(UK_REGION);
+  const mapRef = useRef<MapView | null>(null);
+  const clusterAnimationInFlight = useRef(false);
+  const clusterReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationActionInFlight = useRef(false);
+
+  useEffect(() => () => {
+    if (clusterReleaseTimer.current) clearTimeout(clusterReleaseTimer.current);
+  }, []);
 
   const load = useCallback(async (nextArea: UserArea, nextRadius = radius) => {
     setLoading(true);
@@ -97,8 +104,10 @@ export default function LocalRadarScreen() {
       const allShops = payload.shops || [];
       setMarkerBudget(Math.max(8, Math.min(100, Number(payload.mapPolicy?.markerBudget) || DEFAULT_MAP_MARKER_BUDGET)));
       const nextShops = scopedRetailerId ? allShops.filter((shop) => shop.retailerId === scopedRetailerId) : allShops;
+      const nextRegion = regionFor(nextArea, nextShops);
       setShops(nextShops);
-      setRegion(regionFor(nextArea, nextShops));
+      if (mapRef.current) mapRef.current.animateToRegion(nextRegion, 260);
+      else setRegion(nextRegion);
       setSelected(current => current ? nextShops.find(shop => shop.id === current.id) || null : null);
     } catch (reason) {
       setShops([]);
@@ -168,13 +177,41 @@ export default function LocalRadarScreen() {
     </View>
 
     <View style={[styles.mapShell, { height: mapHeight }]}>
-      <MapView style={StyleSheet.absoluteFill} region={region} onRegionChangeComplete={setRegion} showsUserLocation={area?.source === 'DEVICE'} showsMyLocationButton={false}>
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        initialRegion={UK_REGION}
+        onRegionChangeComplete={(nextRegion) => {
+          setRegion(nextRegion);
+          clusterAnimationInFlight.current = false;
+          if (clusterReleaseTimer.current) {
+            clearTimeout(clusterReleaseTimer.current);
+            clusterReleaseTimer.current = null;
+          }
+        }}
+        showsUserLocation={area?.source === 'DEVICE'}
+        showsMyLocationButton={false}
+      >
         {mapPoints.map(point => point.kind === 'cluster' ? <Marker
           key={point.id}
           coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+          pinColor={FateDropColors.violetLight}
+          title={`${point.count} nearby stores`}
+          description="Tap to zoom"
           tracksViewChanges={false}
-          onPress={() => { setSelected(null); setRegion(clusterZoomRegion(point, region)); }}
-        ><View style={styles.clusterMarker}><Text style={styles.clusterCount}>{point.count}</Text></View></Marker> : <Marker
+          onPress={() => {
+            if (clusterAnimationInFlight.current) return;
+            clusterAnimationInFlight.current = true;
+            setSelected(null);
+            const nextRegion = clusterZoomRegion(point, region);
+            mapRef.current?.animateToRegion(nextRegion, 260);
+            if (clusterReleaseTimer.current) clearTimeout(clusterReleaseTimer.current);
+            clusterReleaseTimer.current = setTimeout(() => {
+              clusterAnimationInFlight.current = false;
+              clusterReleaseTimer.current = null;
+            }, 650);
+          }}
+        /> : <Marker
           key={point.id}
           coordinate={{ latitude: point.latitude, longitude: point.longitude }}
           pinColor={markerColor(point.shop)}

@@ -9,6 +9,7 @@ const home = read('mobile/screens/home-screen-v3.tsx');
 const stories = read('mobile/app/stories.tsx');
 const profileCustomisation = read('mobile/constants/profile-customisation.ts');
 const profileCustomisationService = read('mobile/services/profile-customisation.ts');
+const profileWallpaperArt = read('mobile/components/profile-wallpaper-art.tsx');
 
 test('lifecycle market controls live between stage tabs and companion watch heading', () => {
   assert.match(alerts, /stagePreferenceKey:[\s\S]*WHISPER: 'whisper'[\s\S]*ECHO: 'echo'[\s\S]*MANIFESTED: 'manifested'[\s\S]*VANISHED: 'vanished'/);
@@ -32,13 +33,36 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
 
-test('profile wallpaper picker includes FateDrop and the Home Koru artwork', () => {
-  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'/);
+test('profile wallpaper picker uses the full high-quality supplied wallpaper library and keeps one Koru wallpaper as default', () => {
+  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop14'/);
+  assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
-  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
-  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru · Network'/);
+
+  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /default: require\('\.\.\/assets\/images\/default-image\.png'\)/);
+  assert.match(profileCustomisation, /oru: require\('\.\.\/assets\/images\/profile-wallpaper-oru\.jpeg'\)/);
+  assert.match(profileCustomisation, /fenn: require\('\.\.\/assets\/images\/profile-wallpaper-fenn\.jpeg'\)/);
+  assert.match(profileCustomisation, /nyxen: require\('\.\.\/assets\/images\/profile-wallpaper-nyxen\.jpeg'\)/);
+  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
+  assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+
   assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
-  assert.match(profileCustomisation, /fatedrop1: \{ name: 'FateDrop'/);
+  for (let index = 2; index <= 12; index += 1) {
+    assert.match(profileCustomisation, new RegExp(`fatedrop${index}: require\\('\\.\\.\\/assets\\/images\\/fdwallpaper${index}\\.png'\\)`));
+  }
+  assert.match(profileCustomisation, /fatedrop13: require\('\.\.\/assets\/images\/fdwallpaper13\.jpg'\)/);
+  assert.match(profileCustomisation, /fatedrop14: require\('\.\.\/assets\/images\/fdwallpaper14\.png'\)/);
+
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-oru-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-fenn-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-koru-hero-final\.webp/);
+  assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
+});
+
+test('wallpaper artwork renders centered without per-wallpaper transform overrides', () => {
+  assert.match(profileWallpaperArt, /style=\{StyleSheet\.absoluteFillObject\}/);
+  assert.match(profileWallpaperArt, /contentPosition="center"/);
+  assert.doesNotMatch(profileWallpaperArt, /profileWallpaperTransforms|translateX|translateY|scale: 1\.1/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {

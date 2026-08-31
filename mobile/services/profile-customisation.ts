@@ -1,7 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PROFILE_AVATAR_IDS = ['oru', 'fenn', 'koru', 'nyxen', 'mark'] as const;
-export const PROFILE_WALLPAPER_IDS = ['koruHome', 'default', 'oru', 'fenn', 'koru', 'nyxen', 'fatedrop1'] as const;
+export const PROFILE_WALLPAPER_IDS = [
+  'koruHome',
+  'default',
+  'oru',
+  'fenn',
+  'nyxen',
+  'fatedrop1',
+  'fatedrop2',
+  'fatedrop3',
+  'fatedrop4',
+  'fatedrop5',
+  'fatedrop6',
+  'fatedrop7',
+  'fatedrop8',
+  'fatedrop9',
+  'fatedrop10',
+  'fatedrop11',
+  'fatedrop12',
+  'fatedrop13',
+  'fatedrop14',
+] as const;
 
 export type ProfileAvatarId = (typeof PROFILE_AVATAR_IDS)[number];
 export type ProfileWallpaperId = (typeof PROFILE_WALLPAPER_IDS)[number];

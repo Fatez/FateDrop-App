@@ -43,11 +43,14 @@ test('active Home and Profile are the primary full-wordmark identity surfaces', 
   assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
 
-test('active Home keeps Koru as the approved default hero while allowing the selected wallpaper', () => {
+test('active Home keeps one Koru wallpaper as the approved default hero while allowing the selected wallpaper', () => {
   assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\}/);
   assert.match(home, /useState<ProfileWallpaperId>\('koruHome'\)/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
-  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)/);
+  assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
+  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
+  assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);
   assert.match(home, /THE FATE NETWORK IS LIVE/);
   assert.match(home, /Know what moved\. Hunt what matters\./);
@@ -134,7 +137,7 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
   assert.deepEqual(missing, [], `Pages missing FateDropBackground:\n${missing.join('\n')}`);
 });
 
-test('final Home hero remains a real production image, not a tiny placeholder', () => {
-  const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.webp'));
-  assert.ok(hero.size > 10000, `Koru hero unexpectedly small: ${hero.size} bytes`);
+test('final Home hero remains the high-quality production artwork, not a compressed placeholder', () => {
+  const hero = fs.statSync(path.join(root, 'assets/images/home-koru-hero.png.png'));
+  assert.ok(hero.size > 500000, `Koru hero unexpectedly small: ${hero.size} bytes`);
 });

@@ -1,3 +1,6 @@
+const FIXED_NATIVE_MARKER_SLOTS = 36;
+const HIDDEN_MARKER_LATITUDE = 89;
+
 function normalizedGroup(value) {
   const group = String(value || '').trim().toLowerCase();
   if (group === 'supermarkets') return 'supermarket';
@@ -45,13 +48,30 @@ function shopPoint(shop) {
   };
 }
 
+function stabilizeNativeMarkerSlots(points) {
+  return Array.from({ length: FIXED_NATIVE_MARKER_SLOTS }, (_, index) => {
+    const point = points[index];
+    if (point) return { ...point, id: `slot:${index}` };
+    return {
+      kind: 'cluster',
+      id: `slot:${index}`,
+      latitude: HIDDEN_MARKER_LATITUDE,
+      longitude: 0,
+      count: 0,
+      shopIds: [],
+    };
+  });
+}
+
 export function clusterShops(shops, region, { maxMarkers = 36, maxIndividualMarkers = 24 } = {}) {
-  // iOS react-native-maps is substantially more stable when dense cluster expansion
-  // cannot replace one cluster with dozens of native Marker views in a single render.
-  const markerBudget = Math.max(8, Math.min(36, Number(maxMarkers) || 36));
+  // iOS react-native-maps / Fabric can crash when cluster expansion inserts and
+  // removes Marker children during a native map update. Keep a fixed 36-slot
+  // native marker pool from first mount onward; inactive slots are parked well
+  // outside the UK viewport and active points only update props inside a slot.
+  const markerBudget = Math.max(8, Math.min(FIXED_NATIVE_MARKER_SLOTS, Number(maxMarkers) || FIXED_NATIVE_MARKER_SLOTS));
   const individualMarkerLimit = Math.max(4, Math.min(24, Number(maxIndividualMarkers) || 24));
   const visible = visibleShops(shops, region);
-  if (visible.length <= individualMarkerLimit) return visible.map(shopPoint);
+  if (visible.length <= individualMarkerLimit) return stabilizeNativeMarkerSlots(visible.map(shopPoint));
 
   const gridSize = Math.max(3, Math.floor(Math.sqrt(markerBudget)));
   const latDelta = Math.max(0.0001, Number(region?.latitudeDelta) || 1);
@@ -79,8 +99,6 @@ export function clusterShops(shops, region, { maxMarkers = 36, maxIndividualMark
     }
     points.push({
       kind: 'cluster',
-      // Anchor the key to a member shop rather than the cluster count so small
-      // viewport changes do not remount every cluster marker unnecessarily.
       id: `cluster:${bucket[0].id}`,
       latitude: bucket.reduce((sum, shop) => sum + Number(shop.latitude), 0) / bucket.length,
       longitude: bucket.reduce((sum, shop) => sum + Number(shop.longitude), 0) / bucket.length,
@@ -88,7 +106,7 @@ export function clusterShops(shops, region, { maxMarkers = 36, maxIndividualMark
       shopIds: bucket.map((shop) => shop.id),
     });
   }
-  return points;
+  return stabilizeNativeMarkerSlots(points);
 }
 
 export function clusterZoomRegion(point, region) {
