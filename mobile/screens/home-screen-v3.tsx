@@ -8,9 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
+import { TCG_REGISTRY, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
+import { openExternalRetailerLink } from '@/services/outbound-links';
 import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
 
 const stageMeta: Record<NetworkSignalState, { label: string; companion: string; color: string }> = {
@@ -28,11 +31,15 @@ export default function HomeScreenV3() {
   const identity = snapshot?.user.fateId || 'guest';
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
   const [pulseError, setPulseError] = useState(false);
+  const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
+  const [liveError, setLiveError] = useState(false);
+  const [tcgFilter, setTcgFilter] = useState<'all' | TcgCode>('all');
   const [homeWallpaperId, setHomeWallpaperId] = useState<ProfileWallpaperId>('koruHome');
 
   const load = useCallback(async () => {
-    const [nextPulse, , customisation] = await Promise.all([
+    const [nextPulse, nextLive, , customisation] = await Promise.all([
       fetchNetworkPulse(7).catch(() => null),
+      signedIn ? fetchCanonicalLiveOpportunities(20).catch(() => null) : Promise.resolve([]),
       signedIn ? refresh().catch(() => null) : Promise.resolve(null),
       loadProfileCustomisation(identity).catch(() => null),
     ]);
@@ -41,6 +48,13 @@ export default function HomeScreenV3() {
       setPulseError(false);
     } else {
       setPulseError(true);
+    }
+    if (nextLive) {
+      setLiveOpportunities(nextLive);
+      setLiveError(false);
+    } else {
+      setLiveOpportunities([]);
+      setLiveError(signedIn);
     }
     if (customisation) setHomeWallpaperId(customisation.wallpaperId);
   }, [identity, refresh, signedIn]);
@@ -53,6 +67,11 @@ export default function HomeScreenV3() {
     return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor).length ?? 0;
   }, [snapshot?.fateMatches]);
   const saved = snapshot?.wishlist?.length ?? 0;
+  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
+  const visibleLiveOpportunities = useMemo(() => liveOpportunities.filter((alert) => (
+    selectedTcgCodes.includes(alert.tcgCode as TcgCode)
+    && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)
+  )), [liveOpportunities, selectedTcgCodes, tcgFilter]);
 
   return (
     <View style={styles.safe}>
@@ -91,6 +110,31 @@ export default function HomeScreenV3() {
             );
           })}
         </View>
+
+        <View style={styles.liveHead}>
+          <View style={styles.flex}>
+            <Text style={[styles.sectionEyebrow, styles.liveEyebrow]}>VERIFIED LIVE NOW</Text>
+            <Text style={styles.sectionTitle}>Still available. Still truthful.</Text>
+            <Text style={styles.liveIntro}>Only open Manifested offer episodes with a fresh healthy-retailer confirmation. Seeing one here never repeats the alarm.</Text>
+          </View>
+          <Ionicons name="shield-checkmark-outline" size={22} color={FateDropColors.manifested} />
+        </View>
+        {selectedTcgCodes.length > 1 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tcgFilters}>
+          <TcgFilter label="All" active={tcgFilter === 'all'} color={FateDropColors.goldBright} onPress={() => setTcgFilter('all')} />
+          {selectedTcgCodes.map((code) => {
+            const definition = TCG_REGISTRY.find((entry) => entry.code === code);
+            return <TcgFilter key={code} label={definition?.shortName ?? code} active={tcgFilter === code} color={definition?.accent ?? FateDropColors.goldBright} onPress={() => setTcgFilter(code)} />;
+          })}
+        </ScrollView> : null}
+        {visibleLiveOpportunities.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.liveRail}>
+          {visibleLiveOpportunities.map((alert) => <LiveOpportunityCard key={alert.id} alert={alert} />)}
+        </ScrollView> : <View style={styles.liveEmpty}>
+          <Ionicons name={liveError ? 'cloud-offline-outline' : 'hourglass-outline'} size={20} color={FateDropColors.muted} />
+          <View style={styles.flex}>
+            <Text style={styles.liveEmptyTitle}>{liveError ? 'Live verification is temporarily unavailable' : 'No stock is freshly verified live right now'}</Text>
+            <Text style={styles.liveEmptyCopy}>{liveError ? 'FateDrop will not fall back to stale stock.' : 'Closed or stale Manifested alerts stay in history; they are never recycled as current availability.'}</Text>
+          </View>
+        </View>}
 
         <View style={styles.sectionHead}>
           <View>
@@ -159,6 +203,24 @@ function Action({ title, detail, icon, onPress }: { title: string; detail: strin
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]}><View style={styles.actionIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} /></Pressable>;
 }
 
+function TcgFilter({ label, active, color, onPress }: { label: string; active: boolean; color: string; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={[styles.tcgFilter, active && { borderColor: color, backgroundColor: `${color}16` }]}><Text style={[styles.tcgFilterText, active && { color }]}>{label.toUpperCase()}</Text></Pressable>;
+}
+
+function LiveOpportunityCard({ alert }: { alert: CanonicalMobileAlert }) {
+  const definition = TCG_REGISTRY.find((entry) => entry.code === alert.tcgCode);
+  const price = alert.product.deliveredPricePence ?? alert.product.pricePence;
+  const verifiedAt = alert.liveWindow?.lastConfirmedLiveAt ? Date.parse(alert.liveWindow.lastConfirmedLiveAt) : Number.NaN;
+  const ageMinutes = Number.isFinite(verifiedAt) ? Math.max(0, Math.floor((Date.now() - verifiedAt) / 60_000)) : null;
+  const verifiedLabel = ageMinutes == null ? 'Fresh confirmation' : ageMinutes < 1 ? 'Verified just now' : `Verified ${ageMinutes}m ago`;
+  return <Pressable onPress={() => alert.productUrl ? void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live' }).catch(() => undefined) : undefined} style={({ pressed }) => [styles.liveCard, pressed && styles.pressed]}>
+    <View style={styles.liveCardTop}><Text style={styles.liveStatus}>STILL VERIFIED LIVE</Text><Text style={[styles.liveTcg, { borderColor: definition?.accent ?? FateDropColors.gold }]}>{definition?.shortName ?? alert.tcgCode}</Text></View>
+    <Text style={styles.liveTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
+    <Text style={styles.liveRetailer} numberOfLines={1}>{alert.retailer}</Text>
+    <View style={styles.liveCardBottom}><Text style={styles.livePrice}>{price == null ? 'PRICE UNKNOWN' : `£${(price / 100).toFixed(2)}`}</Text><Text style={styles.liveVerified}>{verifiedLabel}</Text></View>
+  </Pressable>;
+}
+
 const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } as const;
 
 const styles = StyleSheet.create({
@@ -186,6 +248,25 @@ const styles = StyleSheet.create({
   pulseValue: { color: FateDropColors.ivory, fontSize: 26, fontWeight: '900' },
   pulseLabel: { fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 3 },
   pulseCompanion: { color: FateDropColors.muted, fontSize: 9, marginTop: 4 },
+  liveHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 18, marginBottom: 10 },
+  liveEyebrow: { paddingHorizontal: 0, marginBottom: 0, color: FateDropColors.manifested },
+  liveIntro: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 5, maxWidth: 330 },
+  tcgFilters: { gap: 7, paddingHorizontal: 18, paddingBottom: 10 },
+  tcgFilter: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
+  tcgFilterText: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .55 },
+  liveRail: { gap: 9, paddingHorizontal: 18, paddingBottom: 24 },
+  liveCard: { width: 238, minHeight: 154, padding: 14, borderRadius: 19, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface },
+  liveCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
+  liveStatus: { color: FateDropColors.manifested, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
+  liveTcg: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, borderWidth: 1, color: FateDropColors.ivory, fontSize: 7, fontWeight: '900' },
+  liveTitle: { color: FateDropColors.ivory, fontSize: 14, lineHeight: 18, fontWeight: '900', marginTop: 12 },
+  liveRetailer: { color: FateDropColors.secondary, fontSize: 10, marginTop: 5 },
+  liveCardBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', paddingTop: 13 },
+  livePrice: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },
+  liveVerified: { flex: 1, color: FateDropColors.muted, fontSize: 8, textAlign: 'right' },
+  liveEmpty: { flexDirection: 'row', alignItems: 'center', gap: 11, marginHorizontal: 18, marginBottom: 24, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
+  liveEmptyTitle: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900' },
+  liveEmptyCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, marginTop: 3 },
   personalGrid: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginBottom: 25 },
   miniStat: { flex: 1, padding: 12, minHeight: 108, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   miniValue: { color: FateDropColors.ivory, fontSize: 22, fontWeight: '900', marginTop: 9 },
