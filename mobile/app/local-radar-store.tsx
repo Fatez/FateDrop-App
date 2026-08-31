@@ -32,6 +32,13 @@ function productState(product: RadarStockProduct) {
   return { label: 'UNKNOWN', color: FateDropColors.muted, state: 'unknown' as const };
 }
 
+function sellerEvidenceLabel(shop: RadarShop) {
+  const status = String(shop.locationEvidence?.pokemonSeller || '').toLowerCase();
+  if (status === 'verified') return 'SELLER VERIFIED';
+  if (status === 'likely') return 'RETAILER-LEVEL EVIDENCE';
+  return 'SELLER UNVERIFIED';
+}
+
 export default function LocalRadarStoreScreen() {
   const params = useLocalSearchParams() as RadarRouteParams;
   const id = routeValue(params.id);
@@ -98,13 +105,14 @@ export default function LocalRadarStoreScreen() {
         <View style={styles.badges}>
           <StatusBadge label={shopSignal(shop)} color={stateColor}/>
           <StatusBadge label="PHYSICAL STORE" color={FateDropColors.violetLight}/>
+          <StatusBadge label={sellerEvidenceLabel(shop)} color={FateDropColors.goldBright}/>
         </View>
       </View>
 
       <View style={styles.panel}>
         <Text style={styles.panelEyebrow}>WHAT FATEDROP CURRENTLY KNOWS</Text>
-        <Text style={styles.panelTitle}>{state === 'confirmed' ? 'Stock has been confirmed at this exact store.' : state === 'expected' ? 'FateDrop has credible expected-stock information for this store.' : 'This is a known local Pokémon retailer. Current stock is unknown.'}</Text>
-        <Text style={styles.panelCopy}>{state === 'confirmed' ? 'Confirmed is only shown from genuine exact-store physical availability evidence.' : state === 'expected' ? 'Expected information is advisory and can change before the stock reaches the shelf.' : 'FateDrop does not infer physical stock from an online product page or retailer-wide availability.'}</Text>
+        <Text style={styles.panelTitle}>{state === 'confirmed' ? 'Stock has been confirmed at this exact store.' : state === 'expected' ? 'FateDrop has credible expected-stock information for this store.' : 'Current physical stock is unknown.'}</Text>
+        <Text style={styles.panelCopy}>{state === 'confirmed' ? 'Confirmed is only shown from genuine exact-store physical availability evidence.' : state === 'expected' ? 'Expected information is advisory and can change before the stock reaches the shelf.' : `${shop.locationEvidence?.caveat || 'FateDrop has location evidence, but Pokémon seller participation at this branch is not verified.'} FateDrop does not infer physical stock from an online product page or retailer-wide availability.`}</Text>
       </View>
 
       {state === 'expected' && expectedStock ? <View style={styles.expectedHero}>
@@ -116,7 +124,7 @@ export default function LocalRadarStoreScreen() {
       </View> : null}
 
       <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Stock information</Text><Text style={styles.sectionCopy}>Only information FateDrop can associate with this store is shown here.</Text></View>
-      {products.length === 0 ? <View style={styles.empty}><Ionicons name="radio-outline" size={22} color={FateDropColors.muted}/><Text style={styles.emptyTitle}>Current availability unknown</Text><Text style={styles.emptyCopy}>The store can still appear because FateDrop knows it is a physical Pokémon retailer. No stock claim is being made.</Text></View> : products.map((product, index) => {
+      {products.length === 0 ? <View style={styles.empty}><Ionicons name="radio-outline" size={22} color={FateDropColors.muted}/><Text style={styles.emptyTitle}>Current availability unknown</Text><Text style={styles.emptyCopy}>This branch appears from physical-location evidence. Seller evidence is labelled separately, and no stock claim is being made.</Text></View> : products.map((product, index) => {
         const productStatus = productState(product);
         const expected = expectedWindowLabel(product);
         const sourceLabel = product.sourceLabel || null;
