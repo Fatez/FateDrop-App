@@ -195,6 +195,9 @@ export default function LocalRadarScreen() {
         {mapPoints.map(point => point.kind === 'cluster' ? <Marker
           key={point.id}
           coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+          pinColor={FateDropColors.violetLight}
+          title={`${point.count} nearby stores`}
+          description="Tap to zoom"
           tracksViewChanges={false}
           onPress={() => {
             if (clusterAnimationInFlight.current) return;
@@ -208,7 +211,7 @@ export default function LocalRadarScreen() {
               clusterReleaseTimer.current = null;
             }, 650);
           }}
-        ><View style={styles.clusterMarker}><Text style={styles.clusterCount}>{point.count}</Text></View></Marker> : <Marker
+        /> : <Marker
           key={point.id}
           coordinate={{ latitude: point.latitude, longitude: point.longitude }}
           pinColor={markerColor(point.shop)}
