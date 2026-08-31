@@ -43,11 +43,14 @@ test('active Home and Profile are the primary full-wordmark identity surfaces', 
   assert.ok(wordmarkData.length > 10000, `FateDrop wordmark data unexpectedly small: ${wordmarkData.length} chars`);
 });
 
-test('active Home keeps Koru as the approved default hero while allowing the selected wallpaper', () => {
+test('active Home keeps one Koru wallpaper as the approved default hero while allowing the selected wallpaper', () => {
   assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\}/);
   assert.match(home, /useState<ProfileWallpaperId>\('koruHome'\)/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
+  assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
   assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
+  assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);
   assert.match(home, /THE FATE NETWORK IS LIVE/);
   assert.match(home, /Know what moved\. Hunt what matters\./);
