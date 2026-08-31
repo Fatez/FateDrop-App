@@ -20,7 +20,7 @@ export type AlertMarketGroup =
 
 export type AlertFacetOptions = {
   languages: { key: AlertLanguageGroup; label: string }[];
-  markets: { key: AlertMarketGroup; label: string }[];
+  markets?: { key: AlertMarketGroup; label: string }[];
   sets: { key: string; name: string }[];
 };
 
@@ -42,7 +42,7 @@ export const FALLBACK_ALERT_LANGUAGES: AlertFacetOptions['languages'] = [
   { key: 'unknown', label: 'Unknown language' },
 ];
 
-export const FALLBACK_ALERT_MARKETS: AlertFacetOptions['markets'] = [
+export const FALLBACK_ALERT_MARKETS: NonNullable<AlertFacetOptions['markets']> = [
   { key: 'english', label: 'English / International' },
   { key: 'japanese', label: 'Japan' },
   { key: 'korean', label: 'Korea' },
