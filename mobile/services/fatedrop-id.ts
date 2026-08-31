@@ -2,6 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 import { FATEDROP_WEB_URL } from '@/constants/api';
+import {
+  DEFAULT_LIFECYCLE_MARKETS,
+  normalizeLifecycleMarkets,
+  type LifecycleMarketPreferences,
+} from '@/services/notification-preference-contract';
 
 const TOKEN_KEY = 'fatedrop.id.session.v1';
 const LEGACY_TOKEN_KEY = 'fatedrop:id:session:v1';
@@ -35,6 +40,7 @@ export type CrossPlatformNotificationPreferences = {
   traditionalChinese:boolean;
   otherLanguages:boolean;
   unknownLanguage:boolean;
+  lifecycleMarkets:LifecycleMarketPreferences;
   allSets:boolean;
   selectedSetKeys:string[];
   unknownSets:boolean;
@@ -56,6 +62,7 @@ const defaultPreferences:CrossPlatformNotificationPreferences={
   whisper:true,echo:true,manifested:true,vanished:true,priceChange:true,fateMatch:true,
   sealedTcg:true,singleCards:true,accessories:false,merchandise:false,unknownProducts:true,
   english:true,japanese:true,korean:true,simplifiedChinese:true,traditionalChinese:true,otherLanguages:true,unknownLanguage:true,
+  lifecycleMarkets:DEFAULT_LIFECYCLE_MARKETS,
   allSets:true,selectedSetKeys:[],unknownSets:true,
   web:true,push:true,discord:false,quietHours:false,quietStart:null,quietEnd:null,timezone:'Europe/London',updatedAt:0,
 };
@@ -94,6 +101,7 @@ function normalizePreferences(input:Partial<CrossPlatformNotificationPreferences
     traditionalChinese:booleanPreference(input?.traditionalChinese,defaultPreferences.traditionalChinese),
     otherLanguages:booleanPreference(input?.otherLanguages,defaultPreferences.otherLanguages),
     unknownLanguage:booleanPreference(input?.unknownLanguage,defaultPreferences.unknownLanguage),
+    lifecycleMarkets:normalizeLifecycleMarkets(input?.lifecycleMarkets),
     allSets:booleanPreference(input?.allSets,defaultPreferences.allSets),
     selectedSetKeys:normalizeSelectedSetKeys(input?.selectedSetKeys),
     unknownSets:booleanPreference(input?.unknownSets,defaultPreferences.unknownSets),
@@ -187,4 +195,7 @@ async function authenticatedFetch(path:string,init:RequestInit={}){const token=a
 export async function saveRemoteWishlistItem(input:{productIdentityId?:string|null;query:string;title:string;tcg?:string|null;imageUrl?:string|null}){await parseJson(await authenticatedFetch('/api/wishlist',{method:'POST',body:JSON.stringify(input)}));return syncFateDropId();}
 export async function removeRemoteWishlistItem(id:string){await parseJson(await authenticatedFetch('/api/wishlist',{method:'DELETE',body:JSON.stringify({id})}));return syncFateDropId();}
 export async function saveRemoteFateFind(input:Record<string,unknown>){await parseJson(await authenticatedFetch('/api/fate-matches',{method:'POST',body:JSON.stringify(input)}));return syncFateDropId();}
-export async function updateRemoteNotificationPreferences(input:Partial<CrossPlatformNotificationPreferences>){await parseJson(await authenticatedFetch('/api/notification-preferences',{method:'PATCH',body:JSON.stringify(input)}));return syncFateDropId();}
+export type CrossPlatformNotificationPreferenceUpdate = Omit<Partial<CrossPlatformNotificationPreferences>, 'lifecycleMarkets'> & {
+  lifecycleMarkets?: Partial<LifecycleMarketPreferences>;
+};
+export async function updateRemoteNotificationPreferences(input:CrossPlatformNotificationPreferenceUpdate){await parseJson(await authenticatedFetch('/api/notification-preferences',{method:'PATCH',body:JSON.stringify(input)}));return syncFateDropId();}

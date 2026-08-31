@@ -8,8 +8,20 @@ import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { registerForStockAlerts, sendLocalRadarPresentationTest, unregisterStockAlerts } from '@/lib/notifications';
-import { FALLBACK_ALERT_LANGUAGES, fetchAlertFacetOptions, type AlertFacetOptions, type AlertLanguageGroup } from '@/services/alert-facets';
+import {
+  FALLBACK_ALERT_LANGUAGES,
+  FALLBACK_ALERT_MARKETS,
+  fetchAlertFacetOptions,
+  type AlertFacetOptions,
+  type AlertLanguageGroup,
+} from '@/services/alert-facets';
 import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
+import {
+  LIFECYCLE_MARKET_GROUPS,
+  nextLifecycleMarketSelection,
+  type LifecycleMarketGroup,
+  type LifecycleMarketStage,
+} from '@/services/notification-preference-contract';
 
 type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
 
@@ -31,6 +43,12 @@ const productRows: { key: PreferenceKey; title: string; detail: string }[] = [
 const surfaceRows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'web', title: 'Web inbox', detail: 'Keep eligible alert history available on the FateDrop dashboard.' },
   { key: 'discord', title: 'Discord', detail: 'Allow eligible alerts to use your linked Discord delivery preferences.' },
+];
+const lifecycleMarketRows: { key: LifecycleMarketStage; title: string; detail: string }[] = [
+  { key: 'whisper', title: 'Whisper', detail: 'Early product and catalogue evidence.' },
+  { key: 'echo', title: 'Echo', detail: 'Retailer readiness and traffic evidence.' },
+  { key: 'manifested', title: 'Manifested', detail: 'Verified purchasable stock.' },
+  { key: 'vanished', title: 'Vanished', detail: 'Previously verified stock ending.' },
 ];
 const languagePreferenceKey: Record<AlertLanguageGroup, PreferenceKey> = {
   english: 'english',
@@ -55,7 +73,7 @@ export default function NotificationPreferencesScreen() {
   const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, sets: [] });
+  const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, markets: FALLBACK_ALERT_MARKETS, sets: [] });
   const [facetError, setFacetError] = useState<string | null>(null);
   const [setSearch, setSetSearch] = useState('');
   const preferences = snapshot?.notificationPreferences;
@@ -64,6 +82,10 @@ export default function NotificationPreferencesScreen() {
     if (!query) return facetOptions.sets;
     return facetOptions.sets.filter((set) => set.name.toLowerCase().includes(query) || set.key.includes(query));
   }, [facetOptions.sets, setSearch]);
+  const marketOptions = useMemo(() => {
+    const labels = new Map((facetOptions.markets ?? FALLBACK_ALERT_MARKETS).map(({ key, label }) => [key, label]));
+    return LIFECYCLE_MARKET_GROUPS.map((key) => ({ key, label: labels.get(key) ?? key }));
+  }, [facetOptions.markets]);
 
   useEffect(() => {
     let active = true;
@@ -99,6 +121,21 @@ export default function NotificationPreferencesScreen() {
       await refresh();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Set preference could not be updated.');
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const toggleLifecycleMarket = async (stage: LifecycleMarketStage, market: 'all' | LifecycleMarketGroup) => {
+    if (!preferences || working) return;
+    const next = nextLifecycleMarketSelection(preferences.lifecycleMarkets[stage], market);
+    setWorking(`market:${stage}:${market}`);
+    setMessage(null);
+    try {
+      await updateRemoteNotificationPreferences({ lifecycleMarkets: { [stage]: next } });
+      await refresh();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'Market preference could not be updated.');
     } finally {
       setWorking(null);
     }
@@ -164,11 +201,24 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.explainer}><Text style={styles.explainerTitle}>Monitor everything. Interrupt selectively.</Text><Text style={styles.explainerCopy}>Accessories and merchandise default off. Unknown products stay on so uncertain classification fails safely.</Text></View>
           {productRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
 
-          <Text style={styles.sectionLabel}>COLLECTOR MARKET / LANGUAGE</Text>
-          <View style={styles.explainer}><Text style={styles.explainerTitle}>Choose the card markets you collect.</Text><Text style={styles.explainerCopy}>English, Japanese, Korean, Simplified Chinese and Traditional Chinese remain separate. FateDrop never guesses when evidence is ambiguous.</Text></View>
+          <Text style={styles.sectionLabel}>CARD MARKETS BY ALERT</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Choose source markets independently for every signal.</Text><Text style={styles.explainerCopy}>Market comes from verified identity and memory—not listing language. An English-written Gem Pack listing can still remain Mainland China.</Text></View>
+          {lifecycleMarketRows.map((row) => {
+            const selection = preferences.lifecycleMarkets[row.key];
+            return <View key={row.key} style={styles.marketStage}>
+              <View style={styles.marketStageHead}><View style={styles.rowCopy}><Text style={styles.rowTitle}>{row.title}</Text><Text style={styles.rowDetail}>{row.detail}</Text></View><Text style={styles.marketStageStatus}>{selection === 'all' ? 'ALL MARKETS' : `${selection.length} SELECTED`}</Text></View>
+              <View style={styles.marketPills}>
+                <MarketPill title="All" enabled={selection === 'all'} disabled={Boolean(working)} onPress={() => void toggleLifecycleMarket(row.key, 'all')} />
+                {marketOptions.map((market) => <MarketPill key={market.key} title={market.label} enabled={selection !== 'all' && selection.includes(market.key)} disabled={Boolean(working)} onPress={() => void toggleLifecycleMarket(row.key, market.key)} />)}
+              </View>
+            </View>;
+          })}
+
+          <Text style={styles.sectionLabel}>LISTING LANGUAGE</Text>
+          <View style={styles.explainer}><Text style={styles.explainerTitle}>Control language separately from market.</Text><Text style={styles.explainerCopy}>Language can filter delivery, but it never decides which market or country a product belongs to.</Text></View>
           {facetOptions.languages.map((language) => {
             const key = languagePreferenceKey[language.key];
-            const detail = language.key === 'english' ? 'UK and explicitly English catalogue products.' : language.key === 'unknown' ? 'Listings whose language cannot yet be verified.' : `${language.label} card products.`;
+            const detail = language.key === 'english' ? 'Listings verified as English-language products.' : language.key === 'unknown' ? 'Listings whose product language cannot yet be verified.' : `${language.label} language products.`;
             return <PreferenceRow key={language.key} title={language.label} detail={detail} enabled={Boolean(preferences[key])} disabled={Boolean(working)} onPress={() => void toggle(key)} />;
           })}
 
@@ -203,6 +253,10 @@ function SetRow({ title, setKey, enabled, disabled, onPress }: { title: string; 
   return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.setRow, pressed && styles.pressed]}><View style={[styles.checkbox, enabled && styles.checkboxOn]}>{enabled ? <Ionicons name="checkmark" size={14} color={FateDropColors.text} /> : null}</View><View style={styles.rowCopy}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowDetail}>{setKey}</Text></View></Pressable>;
 }
 
+function MarketPill({ title, enabled, disabled, onPress }: { title: string; enabled: boolean; disabled: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected: enabled, disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.marketPill, enabled && styles.marketPillOn, pressed && styles.pressed]}><Text style={[styles.marketPillText, enabled && styles.marketPillTextOn]}>{title}</Text></Pressable>;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingHorizontal: 18, paddingBottom: 80 },
@@ -217,6 +271,14 @@ const styles = StyleSheet.create({
   explainerCopy: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.9)' },
   setRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, marginBottom: 7, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.9)' },
+  marketStage: { padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(13,15,24,.9)' },
+  marketStageHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 11 },
+  marketStageStatus: { color: FateDropColors.cyan, fontSize: 7, fontWeight: '900', letterSpacing: .7 },
+  marketPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  marketPill: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
+  marketPillOn: { borderColor: FateDropColors.violet, backgroundColor: 'rgba(124,58,237,.24)' },
+  marketPillText: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '900' },
+  marketPillTextOn: { color: FateDropColors.text },
   setSummary: { flexDirection: 'row', padding: 13, marginBottom: 8, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass },
   search: { minHeight: 44, paddingHorizontal: 13, marginBottom: 8, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.glass, color: FateDropColors.text, fontSize: 11 },
   checkbox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: '#252938' },
