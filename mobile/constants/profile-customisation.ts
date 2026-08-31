@@ -23,6 +23,11 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number | { uri:
   koru: require('../assets/images/alert-koru-hero-final.webp'),
   nyxen: require('../assets/images/alert-nyxen-hero-final.webp'),
   fatedrop1: require('../assets/images/fatedrop-app-wallpaper1.png'),
+  fatedrop2: require('../assets/images/fdwallpaper2.png'),
+  fatedrop3: require('../assets/images/fdwallpaper3.png'),
+  fatedrop4: require('../assets/images/fdwallpaper4.png'),
+  fatedrop5: require('../assets/images/fdwallpaper5.png'),
+  fatedrop6: require('../assets/images/fdwallpaper6.png'),
 };
 
 export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; accent: string }> = {
@@ -33,6 +38,11 @@ export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; ac
   koru: { name: 'Koru', accent: '#7BDCF4' },
   nyxen: { name: 'Nyxen', accent: '#EF4D5A' },
   fatedrop1: { name: 'FateDrop', accent: '#D6BA73' },
+  fatedrop2: { name: 'FateDrop · Cavern', accent: '#C9A96A' },
+  fatedrop3: { name: 'FateDrop · Crystal', accent: '#7C6EFF' },
+  fatedrop4: { name: 'FateDrop · Starlight', accent: '#D6BA73' },
+  fatedrop5: { name: 'FateDrop · Tide', accent: '#66D9E8' },
+  fatedrop6: { name: 'FateDrop · Ember', accent: '#9A7CFF' },
 };
 
 export const profileCompanionMeta = {
