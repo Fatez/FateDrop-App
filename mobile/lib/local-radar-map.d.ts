@@ -36,5 +36,5 @@ export type LocalRadarMapPoint<T extends LocalRadarMapShop = LocalRadarMapShop> 
 
 export function retailerCategory(shop: LocalRadarMapShop): Exclude<LocalRadarRetailerCategory, 'all'>;
 export function filterShopsByCategory<T extends LocalRadarMapShop>(shops: T[], category?: LocalRadarRetailerCategory): T[];
-export function clusterShops<T extends LocalRadarMapShop>(shops: T[], region: LocalRadarRegion, options?: { maxMarkers?: number }): LocalRadarMapPoint<T>[];
+export function clusterShops<T extends LocalRadarMapShop>(shops: T[], region: LocalRadarRegion, options?: { maxMarkers?: number; maxIndividualMarkers?: number }): LocalRadarMapPoint<T>[];
 export function clusterZoomRegion(point: { latitude: number; longitude: number }, region: LocalRadarRegion): LocalRadarRegion;

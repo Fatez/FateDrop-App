@@ -45,10 +45,13 @@ function shopPoint(shop) {
   };
 }
 
-export function clusterShops(shops, region, { maxMarkers = 72 } = {}) {
-  const markerBudget = Math.max(8, Math.min(100, Number(maxMarkers) || 72));
+export function clusterShops(shops, region, { maxMarkers = 36, maxIndividualMarkers = 24 } = {}) {
+  // iOS react-native-maps is substantially more stable when dense cluster expansion
+  // cannot replace one cluster with dozens of native Marker views in a single render.
+  const markerBudget = Math.max(8, Math.min(36, Number(maxMarkers) || 36));
+  const individualMarkerLimit = Math.max(4, Math.min(24, Number(maxIndividualMarkers) || 24));
   const visible = visibleShops(shops, region);
-  if (visible.length <= markerBudget) return visible.map(shopPoint);
+  if (visible.length <= individualMarkerLimit) return visible.map(shopPoint);
 
   const gridSize = Math.max(3, Math.floor(Math.sqrt(markerBudget)));
   const latDelta = Math.max(0.0001, Number(region?.latitudeDelta) || 1);
@@ -69,14 +72,16 @@ export function clusterShops(shops, region, { maxMarkers = 72 } = {}) {
   }
 
   const points = [];
-  for (const [bucketKey, bucket] of buckets.entries()) {
+  for (const bucket of buckets.values()) {
     if (bucket.length === 1) {
       points.push(shopPoint(bucket[0]));
       continue;
     }
     points.push({
       kind: 'cluster',
-      id: `cluster:${bucketKey}:${bucket.length}`,
+      // Anchor the key to a member shop rather than the cluster count so small
+      // viewport changes do not remount every cluster marker unnecessarily.
+      id: `cluster:${bucket[0].id}`,
       latitude: bucket.reduce((sum, shop) => sum + Number(shop.latitude), 0) / bucket.length,
       longitude: bucket.reduce((sum, shop) => sum + Number(shop.longitude), 0) / bucket.length,
       count: bucket.length,
@@ -90,7 +95,9 @@ export function clusterZoomRegion(point, region) {
   return {
     latitude: Number(point?.latitude) || Number(region?.latitude) || 52.7,
     longitude: Number(point?.longitude) || Number(region?.longitude) || -1.5,
-    latitudeDelta: Math.max(0.015, (Number(region?.latitudeDelta) || 0.28) * 0.42),
-    longitudeDelta: Math.max(0.015, (Number(region?.longitudeDelta) || 0.28) * 0.42),
+    // Progressive expansion avoids a single tap exploding a dense cluster into
+    // a large native-marker set. Repeated taps keep narrowing the viewport.
+    latitudeDelta: Math.max(0.015, (Number(region?.latitudeDelta) || 0.28) * 0.6),
+    longitudeDelta: Math.max(0.015, (Number(region?.longitudeDelta) || 0.28) * 0.6),
   };
 }
