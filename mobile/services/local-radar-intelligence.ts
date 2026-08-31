@@ -75,6 +75,18 @@ export type RadarShop = {
   longitude?: number | null;
   distanceMiles?: number | null;
   networkStatus?: string | null;
+  retailerCategory?: string | null;
+  retailerGroup?: 'supermarkets' | 'large_retailers' | 'independents' | string | null;
+  storeFormat?: string | null;
+  operationalStatus?: string | null;
+  locationEvidence?: {
+    branchIdentity?: 'canonical' | 'provisional' | 'conflicted' | string | null;
+    pokemonSeller?: 'verified' | 'likely' | 'candidate' | 'excluded' | 'conflicted' | string | null;
+    confidence?: number | null;
+    sourceCount?: number | null;
+    lastVerifiedAt?: number | null;
+    caveat?: string | null;
+  } | null;
   localStockStatus?: string | null;
   localAvailability?: RadarLocalAvailability | null;
   localStockEvidence?: {
@@ -113,6 +125,9 @@ export type RadarEvent = {
 export type RadarResponse = {
   success?: boolean;
   error?: string;
+  contractVersion?: number;
+  mapPolicy?: { markerBudget?: number; clusteringRequired?: boolean } | null;
+  filters?: { retailerGroups?: string[] } | null;
   locationResolution?: { status?: string; postcode?: string | null; reason?: string | null } | null;
   providers?: Record<string, { provider?: string; status?: string }>;
   shops?: RadarShop[];
