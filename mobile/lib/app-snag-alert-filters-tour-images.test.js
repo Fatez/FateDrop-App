@@ -32,17 +32,18 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
 
-test('profile wallpaper picker uses the full high-quality supplied wallpaper library and keeps Koru as default', () => {
+test('profile wallpaper picker uses the full high-quality supplied wallpaper library and keeps one Koru wallpaper as default', () => {
   assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop14'/);
+  assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
 
   assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(profileCustomisation, /default: require\('\.\.\/assets\/images\/default-image\.png'\)/);
   assert.match(profileCustomisation, /oru: require\('\.\.\/assets\/images\/profile-wallpaper-oru\.jpeg'\)/);
   assert.match(profileCustomisation, /fenn: require\('\.\.\/assets\/images\/profile-wallpaper-fenn\.jpeg'\)/);
-  assert.match(profileCustomisation, /koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(profileCustomisation, /nyxen: require\('\.\.\/assets\/images\/profile-wallpaper-nyxen\.jpeg'\)/);
-  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru · Network'/);
+  assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
+  assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
 
   assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
   for (let index = 2; index <= 12; index += 1) {
