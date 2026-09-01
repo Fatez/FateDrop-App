@@ -15,6 +15,7 @@ import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/c
 import { FateDropColors } from '@/constants/theme';
 import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
 import { LocalRadarNoticeProvider, useLocalRadarNotice } from '@/contexts/local-radar-notice-context';
+import { TcgCapabilitiesProvider } from '@/contexts/tcg-capabilities-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 
@@ -158,11 +159,11 @@ function FateDropShell() {
 }
 
 export default function RootLayout() {
-  return <FateDropIdProvider>
+  return <FateDropIdProvider><TcgCapabilitiesProvider>
     <PushRegistrationBoundary><ClosedBetaBoundary>
       <TcgOnboardingBoundary><FirstRunTourBoundary><LocalRadarNoticeProvider><FateDropShell /></LocalRadarNoticeProvider></FirstRunTourBoundary></TcgOnboardingBoundary>
     </ClosedBetaBoundary></PushRegistrationBoundary>
-  </FateDropIdProvider>;
+  </TcgCapabilitiesProvider></FateDropIdProvider>;
 }
 
 const errorStyles = StyleSheet.create({
