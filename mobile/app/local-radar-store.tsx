@@ -12,7 +12,7 @@ import {
   expectedStockForShop,
   expectedWindowLabel,
   fetchLocalRadar,
-  shopLocalState,
+  shopPhysicalEvidenceState,
   shopSignal,
   valueLine,
   type RadarShop,
@@ -26,6 +26,11 @@ function routeValue(value: string | string[] | undefined) {
 }
 
 function productState(product: RadarStockProduct) {
+  const evidence = String(product.physicalEvidenceState || '').toLowerCase();
+  if (evidence === 'verified') return { label: 'ECHO · IN-STORE CONFIRMED', color: FateDropColors.mint, state: 'confirmed' as const };
+  if (evidence === 'expected') return { label: 'ECHO · EXPECTED', color: FateDropColors.cyan, state: 'expected' as const };
+  if (evidence === 'reported') return { label: 'ECHO · REPORTED', color: FateDropColors.echo, state: 'reported' as const };
+  if (evidence === 'expired') return { label: 'ECHO · NO LONGER CONFIRMED', color: FateDropColors.muted, state: 'expired' as const };
   const state = String(product.localState || '').toLowerCase();
   if (state === 'confirmed') return { label: 'CONFIRMED', color: FateDropColors.mint, state: 'confirmed' as const };
   if (state === 'expected') return { label: 'EXPECTED', color: FateDropColors.cyan, state: 'expected' as const };
@@ -88,10 +93,12 @@ export default function LocalRadarStoreScreen() {
     return () => { cancelled = true; };
   }, [area, id, radius]);
 
-  const state = shop ? shopLocalState(shop) : 'unknown';
+  const evidenceState = shop ? shopPhysicalEvidenceState(shop) : 'unknown';
   const products = shop?.localStockProducts || [];
   const expectedStock = shop ? expectedStockForShop(shop) : null;
-  const stateColor = state === 'confirmed' ? FateDropColors.mint : state === 'expected' ? FateDropColors.cyan : FateDropColors.muted;
+  const stateColor = evidenceState === 'verified' ? FateDropColors.mint : evidenceState === 'expected' ? FateDropColors.cyan : evidenceState === 'reported' ? FateDropColors.echo : FateDropColors.muted;
+  const knowledgeTitle = evidenceState === 'verified' ? 'Stock has been confirmed at this exact store.' : evidenceState === 'expected' ? 'Official or authoritative evidence says this store is expected to receive stock.' : evidenceState === 'reported' ? 'Credible movement has been reported for this exact store.' : evidenceState === 'expired' ? 'Earlier physical evidence is no longer confirmed.' : 'Current physical stock is unknown.';
+  const knowledgeCopy = evidenceState === 'verified' ? 'In-store confirmed is only shown from fresh genuine exact-store physical availability evidence.' : evidenceState === 'expected' ? 'Expected information is advisory and can change before the stock reaches the shelf.' : evidenceState === 'reported' ? 'Reported is a useful lead, not live stock proof. Check the retailer or store before travelling.' : evidenceState === 'expired' ? 'Expiry removes Echo authority and never creates an ordinary Vanished alert.' : `${shop?.locationEvidence?.caveat || 'FateDrop has location evidence, but Pokémon seller participation at this branch is not verified.'} FateDrop does not infer physical stock from an online product page or retailer-wide availability.`;
 
   return <SafeAreaView style={styles.safe}><FateDropBackground/><ScrollView contentContainerStyle={styles.content}>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Local Stores</Text></Pressable>
@@ -111,12 +118,12 @@ export default function LocalRadarStoreScreen() {
 
       <View style={styles.panel}>
         <Text style={styles.panelEyebrow}>WHAT FATEDROP CURRENTLY KNOWS</Text>
-        <Text style={styles.panelTitle}>{state === 'confirmed' ? 'Stock has been confirmed at this exact store.' : state === 'expected' ? 'FateDrop has credible expected-stock information for this store.' : 'Current physical stock is unknown.'}</Text>
-        <Text style={styles.panelCopy}>{state === 'confirmed' ? 'Confirmed is only shown from genuine exact-store physical availability evidence.' : state === 'expected' ? 'Expected information is advisory and can change before the stock reaches the shelf.' : `${shop.locationEvidence?.caveat || 'FateDrop has location evidence, but Pokémon seller participation at this branch is not verified.'} FateDrop does not infer physical stock from an online product page or retailer-wide availability.`}</Text>
+        <Text style={styles.panelTitle}>{knowledgeTitle}</Text>
+        <Text style={styles.panelCopy}>{knowledgeCopy}</Text>
       </View>
 
-      {state === 'expected' && expectedStock ? <View style={styles.expectedHero}>
-        <Text style={styles.expectedEyebrow}>EXPECTED STOCK</Text>
+      {(evidenceState === 'expected' || evidenceState === 'reported') && expectedStock ? <View style={styles.expectedHero}>
+        <Text style={styles.expectedEyebrow}>{evidenceState === 'reported' ? 'REPORTED MOVEMENT' : 'EXPECTED STOCK'}</Text>
         <Text style={styles.expectedProduct}>{expectedStock.title}</Text>
         <Text style={styles.expectedDate}>{expectedStock.label || 'Expected date not yet confirmed'}</Text>
         {expectedStock.sourceLabel ? <Text style={styles.expectedSource}>Source: {expectedStock.sourceLabel}</Text> : null}
@@ -132,10 +139,10 @@ export default function LocalRadarStoreScreen() {
           <Text style={[styles.productSignal, { color: productStatus.color }]}>{productStatus.label}</Text>
           <Text style={styles.productTitle}>{product.title || 'Pokémon stock'}</Text>
           {productStatus.state === 'confirmed' ? <Text style={styles.productMeta}>{ageLabel(product.freshnessAgeMinutes)}</Text> : null}
-          {productStatus.state === 'expected' ? <Text style={styles.expectedDate}>{expected || 'Expected date not yet confirmed'}</Text> : null}
+          {productStatus.state === 'expected' || productStatus.state === 'reported' ? <Text style={styles.expectedDate}>{expected || 'Timing not yet confirmed'}</Text> : null}
           {sourceLabel ? <Text style={styles.productMeta}>Source: {sourceLabel}</Text> : null}
           {product.value?.priceKnown ? <Text style={styles.value}>{valueLine(product.value)}</Text> : null}
-          {productStatus.state === 'expected' ? <Text style={styles.advisory}>{shop.localAvailability?.disclaimer || expectedStock?.disclaimer}</Text> : null}
+          {productStatus.state === 'expected' || productStatus.state === 'reported' ? <Text style={styles.advisory}>{shop.localAvailability?.disclaimer || expectedStock?.disclaimer}</Text> : null}
           {(product.contradictionCount || 0) > 0 ? <Text style={styles.contradiction}>Recent evidence conflicts, so FateDrop is treating this information cautiously.</Text> : null}
         </View>;
       })}

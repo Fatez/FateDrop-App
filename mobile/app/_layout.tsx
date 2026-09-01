@@ -23,18 +23,29 @@ export const unstable_settings = { anchor: '(tabs)' };
 
 function notificationText(value: unknown) { return typeof value === 'string' ? value.trim() : ''; }
 function notificationCount(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0; }
+function notificationBoolean(value: unknown) { return value === true || value === 'true' || value === 1 || value === '1'; }
 
 function operatorNoticeFromData(data: Record<string, unknown>): LocalRadarOperatorNoticeData {
   const stage = data.stage === 'WHISPER' || data.stage === 'ECHO' ? data.stage : '';
   return {
     localIntelId: notificationText(data.localIntelId),
     stage,
+    presentationType: data.presentationType === 'big_fate_signal' ? 'big_fate_signal' : '',
+    physicalEvidenceState: ['expected', 'reported', 'verified', 'expired'].includes(notificationText(data.physicalEvidenceState)) ? notificationText(data.physicalEvidenceState) as LocalRadarOperatorNoticeData['physicalEvidenceState'] : '',
+    availabilityScope: notificationText(data.availabilityScope),
+    availabilityVerified: notificationBoolean(data.availabilityVerified),
+    retailerId: notificationText(data.retailerId),
     retailerName: notificationText(data.retailerName),
+    retailerUrl: notificationText(data.retailerUrl),
+    ctaLabel: notificationText(data.ctaLabel),
     productTitle: notificationText(data.productTitle),
     expectedFrom: notificationText(data.expectedFrom),
     expectedTo: notificationText(data.expectedTo),
     expectedLabel: notificationText(data.expectedLabel),
     branchCount: notificationCount(data.branchCount),
+    evidenceObservedAt: notificationText(data.evidenceObservedAt),
+    intelligenceSurfaceId: notificationText(data.intelligenceSurfaceId),
+    radiusTargeted: notificationBoolean(data.radiusTargeted),
   };
 }
 
@@ -142,6 +153,7 @@ function FateDropShell() {
       <Stack.Screen name="local-radar-stock" options={{ headerShown: false }} />
       <Stack.Screen name="local-radar-events" options={{ headerShown: false }} />
       <Stack.Screen name="local-radar-store" options={{ headerShown: false }} />
+      <Stack.Screen name="manual-echo-intake" options={{ headerShown: false }} />
       <Stack.Screen name="notification-preferences" options={{ headerShown: false }} />
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="event-vendors" options={{ headerShown: false }} />

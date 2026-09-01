@@ -17,11 +17,13 @@ export type RadarExpectedWindow = {
 };
 
 export type RadarLocalState = 'expected' | 'confirmed' | 'unknown';
+export type RadarPhysicalEvidenceState = 'verified' | 'expected' | 'reported' | 'expired' | 'unknown';
 
 export type RadarStockProduct = {
   productIdentityId?: string | null;
   title?: string | null;
   localState?: RadarLocalState | string | null;
+  physicalEvidenceState?: RadarPhysicalEvidenceState | string | null;
   expectedLabel?: string | null;
   lifecycleState?: string | null;
   status?: string | null;
@@ -91,9 +93,13 @@ export type RadarShop = {
   localAvailability?: RadarLocalAvailability | null;
   localStockEvidence?: {
     lifecycleState?: string | null;
+    physicalEvidenceState?: RadarPhysicalEvidenceState | string | null;
+    availabilityScope?: string | null;
     confidence?: number | null;
     freshnessAgeMinutes?: number | null;
     verifiedBranchStock?: boolean | null;
+    observedAt?: string | null;
+    expiresAt?: string | null;
     evidenceLevel?: string | null;
     sourceType?: string | null;
     sourceUrl?: string | null;
@@ -198,6 +204,11 @@ export function valueLine(value?: RadarValue | null) {
 }
 
 export function shopLocalState(shop: RadarShop): RadarLocalState {
+  const evidenceState = shopPhysicalEvidenceState(shop);
+  if (evidenceState === 'verified' && (shop.localStockEvidence?.verifiedBranchStock || shop.localAvailability?.status === 'confirmed')) return 'confirmed';
+  if (evidenceState === 'expected' || evidenceState === 'reported') return 'expected';
+  if (evidenceState === 'expired') return 'unknown';
+
   const projected = String(shop.localAvailability?.status || '').toLowerCase();
   if (projected === 'confirmed' || projected === 'expected' || projected === 'unknown') return projected;
 
@@ -207,15 +218,58 @@ export function shopLocalState(shop: RadarShop): RadarLocalState {
   // Backward-compatible fail-closed fallback while older Cloud payloads age out.
   const lifecycle = String(shop.localStockEvidence?.lifecycleState || '').toLowerCase();
   const status = String(shop.localStockStatus || '').toLowerCase();
-  if (shop.localStockEvidence?.verifiedBranchStock && lifecycle === 'manifested' && ['in_stock', 'low_stock'].includes(status)) return 'confirmed';
+  if (shop.localStockEvidence?.verifiedBranchStock && ['echo', 'manifested'].includes(lifecycle) && ['in_stock', 'low_stock'].includes(status)) return 'confirmed';
   if (['echo', 'whisper'].includes(lifecycle) && status === 'incoming_watch') return 'expected';
   return 'unknown';
 }
 
+function normalizePhysicalEvidenceState(value: unknown): RadarPhysicalEvidenceState | null {
+  const state = String(value || '').trim().toLowerCase();
+  if (state === 'verified' || state === 'expected' || state === 'reported' || state === 'expired') return state;
+  return null;
+}
+
+export function shopPhysicalEvidenceState(shop: RadarShop): RadarPhysicalEvidenceState {
+  const candidates = [
+    shop.localStockEvidence?.physicalEvidenceState,
+    ...(shop.localStockProducts || []).map(product => product.physicalEvidenceState),
+  ];
+  for (const candidate of candidates) {
+    const state = normalizePhysicalEvidenceState(candidate);
+    if (state) return state;
+  }
+  if (shop.localAvailability?.status === 'confirmed') return 'verified';
+  if (shop.localAvailability?.status === 'expected') return 'expected';
+  return 'unknown';
+}
+
+const PHYSICAL_EVIDENCE_PRIORITY: Record<RadarPhysicalEvidenceState, number> = {
+  verified: 0,
+  expected: 1,
+  reported: 2,
+  expired: 3,
+  unknown: 4,
+};
+
+export function prioritizeRadarShops(shops: RadarShop[]) {
+  return [...shops].sort((left, right) => {
+    const truthDifference = PHYSICAL_EVIDENCE_PRIORITY[shopPhysicalEvidenceState(left)] - PHYSICAL_EVIDENCE_PRIORITY[shopPhysicalEvidenceState(right)];
+    if (truthDifference) return truthDifference;
+    const leftDistance = typeof left.distanceMiles === 'number' && Number.isFinite(left.distanceMiles) ? left.distanceMiles : Number.POSITIVE_INFINITY;
+    const rightDistance = typeof right.distanceMiles === 'number' && Number.isFinite(right.distanceMiles) ? right.distanceMiles : Number.POSITIVE_INFINITY;
+    const distanceDifference = leftDistance - rightDistance;
+    if (Number.isFinite(distanceDifference) && distanceDifference) return distanceDifference;
+    const nameDifference = left.name.localeCompare(right.name, 'en-GB', { sensitivity: 'base' });
+    return nameDifference || left.id.localeCompare(right.id, 'en-GB', { sensitivity: 'base' });
+  });
+}
+
 export function shopSignal(shop: RadarShop) {
-  const state = shopLocalState(shop);
-  if (state === 'confirmed') return 'CONFIRMED';
-  if (state === 'expected') return 'EXPECTED';
+  const state = shopPhysicalEvidenceState(shop);
+  if (state === 'verified') return 'ECHO · IN-STORE CONFIRMED';
+  if (state === 'expected') return 'ECHO · EXPECTED';
+  if (state === 'reported') return 'ECHO · REPORTED';
+  if (state === 'expired') return 'ECHO · NO LONGER CONFIRMED';
   return 'UNKNOWN';
 }
 

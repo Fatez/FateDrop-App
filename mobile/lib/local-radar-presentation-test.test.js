@@ -18,9 +18,14 @@ test('Local Radar presentation test uses the production notification route shape
   assert.match(localRadarHelper, /export async function sendLocalRadarPresentationTest/);
   assert.match(localRadarHelper, /route: 'local-radar'/);
   assert.match(localRadarHelper, /stage: 'ECHO'/);
-  assert.match(localRadarHelper, /retailerName: 'Test Retailer'/);
-  assert.match(localRadarHelper, /productTitle: '\[TEST\] Pokémon TCG incoming stock'/);
+  assert.match(localRadarHelper, /presentationType: 'big_fate_signal'/);
+  assert.match(localRadarHelper, /physicalEvidenceState: 'expected'/);
+  assert.match(localRadarHelper, /availabilityVerified: false/);
+  assert.match(localRadarHelper, /retailerName: 'The Entertainer'/);
+  assert.match(localRadarHelper, /pokemon-at-the-entertainer/);
+  assert.match(localRadarHelper, /productTitle: '\[TEST\] Pokémon TCG 30th Celebration'/);
   assert.match(localRadarHelper, /branchCount: 2/);
+  assert.match(localRadarHelper, /radiusTargeted: true/);
   assert.match(localRadarHelper, /test: true/);
   assert.match(localRadarHelper, /canary: true/);
   assert.doesNotMatch(localRadarHelper, /fetch\(/);

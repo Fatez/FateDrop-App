@@ -22,6 +22,7 @@ export default function ToolsScreen() {
         <Tool icon="notifications-outline" title="FateMatch" detail="Monitor the products and conditions you care about." onPress={() => router.push('/fate-match')} />
         <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Manage structured HAVE / WANT trading intentions and compatible trade opportunities." onPress={() => router.push('/fate-trader')} />
         <Tool icon="navigate-outline" title="Local Radar" detail="Explore nearby physical-store intelligence and collector events." onPress={() => router.push('/local-radar')} />
+        <Tool icon="radio-outline" title="Manual Echo intake" detail="Prepare an authorised Echo from credible retailer, influencer or physical-branch intelligence. Never creates Manifested." onPress={() => router.push('/manual-echo-intake')} />
         <Tool icon="storefront-outline" title="Stores" detail="Discover the retailer network, including major retailers and independents." onPress={() => router.push('/(tabs)/indies')} />
         <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting monitoring." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />

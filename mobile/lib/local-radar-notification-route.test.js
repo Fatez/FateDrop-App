@@ -23,6 +23,10 @@ test('Local Radar routing preserves the descriptive Cloud and Web operator paylo
   assert.match(layout, /expectedTo: notificationText\(data\.expectedTo\)/);
   assert.match(layout, /expectedLabel: notificationText\(data\.expectedLabel\)/);
   assert.match(layout, /branchCount: notificationCount\(data\.branchCount\)/);
+  assert.match(layout, /presentationType: data\.presentationType === 'big_fate_signal'/);
+  assert.match(layout, /physicalEvidenceState:/);
+  assert.match(layout, /retailerUrl: notificationText\(data\.retailerUrl\)/);
+  assert.match(layout, /radiusTargeted: notificationBoolean\(data\.radiusTargeted\)/);
 });
 
 test('Local Radar alert is recovered on cold start and captured while the app is foregrounded', () => {
@@ -44,11 +48,13 @@ test('incoming-stock panel renders only on Local Radar and can minimise to a per
   assert.match(context, /setNotice\(nextNotice\)/);
   assert.match(context, /setCollapsed\(false\)/);
   assert.match(context, /collapseNotice = useCallback\(\(\) => setCollapsed\(true\)/);
-  assert.match(notice, /LOCAL RADAR · INCOMING STOCK/);
-  assert.match(notice, /Expected at \$\{branches\}/);
-  assert.match(notice, /Check Local Radar to see if a participating store is near you\./);
-  assert.match(notice, /MINIMISE · SHOW MAP/);
-  assert.match(notice, /Incoming stock · \{product\}/);
+  assert.match(notice, /BIG FATE SIGNAL · ECHO/);
+  assert.match(notice, /IN-STORE CONFIRMED/);
+  assert.match(notice, /NO LONGER CONFIRMED/);
+  assert.match(notice, /Official allocation is preparation evidence, not live shelf stock/);
+  assert.match(notice, /SHOW LOCAL RADAR/);
+  assert.match(notice, /openTrackedRetailerLink/);
+  assert.match(notice, /placement: 'big_fate_signal'/);
   assert.match(notice, /position: 'absolute'/);
 });
 

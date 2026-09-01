@@ -15,7 +15,7 @@ import {
   type LocalRadarRetailerCategory,
 } from '@/lib/local-radar-map';
 import { ExpoLocationAdapter, type UserArea } from '@/services/location';
-import { areaParams, expectedStockForShop, fetchLocalRadar, shopLocalState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
+import { areaParams, expectedStockForShop, fetchLocalRadar, prioritizeRadarShops, shopPhysicalEvidenceState, shopSignal, type RadarShop } from '@/services/local-radar-intelligence';
 
 const adapter = new ExpoLocationAdapter();
 const UK_REGION: Region = { latitude: 52.7, longitude: -1.5, latitudeDelta: 8.2, longitudeDelta: 7.6 };
@@ -30,9 +30,11 @@ const STORE_FILTERS: { key: LocalRadarRetailerCategory; label: string }[] = [
 ];
 
 function markerColor(shop: RadarShop) {
-  const state = shopLocalState(shop);
-  if (state === 'confirmed') return FateDropColors.mint;
+  const state = shopPhysicalEvidenceState(shop);
+  if (state === 'verified') return FateDropColors.mint;
   if (state === 'expected') return FateDropColors.cyan;
+  if (state === 'reported') return FateDropColors.echo;
+  if (state === 'expired') return FateDropColors.muted;
   return FateDropColors.goldBright;
 }
 
@@ -161,9 +163,10 @@ export default function LocalRadarScreen() {
   }, [filteredShops]);
   const mappedShops = useMemo(() => filteredShops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [filteredShops]);
   const mapPoints = useMemo(() => clusterShops(mappedShops, region, { maxMarkers: markerBudget }), [mappedShops, markerBudget, region]);
-  const prioritizedShops = useMemo(() => filteredShops.slice(0, STORE_PREVIEW_LIMIT), [filteredShops]);
-  const confirmed = useMemo(() => filteredShops.filter(shop => shopLocalState(shop) === 'confirmed').length, [filteredShops]);
-  const expected = useMemo(() => filteredShops.filter(shop => shopLocalState(shop) === 'expected').length, [filteredShops]);
+  const prioritizedShops = useMemo(() => prioritizeRadarShops(filteredShops).slice(0, STORE_PREVIEW_LIMIT), [filteredShops]);
+  const confirmed = useMemo(() => filteredShops.filter(shop => shopPhysicalEvidenceState(shop) === 'verified').length, [filteredShops]);
+  const expected = useMemo(() => filteredShops.filter(shop => shopPhysicalEvidenceState(shop) === 'expected').length, [filteredShops]);
+  const reported = useMemo(() => filteredShops.filter(shop => shopPhysicalEvidenceState(shop) === 'reported').length, [filteredShops]);
   const navParams = { ...areaParams(area, radius), ...(storeFilter !== 'all' ? { storeType: storeFilter } : {}) };
   const mapHeight = Math.max(330, Math.min(480, height * 0.48));
   const selectedExpected = selected ? expectedStockForShop(selected) : null;
@@ -221,8 +224,8 @@ export default function LocalRadarScreen() {
           onPress={() => setSelected(point.shop)}
         />)}
       </MapView>
-      <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>Confirmed</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
-      {area ? <View style={styles.mapStats}><StatusBadge label={`${filteredShops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${mapPoints.length} map pins`} color={FateDropColors.goldBright}/><StatusBadge label={`${confirmed} confirmed`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/></View> : null}
+      <View style={styles.mapLegend}><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.mint}]}/><Text style={styles.legendText}>In-store</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.cyan}]}/><Text style={styles.legendText}>Expected</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.echo}]}/><Text style={styles.legendText}>Reported</Text></View><View style={styles.legendItem}><View style={[styles.dot,{backgroundColor:FateDropColors.goldBright}]}/><Text style={styles.legendText}>Store</Text></View></View>
+      {area ? <View style={styles.mapStats}><StatusBadge label={`${filteredShops.length} stores`} color={FateDropColors.violetLight}/><StatusBadge label={`${mapPoints.length} map pins`} color={FateDropColors.goldBright}/><StatusBadge label={`${confirmed} in-store`} color={FateDropColors.mint}/><StatusBadge label={`${expected} expected`} color={FateDropColors.cyan}/>{reported ? <StatusBadge label={`${reported} reported`} color={FateDropColors.echo}/> : null}</View> : null}
       {!area ? <View style={styles.mapPrompt}><Ionicons name="navigate-circle-outline" size={36} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>Search your area</Text><Text style={styles.mapPromptCopy}>{scopedRetailerId ? `Use your location or postcode to find known ${scopedName} branches.` : 'Known and candidate Pokémon retailers will appear as bounded clustered map pins.'}</Text></View> : null}
       {area && scopedRetailerId && !loading && !filteredShops.length ? <View style={styles.mapPrompt}><Ionicons name="storefront-outline" size={32} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>No nearby branch found</Text><Text style={styles.mapPromptCopy}>Local Radar did not find a canonical {scopedName} branch inside this radius. Increase the radius or try another location.</Text></View> : null}
       {area && !scopedRetailerId && storeFilter !== 'all' && !loading && !filteredShops.length ? <View style={styles.mapPrompt}><Ionicons name="options-outline" size={32} color={FateDropColors.goldBright}/><Text style={styles.mapPromptTitle}>No stores match this filter</Text><Text style={styles.mapPromptCopy}>Try another store type or increase your Local Radar radius.</Text></View> : null}
@@ -257,9 +260,9 @@ export default function LocalRadarScreen() {
       </View>
     </>}
 
-    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearby stores'}</Text><Text style={styles.sectionMeta}>{previewLimited ? `Showing the first ${STORE_PREVIEW_LIMIT} of ${filteredShops.length}. Open Local Stores for the full list.` : 'Confirmed branches first, then Expected, then distance.'}</Text></View>{prioritizedShops.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{storeTypeLabel(shop)} · {shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
+    {area ? <><View style={styles.sectionHead}><Text style={styles.sectionTitle}>{scopedRetailerId ? `Nearby ${scopedName} branches` : 'Nearby stores'}</Text><Text style={styles.sectionMeta}>{previewLimited ? `Showing the first ${STORE_PREVIEW_LIMIT} of ${filteredShops.length}. Open Local Stores for the full list.` : 'In-store confirmed, then Expected, Reported, no longer confirmed, and Unknown; distance breaks ties.'}</Text></View>{prioritizedShops.map(shop => { const expectedStock = expectedStockForShop(shop); return <Pressable key={shop.id} onPress={() => router.push({ pathname:'/local-radar-store', params:{ id:shop.id, ...navParams } })} style={styles.storeRow}><View style={[styles.storeDot,{backgroundColor:markerColor(shop)}]}/><View style={styles.storeCopy}><Text style={styles.storeName}>{shop.name}</Text><Text style={styles.storeMeta}>{storeTypeLabel(shop)} · {shopSignal(shop)} · {shop.distanceMiles != null ? `${shop.distanceMiles.toFixed(1)} miles` : shop.postcode || 'distance pending'}</Text>{expectedStock ? <Text style={styles.storeMeta}>{expectedStock.title}{expectedStock.label ? ` · ${expectedStock.label}` : ''}</Text> : null}</View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted}/></Pressable>; })}</> : null}
 
-    <View style={styles.truthCard}><Ionicons name="shield-checkmark-outline" size={19} color={FateDropColors.goldBright}/><Text style={styles.truthText}>A store pin means FateDrop has location evidence — not that Pokémon sales or stock are guaranteed. Expected information is advisory. Confirmed only appears with genuine exact-branch physical availability evidence. Online stock remains separate.</Text></View>
+    <View style={styles.truthCard}><Ionicons name="shield-checkmark-outline" size={19} color={FateDropColors.goldBright}/><Text style={styles.truthText}>All physical availability intelligence stays in Echo. A store pin proves location evidence only; In-store confirmed requires fresh exact-branch proof. Expected and Reported are advisory, expiry never creates Vanished, and online stock remains separate.</Text></View>
   </ScrollView></SafeAreaView>;
 }
 
