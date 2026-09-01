@@ -10,7 +10,7 @@ import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { requestFateDropAccountDeletion } from '@/services/account-deletion';
 
-const website = FATEDROP_WEB_URL;
+const website=FATEDROP_WEB_URL;
 const showExternalMembershipManagement = Platform.OS !== 'ios';
 
 export default function AccountScreen() {
@@ -37,17 +37,28 @@ export default function AccountScreen() {
   const submitDeletion = async () => {
     setDeleting(true);
     try {
-      await requestFateDropAccountDeletion();
-      await forgetLocalSession();
-      Alert.alert(
-        'Deletion requested',
-        'Your FateDrop account deletion request has been securely recorded. You have been signed out on this device. FateDrop will process the request under the Privacy Policy.',
-      );
-    } catch (cause) {
-      Alert.alert(
-        'Deletion request not submitted',
-        cause instanceof Error ? cause.message : 'FateDrop could not submit your deletion request. Please try again.',
-      );
+      try {
+        await requestFateDropAccountDeletion();
+      } catch (cause) {
+        Alert.alert(
+          'Deletion request not submitted',
+          cause instanceof Error ? cause.message : 'FateDrop could not submit your deletion request. Please try again.',
+        );
+        return;
+      }
+
+      try {
+        await forgetLocalSession();
+        Alert.alert(
+          'Deletion requested',
+          'Your FateDrop account deletion request has been securely recorded. You have been signed out on this device. FateDrop will process the request under the Privacy Policy.',
+        );
+      } catch {
+        Alert.alert(
+          'Deletion requested',
+          'Your deletion request has been securely recorded, but FateDrop could not clear this device’s local session. Please use Sign out before continuing.',
+        );
+      }
     } finally {
       setDeleting(false);
     }
