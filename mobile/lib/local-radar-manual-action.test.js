@@ -29,16 +29,16 @@ test('manual postcode stays on the canonical Cloud Local Radar contract', () => 
 });
 
 test('Local Radar physical truth remains fail-closed', () => {
-  assert.match(service, /verifiedBranchStock && lifecycle === 'manifested'/);
+  assert.match(service, /verifiedBranchStock && \['echo', 'manifested'\]\.includes\(lifecycle\)/);
   assert.match(service, /return 'unknown'/);
-  assert.match(overview, /Online stock remains separate/);
+  assert.match(overview, /online stock remains separate/i);
 });
 
 test('physical-stock push route opens the cloud-backed Local Radar stock screen', () => {
   assert.match(layout, /data\?\.route === 'local-radar-stock'/);
   assert.match(layout, /router\.push\('\/local-radar-stock'\)/);
   assert.match(stockScreen, /fetchLocalRadar\(nextArea, nextRadius, 'shops'\)/);
-  assert.match(stockScreen, /PHYSICAL STOCK CONFIRMED/);
+  assert.match(stockScreen, /ECHO · IN-STORE CONFIRMED/);
   assert.match(stockScreen, /never inferred from generic online availability/);
 });
 

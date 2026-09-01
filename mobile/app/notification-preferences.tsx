@@ -28,7 +28,7 @@ type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch
 
 const signalRows: { key: PreferenceKey; title: string; detail: string }[] = [
   { key: 'whisper', title: 'Whisper', detail: 'Product or catalogue movement before stock is confirmed.' },
-  { key: 'echo', title: 'Echo', detail: 'Queue, traffic, security or access-readiness changes.' },
+  { key: 'echo', title: 'Echo', detail: 'Retailer readiness, credible physical movement and branch stock intelligence.' },
   { key: 'manifested', title: 'Manifested', detail: 'Verified purchasable availability.' },
   { key: 'vanished', title: 'Vanished', detail: 'Previously verified availability is no longer present.' },
   { key: 'fateMatch', title: 'FateMatch', detail: 'A FateMatch hunt has found a qualifying live offer.' },
@@ -180,7 +180,7 @@ export default function NotificationPreferencesScreen() {
     setMessage(null);
     try {
       const result = await sendLocalRadarPresentationTest();
-      if (result.sent) setMessage('Local Radar TEST alert sent. Tap the banner to inspect the incoming-stock card and map handoff.');
+      if (result.sent) setMessage('Big Fate Signal TEST alert sent. Tap the banner to inspect the Echo card, retailer link and Local Radar handoff.');
       else if (result.reason === 'permission-denied') setMessage('Local Radar test could not run because iOS notification permission is off.');
       else setMessage('Local Radar test requires a physical device.');
     } catch (cause) {
@@ -212,7 +212,7 @@ export default function NotificationPreferencesScreen() {
             <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
             <View style={styles.rowCopy}>
               <Text style={styles.localRadarTestTitle}>{working === 'test-local-radar' ? 'Sending Local Radar test…' : 'TEST LOCAL RADAR ALERT'}</Text>
-              <Text style={styles.rowDetail}>QA only · fires the real Local Radar notification route and incoming-stock card without creating stock data.</Text>
+              <Text style={styles.rowDetail}>QA only · fires the real Big Fate Signal route and Echo card without creating stock data or claiming availability.</Text>
             </View>
           </Pressable>
 
