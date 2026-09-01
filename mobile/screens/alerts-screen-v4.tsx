@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
-import { TCG_REGISTRY, type TcgCode } from '@/constants/tcg-registry';
+import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { FALLBACK_ALERT_MARKETS } from '@/services/alert-facets';
 import { countUnreadCanonicalAlertsByStage, fetchCanonicalAlerts, markCanonicalAlertStageSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
@@ -52,7 +52,7 @@ function facetLine(alert: CanonicalMobileAlert) { const language = alert.facets?
 
 export default function AlertsScreenV4() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ stage?: string | string[]; view?: string | string[] }>();
+  const params = useLocalSearchParams<{ stage?: string | string[]; view?: string | string[]; tcg?: string | string[] }>();
   const { signedIn, snapshot, refresh } = useFateDropId();
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [stage, setStage] = useState<CanonicalAlertStage>('ECHO');
@@ -67,14 +67,19 @@ export default function AlertsScreenV4() {
   const preferences = snapshot?.notificationPreferences ?? null;
   const activePreferenceStage = stagePreferenceKey[stage];
   const marketSelection = preferences?.lifecycleMarkets?.[activePreferenceStage] ?? 'all';
-  const selectedTcgs=snapshot?.tcgPreferences?.selectedTcgCodes??['pokemon'];
+  const selectedTcgs = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences?.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences?.selectedTcgCodes]);
+  const tcgAlerts = useMemo(() => alerts.filter((alert) => isTcgCode(alert.tcgCode) && selectedTcgs.includes(alert.tcgCode) && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)), [alerts, selectedTcgs, tcgFilter]);
+  const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, tcgAlerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [tcgAlerts]);
+  const filtered = useMemo(() => tcgAlerts.filter((alert) => alert.fateStage === stage), [tcgAlerts, stage]);
 
   useEffect(() => {
     const incomingStage = first(params.stage)?.toUpperCase();
     const incomingView = first(params.view)?.toLowerCase();
+    const incomingTcg = first(params.tcg)?.toLowerCase();
     if (incomingStage && stages.includes(incomingStage as CanonicalAlertStage)) setStage(incomingStage as CanonicalAlertStage);
     if (incomingView === 'matches' || incomingView === 'fatematch') setView('matches');
-  }, [params.stage, params.view]);
+    if (isTcgCode(incomingTcg) && selectedTcgs.includes(incomingTcg)) setTcgFilter(incomingTcg);
+  }, [params.stage, params.tcg, params.view, selectedTcgs]);
 
   const load = useCallback(async () => {
     if (!signedIn) { setAlerts([]); setUnreadCounts(emptyUnreadCounts()); setError(null); return; }
@@ -91,7 +96,7 @@ export default function AlertsScreenV4() {
 
   useEffect(() => {
     if (!signedIn || !userId || view !== 'signals') return;
-    const visibleAlerts = alerts.filter((alert) => alert.fateStage === stage);
+    const visibleAlerts = filtered;
     if (visibleAlerts.length === 0) return;
     let cancelled = false;
     void (async () => {
@@ -104,7 +109,7 @@ export default function AlertsScreenV4() {
       }
     })();
     return () => { cancelled = true; };
-  }, [alerts, signedIn, stage, userId, view]);
+  }, [alerts, filtered, signedIn, stage, userId, view]);
 
   const toggleLifecycleMarket = async (option: 'all' | LifecycleMarketGroup) => {
     if (!signedIn || !preferences || marketWorking) return;
@@ -123,9 +128,6 @@ export default function AlertsScreenV4() {
     }
   };
 
-  const tcgAlerts=useMemo(()=>alerts.filter((alert)=>selectedTcgs.includes(alert.tcgCode as TcgCode)&&(tcgFilter==='all'||alert.tcgCode===tcgFilter)),[alerts,selectedTcgs,tcgFilter]);
-  const counts = useMemo(() => Object.fromEntries(stages.map((value) => [value, tcgAlerts.filter((alert) => alert.fateStage === value).length])) as Record<CanonicalAlertStage, number>, [tcgAlerts]);
-  const filtered = useMemo(() => tcgAlerts.filter((alert) => alert.fateStage === stage), [tcgAlerts, stage]);
   const active = meta[stage];
 
   return (
@@ -140,8 +142,9 @@ export default function AlertsScreenV4() {
 
         <View style={styles.switch}><Pressable onPress={() => setView('signals')} style={[styles.switchItem, view === 'signals' && styles.switchActive]}><Text style={[styles.switchText, view === 'signals' && styles.switchTextActive]}>SIGNALS</Text></Pressable><Pressable onPress={() => setView('matches')} style={[styles.switchItem, view === 'matches' && styles.switchActive]}><Text style={[styles.switchText, view === 'matches' && styles.switchTextActive]}>FATEMATCHES</Text></Pressable></View>
 
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tcgFilters}><Pressable onPress={()=>setTcgFilter('all')} style={[styles.tcgFilter,tcgFilter==='all'&&styles.tcgFilterActive]}><Text style={[styles.tcgFilterText,tcgFilter==='all'&&styles.tcgFilterTextActive]}>ALL</Text></Pressable>{selectedTcgs.map((code)=>{const entry=TCG_REGISTRY.find((item)=>item.code===code);if(!entry)return null;return <Pressable key={code} onPress={()=>setTcgFilter(code)} style={[styles.tcgFilter,tcgFilter===code&&{borderColor:entry.accent,backgroundColor:`${entry.accent}15`}]}><Text style={[styles.tcgFilterText,tcgFilter===code&&{color:entry.accent}]}>{entry.shortName.toUpperCase()}</Text></Pressable>;})}</ScrollView>
+
         {view === 'signals' ? <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tcgFilters}><Pressable onPress={()=>setTcgFilter('all')} style={[styles.tcgFilter,tcgFilter==='all'&&styles.tcgFilterActive]}><Text style={[styles.tcgFilterText,tcgFilter==='all'&&styles.tcgFilterTextActive]}>ALL</Text></Pressable>{selectedTcgs.map((code)=>{const entry=TCG_REGISTRY.find((item)=>item.code===code);if(!entry)return null;return <Pressable key={code} onPress={()=>setTcgFilter(code)} style={[styles.tcgFilter,tcgFilter===code&&{borderColor:entry.accent,backgroundColor:`${entry.accent}15`}]}><Text style={[styles.tcgFilterText,tcgFilter===code&&{color:entry.accent}]}>{entry.shortName.toUpperCase()}</Text></Pressable>;})}</ScrollView>
           <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
           {!signedIn ? <SignIn /> : <>
             <LifecycleMarketFilter
@@ -156,7 +159,7 @@ export default function AlertsScreenV4() {
             <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text><Text style={styles.sectionHint}>Tap an alert for a quick in-app look · ↗ opens in your browser.</Text></View><Text style={styles.sectionCount}>{filtered.length}</Text></View>
             {filtered.length ? filtered.map((alert) => <AlertRow key={alert.id} alert={alert} />) : !loading && !error ? <View style={styles.empty}><Ionicons name="radio-outline" size={24} color={active.color} /><Text style={styles.emptyTitle}>Quiet by design</Text><Text style={styles.emptyCopy}>No {active.label.toLowerCase()} alert has met FateDrop policy for your inbox. We do not fill the feed with weak signals.</Text></View> : null}
           </>}
-        </> : <Matches signedIn={signedIn} snapshot={snapshot} />}
+        </> : <Matches signedIn={signedIn} snapshot={snapshot} tcgFilter={tcgFilter} />}
       </ScrollView>
     </View>
   );
@@ -240,16 +243,18 @@ function AlertRow({ alert }: { alert: CanonicalMobileAlert }) {
   </View>;
 }
 
-function Matches({ signedIn, snapshot }: { signedIn: boolean; snapshot: ReturnType<typeof useFateDropId>['snapshot'] }) {
+function Matches({ signedIn, snapshot, tcgFilter }: { signedIn: boolean; snapshot: ReturnType<typeof useFateDropId>['snapshot']; tcgFilter: 'all' | TcgCode }) {
   if (!signedIn) return <SignIn />;
-  const finds = (snapshot?.fateFinds ?? []).filter((item) => item.enabled !== false);
-  const matches = [...(snapshot?.fateMatches ?? [])].sort((a, b) => b.matchedAt - a.matchedAt);
+  const includesTcg = (value: unknown) => tcgFilter === 'all' || value === tcgFilter;
+  const tcgLabel = (value: unknown) => isTcgCode(value) ? TCG_REGISTRY.find((entry) => entry.code === value)?.shortName ?? value : 'Unknown TCG';
+  const finds = (snapshot?.fateFinds ?? []).filter((item) => item.enabled !== false && includesTcg(item.tcgCode));
+  const matches = [...(snapshot?.fateMatches ?? [])].filter((match) => includesTcg(match.tcgCode)).sort((a, b) => b.matchedAt - a.matchedAt);
   return <>
     <View style={styles.matchIntro}><Text style={styles.matchEyebrow}>FATEFIND → FATEMATCH</Text><Text style={styles.matchTitle}>Your hunts and what they found.</Text><Text style={styles.matchCopy}>A FateFind stays active while it searches. When an offer satisfies your conditions, that successful result becomes a FateMatch.</Text><Pressable onPress={() => router.push('/fatefind')} style={styles.newFind}><Ionicons name="add" size={17} color={FateDropColors.ink} /><Text style={styles.newFindText}>NEW FATEFIND</Text></Pressable></View>
     <View style={styles.sectionHead}><View><Text style={styles.sectionEyebrow}>ACTIVE FATEFINDS</Text><Text style={styles.sectionTitle}>Still hunting</Text></View><Text style={styles.sectionCount}>{finds.length}</Text></View>
-    {finds.length ? finds.map((find) => <View key={find.id} style={styles.findRow}><View style={styles.findPulse} /><View style={styles.flex}><Text style={styles.findTitle}>{String(find.query || find.queryText || 'FateFind')}</Text><Text style={styles.findMeta}>{companionName(find.companionId)} is searching the network</Text></View><Ionicons name="cloud-done-outline" size={18} color={FateDropColors.success} /></View>) : <View style={styles.empty}><Text style={styles.emptyTitle}>No active FateFinds</Text><Text style={styles.emptyCopy}>Start one when you want FateDrop to keep looking under your conditions.</Text></View>}
+    {finds.length ? finds.map((find) => <View key={find.id} style={styles.findRow}><View style={styles.findPulse} /><View style={styles.flex}><Text style={styles.findTitle}>{String(find.query || find.queryText || 'FateFind')}</Text><Text style={styles.findMeta}>{tcgLabel(find.tcgCode)} · {companionName(find.companionId)} is searching the network</Text></View><Ionicons name="cloud-done-outline" size={18} color={FateDropColors.success} /></View>) : <View style={styles.empty}><Text style={styles.emptyTitle}>No active FateFinds</Text><Text style={styles.emptyCopy}>Start one when you want FateDrop to keep looking under your conditions.</Text></View>}
     <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: FateDropColors.manifested }]}>FATEMATCH — LIVE NOW</Text><Text style={styles.sectionTitle}>Successful results</Text></View><Text style={styles.sectionCount}>{matches.length}</Text></View>
-    {matches.length ? matches.slice(0, 20).map((match) => <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchRow}><View style={styles.flex}><Text style={styles.matchLive}>{companionName(match.companionId).toUpperCase()} FOUND THIS</Text><Text style={styles.matchProduct}>{match.title}</Text><Text style={styles.matchMeta}>{match.retailerName} · Item {money(match.itemPricePence)} · True Price {money(match.deliveredPricePence)}</Text><Text style={styles.matchTime}>{ago(match.matchedAt)}</Text></View><Ionicons name="bag-handle-outline" size={19} color={FateDropColors.manifested} /></Pressable>) : <View style={styles.empty}><Text style={styles.emptyTitle}>Nothing has qualified yet</Text><Text style={styles.emptyCopy}>A qualifying result will appear here as a FateMatch.</Text></View>}
+    {matches.length ? matches.slice(0, 20).map((match) => <Pressable key={match.id} onPress={() => match.url ? void Linking.openURL(match.url) : undefined} style={styles.matchRow}><View style={styles.flex}><Text style={styles.matchLive}>{companionName(match.companionId).toUpperCase()} FOUND THIS</Text><Text style={styles.matchProduct}>{match.title}</Text><Text style={styles.matchMeta}>{tcgLabel(match.tcgCode)} · {match.retailerName} · Item {money(match.itemPricePence)} · True Price {money(match.deliveredPricePence)}</Text><Text style={styles.matchTime}>{ago(match.matchedAt)}</Text></View><Ionicons name="bag-handle-outline" size={19} color={FateDropColors.manifested} /></Pressable>) : <View style={styles.empty}><Text style={styles.emptyTitle}>Nothing has qualified yet</Text><Text style={styles.emptyCopy}>A qualifying result will appear here as a FateMatch.</Text></View>}
   </>;
 }
 function SignIn() { return <View style={styles.empty}><Ionicons name="person-circle-outline" size={28} color={FateDropColors.gold} /><Text style={styles.emptyTitle}>Sign in to your FateDrop ID</Text><Text style={styles.emptyCopy}>Your personal alert inbox and FateMatches sync with your account.</Text><Pressable onPress={() => router.push('/account')} style={styles.signIn}><Text style={styles.signInText}>SIGN IN</Text></Pressable></View>; }

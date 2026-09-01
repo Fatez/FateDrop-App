@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
-import { TCG_REGISTRY, type TcgCode } from '@/constants/tcg-registry';
+import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
@@ -61,17 +61,24 @@ export default function HomeScreenV3() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
+  const matchesFilter = useCallback((value: unknown) => tcgFilter === 'all' || (isTcgCode(value) && value === tcgFilter), [tcgFilter]);
+  const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false && matchesFilter(item.tcgCode)).length ?? 0;
   const recentMatches = useMemo(() => {
     const floor = Math.floor(Date.now() / 1000) - 7 * 86_400;
-    return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor).length ?? 0;
-  }, [snapshot?.fateMatches]);
-  const saved = snapshot?.wishlist?.length ?? 0;
+    return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor && matchesFilter(item.tcgCode)).length ?? 0;
+  }, [matchesFilter, snapshot?.fateMatches]);
+  const saved = snapshot?.wishlist?.filter((item) => matchesFilter(item.tcg)).length ?? 0;
   const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
   const visibleLiveOpportunities = useMemo(() => liveOpportunities.filter((alert) => (
     selectedTcgCodes.includes(alert.tcgCode as TcgCode)
     && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)
   )), [liveOpportunities, selectedTcgCodes, tcgFilter]);
+  const tcgParam = tcgFilter === 'all' ? undefined : tcgFilter;
+  const filterLabel = tcgFilter === 'all' ? 'All selected games' : TCG_REGISTRY.find((entry) => entry.code === tcgFilter)?.shortName ?? tcgFilter;
+
+  useEffect(() => {
+    if (tcgFilter !== 'all' && !selectedTcgCodes.includes(tcgFilter)) setTcgFilter('all');
+  }, [selectedTcgCodes, tcgFilter]);
 
   return (
     <View style={styles.safe}>
@@ -90,6 +97,12 @@ export default function HomeScreenV3() {
           </View>
         </View>
 
+        <View style={styles.gameFilterHead}><Text style={styles.sectionEyebrow}>HOME VIEW</Text><Text style={styles.sectionHint}>{filterLabel}</Text></View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilters}>
+          <Pressable onPress={() => setTcgFilter('all')} style={[styles.gameFilter, tcgFilter === 'all' && styles.gameFilterActive]}><Text style={[styles.gameFilterText, tcgFilter === 'all' && styles.gameFilterTextActive]}>ALL</Text></Pressable>
+          {selectedTcgCodes.map((code) => { const entry = TCG_REGISTRY.find((item) => item.code === code); return entry ? <Pressable key={code} onPress={() => setTcgFilter(code)} style={[styles.gameFilter, tcgFilter === code && { borderColor: entry.accent, backgroundColor: `${entry.accent}15` }]}><Text style={[styles.gameFilterText, tcgFilter === code && { color: entry.accent }]}>{entry.shortName.toUpperCase()}</Text></Pressable> : null; })}
+        </ScrollView>
+
         <View style={styles.sectionHead}>
           <View>
             <Text style={styles.sectionEyebrow}>NETWORK PULSE</Text>
@@ -101,7 +114,7 @@ export default function HomeScreenV3() {
           {stageOrder.map((state) => {
             const meta = stageMeta[state];
             return (
-              <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase() } })} style={styles.pulseCard}>
+              <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={styles.pulseCard}>
                 <View style={[styles.pulseDot, { backgroundColor: meta.color }]} />
                 <Text style={styles.pulseValue}>{pulse[state]}</Text>
                 <Text style={[styles.pulseLabel, { color: meta.color }]}>{meta.label.toUpperCase()}</Text>
@@ -161,7 +174,7 @@ export default function HomeScreenV3() {
         <Text style={styles.sectionEyebrow}>QUICK ACTIONS</Text>
         <View style={styles.actions}>
           <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
-          <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push('/fatefind')} />
+          <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push({ pathname: '/fatefind', params: { tcg: tcgParam } })} />
           <Action title="Events" detail="Card shows, tournaments and meet-ups" icon="calendar-outline" onPress={() => router.push('/encounters')} />
         </View>
 
@@ -242,6 +255,12 @@ const styles = StyleSheet.create({
   sectionEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.25, paddingHorizontal: 18, marginBottom: 7 },
   sectionTitle: { color: FateDropColors.ivory, fontSize: 20, fontWeight: '900', marginTop: 2 },
   sectionHint: { color: FateDropColors.muted, fontSize: 10, paddingBottom: 2 },
+  gameFilterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 18, marginTop: 14 },
+  gameFilters: { gap: 8, paddingHorizontal: 18, paddingBottom: 15 },
+  gameFilter: { paddingHorizontal: 13, paddingVertical: 9, borderWidth: 1, borderColor: FateDropColors.border, borderRadius: 999, backgroundColor: FateDropColors.glass },
+  gameFilterActive: { borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.goldBright}14` },
+  gameFilterText: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '900' },
+  gameFilterTextActive: { color: FateDropColors.goldBright },
   pulseGrid: { flexDirection: 'row', gap: 7, paddingHorizontal: 18, marginBottom: 22 },
   pulseCard: { flex: 1, minHeight: 108, padding: 11, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   pulseDot: { width: 7, height: 7, borderRadius: 4, marginBottom: 9 },

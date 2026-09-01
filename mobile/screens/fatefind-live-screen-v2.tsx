@@ -9,6 +9,7 @@ import { FATEDROP_WEB_URL, SIGNAL_ENGINE_URL } from '@/constants/api';
 import { FateDropColors } from '@/constants/theme';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { useTcgCapabilities } from '@/contexts/tcg-capabilities-context';
 import { rrpBasisLabel } from '@/lib/value-compare';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import { LocalWishlistRepository } from '@/services/wishlist';
@@ -95,6 +96,7 @@ async function requestLiveComparisonGroups(query: string, tcgCode: TcgCode) {
 export default function FateFindLiveScreenV2() {
   const params = useLocalSearchParams<{ query?: string | string[]; tcg?: string | string[] }>();
   const { snapshot } = useFateDropId();
+  const { capabilityFor } = useTcgCapabilities();
   const incomingQuery = firstParam(params.query) || '';
   const incomingTcg = firstParam(params.tcg);
   const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
@@ -122,10 +124,11 @@ export default function FateFindLiveScreenV2() {
   useFocusEffect(useCallback(() => { void wishlist.list().then((items) => setSaved(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId))); }, []));
 
   const tcgDefinition = TCG_REGISTRY.find((entry) => entry.code === tcgCode) ?? TCG_REGISTRY[0];
+  const tcgCapability = capabilityFor(tcgCode);
 
   useEffect(() => {
     const clean = query.trim();
-    if (!tcgDefinition.live) {
+    if (!tcgCapability.browseEnabled) {
       setGroups([]);
       setVerdict(null);
       setPairVerdict(null);
@@ -174,7 +177,7 @@ export default function FateFindLiveScreenV2() {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [query, tcgCode, tcgDefinition.live, tcgDefinition.shortName]);
+  }, [query, tcgCode, tcgCapability.browseEnabled, tcgDefinition.shortName]);
 
   useEffect(() => {
     const options = groups.filter((group) => group.offers.length > 0);
@@ -196,7 +199,7 @@ export default function FateFindLiveScreenV2() {
 
   useEffect(() => {
     const clean = query.trim();
-    if (!tcgDefinition.live || clean.length < 2 || !compareLeftId || !compareRightId) {
+    if (!tcgCapability.browseEnabled || clean.length < 2 || !compareLeftId || !compareRightId) {
       setPairVerdict(null);
       setPairError('');
       setPairLoading(false);
@@ -227,7 +230,7 @@ export default function FateFindLiveScreenV2() {
       })
       .finally(() => { if (active) setPairLoading(false); });
     return () => { active = false; };
-  }, [query, tcgCode, tcgDefinition.live, compareLeftId, compareRightId]);
+  }, [query, tcgCode, tcgCapability.browseEnabled, compareLeftId, compareRightId]);
 
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const compareOptions = useMemo(() => displayed.filter((group) => group.offers.length > 0), [displayed]);
@@ -250,7 +253,7 @@ export default function FateFindLiveScreenV2() {
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text} /><Text style={styles.backText}>Back</Text></Pressable>
     <AbstractHero eyebrow="FateFind" title="Find the right deal now. Keep hunting if it is not there yet." subtitle="FateFind is FateDrop's intelligent value finder. It combines verified RRP/reference maths with visible True Price, returns one Cloud Fate Verdict, and can keep searching under your conditions until a qualifying offer becomes a FateMatch." icon="telescope" />
     <Text style={styles.label}>Trading card game</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>{TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => <FilterChip key={entry.code} label={`${entry.shortName}${entry.live ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />)}</ScrollView>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>{TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => <FilterChip key={entry.code} label={`${entry.shortName}${capabilityFor(entry.code).browseEnabled ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />)}</ScrollView>
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
