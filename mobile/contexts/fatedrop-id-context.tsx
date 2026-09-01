@@ -76,6 +76,12 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
     }
   }, [refresh]);
 
+  const forgetLocalSession = useCallback(async () => {
+    await clearStoredSession();
+    setSnapshot(null);
+    setError(null);
+  }, []);
+
   const signOut = useCallback(async () => {
     setSyncing(true);
     try {
@@ -88,12 +94,6 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
     } finally {
       setSyncing(false);
     }
-  }, []);
-
-  const forgetLocalSession = useCallback(async () => {
-    await clearStoredSession();
-    setSnapshot(null);
-    setError(null);
   }, []);
 
   const value = useMemo<FateDropIdContextValue>(() => ({
