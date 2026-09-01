@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
 import {
+  clearStoredSession,
   getStoredSessionToken,
   hasCapability,
   loadCachedIdentitySnapshot,
@@ -19,6 +20,7 @@ type FateDropIdContextValue = {
   signedIn: boolean;
   signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
+  forgetLocalSession(): Promise<void>;
   refresh(): Promise<void>;
   can(capability: FateCapability): boolean;
 };
@@ -74,6 +76,12 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
     }
   }, [refresh]);
 
+  const forgetLocalSession = useCallback(async () => {
+    await clearStoredSession();
+    setSnapshot(null);
+    setError(null);
+  }, []);
+
   const signOut = useCallback(async () => {
     setSyncing(true);
     try {
@@ -96,9 +104,10 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
     signedIn: Boolean(snapshot?.user),
     signIn,
     signOut,
+    forgetLocalSession,
     refresh,
     can: (capability) => hasCapability(snapshot, capability),
-  }), [error, loading, refresh, signIn, signOut, snapshot, syncing]);
+  }), [error, forgetLocalSession, loading, refresh, signIn, signOut, snapshot, syncing]);
 
   return <FateDropIdContext.Provider value={value}>{children}</FateDropIdContext.Provider>;
 }
