@@ -73,6 +73,11 @@ test('opening the active lifecycle marks only that lifecycle seen', () => {
   assert.doesNotMatch(screen, /markCanonicalAlertsSeen\(userId, next\)/);
 });
 
+test('opening a filtered TCG lifecycle never marks hidden games as seen', () => {
+  assert.match(screen, /const visibleAlerts = filtered;/);
+  assert.doesNotMatch(screen, /const visibleAlerts = alerts\.filter/);
+});
+
 test('bottom Alerts badge recalculates aggregate unread after lifecycle read-state changes', () => {
   assert.match(layout, /changedUserId === userId\) void refreshAlertCount\(\)/);
   assert.doesNotMatch(layout, /changedUserId === userId\) setAlertCount\(0\)/);

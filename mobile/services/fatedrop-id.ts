@@ -21,7 +21,7 @@ export type FateDropIdentity = { id:string; fateId:string; email:string; handle:
 export type FateDropEntitlement = { configuredTier:'free'|'plus'|'pro'; effectiveTier:'free'|'plus'|'pro'; status:string; active:boolean; capabilities:FateCapability[]; trialEndsAt:number|null; currentPeriodEnd:number|null; cancelAtPeriodEnd:boolean; updatedAt:number };
 export type CrossPlatformWishlistItem = { id:string; userId:string; productIdentityId:string|null; query:string; title:string; tcg:string|null; imageUrl:string|null; source:string; createdAt:number; updatedAt:number };
 export type CrossPlatformFateFind = Record<string, unknown> & { id:string; userId:string; enabled:boolean };
-export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; tcgCode:TcgCode; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
+export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; tcgCode:TcgCode|'unknown'; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
 export type CrossPlatformNotificationPreferences = {
   whisper:boolean;
   echo:boolean;
@@ -131,7 +131,7 @@ function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
     accessAllowed,
     betaAccess,
     entitlement:accessAllowed?entitlement:{...entitlement,capabilities:[]},
-    fateMatches:(snapshot.fateMatches||[]).map((match)=>({...match,tcgCode:isTcgCode(match.tcgCode)?match.tcgCode:'pokemon',companionId:isCompanionId(match.companionId)?match.companionId:'koru'})),
+    fateMatches:(snapshot.fateMatches||[]).map((match)=>({...match,tcgCode:isTcgCode(match.tcgCode)?match.tcgCode:'unknown',companionId:isCompanionId(match.companionId)?match.companionId:'koru'})),
     notificationPreferences:normalizePreferences(snapshot.notificationPreferences),
     tcgPreferences:{selectedTcgCodes,onboardingCompleted:snapshot.tcgPreferences?.onboardingCompleted===true,alertPreferences:snapshot.tcgPreferences?.alertPreferences||recommendedTcgAlerts(selectedTcgCodes)},
   };
