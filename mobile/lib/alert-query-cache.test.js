@@ -46,6 +46,7 @@ test('stale identical consumers cause only one revalidation', async () => {
   const first = cache.request('stale', fetcher);
   const second = cache.request('stale', fetcher);
   assert.equal(first, second);
+  await Promise.resolve();
   assert.equal(calls, 2);
   gate.resolve(2);
   await first;
