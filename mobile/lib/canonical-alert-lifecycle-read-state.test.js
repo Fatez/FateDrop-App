@@ -76,7 +76,7 @@ test('opening the active lifecycle marks only its initial visible window seen', 
 });
 
 test('opening a filtered TCG lifecycle never marks hidden games or paginated earlier history as seen', () => {
-  assert.match(screen, /initialVisibleAlerts = useMemo\(\(\) => alerts\.slice\(0, INITIAL_ALERT_LIMITS\[stage\]\)\.filter/);
+  assert.match(screen, /initialVisibleAlerts = useMemo\(\(\) => filtered\.slice\(0, INITIAL_ALERT_LIMITS\[stage\]\)/);
   assert.match(screen, /tcgFilter === 'all' \|\| alert\.tcgCode === tcgFilter/);
   assert.doesNotMatch(screen, /markCanonicalAlertStageSeen\(userId, stage, filtered\)/);
 });

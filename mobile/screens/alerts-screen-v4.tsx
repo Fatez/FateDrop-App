@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,6 +9,7 @@ import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { countCanonicalAlertBasisByStage } from '@/lib/canonical-alert-counts';
 import { FALLBACK_ALERT_MARKETS } from '@/services/alert-facets';
 import { countUnreadCanonicalAlertsByStage, markCanonicalAlertStageSeen, type CanonicalAlertStage, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import {
@@ -21,6 +22,7 @@ import {
   queryCanonicalAlertReadBasis,
   type CanonicalAlertCursor,
   type CanonicalAlertQuery,
+  type CanonicalAlertReadBasisItem,
   type CanonicalAlertReadBasisQuery,
 } from '@/services/canonical-alert-query';
 import { updateRemoteNotificationPreferences } from '@/services/fatedrop-id';
@@ -67,6 +69,7 @@ export default function AlertsScreenV4() {
   const params = useLocalSearchParams<{ stage?: string | string[]; view?: string | string[]; tcg?: string | string[] }>();
   const { signedIn, snapshot, refresh } = useFateDropId();
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
+  const [alertReadBasis, setAlertReadBasis] = useState<CanonicalAlertReadBasisItem[]>([]);
   const [nextCursor, setNextCursor] = useState<CanonicalAlertCursor | null>(null);
   const [stage, setStage] = useState<CanonicalAlertStage>('ECHO');
   const [view, setView] = useState<AlertView>('signals');
@@ -78,6 +81,8 @@ export default function AlertsScreenV4() {
   const [error, setError] = useState<string | null>(null);
   const [marketWorking, setMarketWorking] = useState<string | null>(null);
   const [marketMessage, setMarketMessage] = useState<string | null>(null);
+  const pageRequestGeneration = useRef(0);
+  const readBasisRequestGeneration = useRef(0);
   const userId = snapshot?.user?.id ?? null;
   const preferences = snapshot?.notificationPreferences ?? null;
   const activePreferenceStage = stagePreferenceKey[stage];
@@ -100,8 +105,9 @@ export default function AlertsScreenV4() {
     selectedTcgCodes: selectedTcgs,
     filterKey: alertFilterKey,
   }) : null, [alertFilterKey, selectedTcgs, userId]);
-  const filtered = useMemo(() => alerts.filter((alert) => isTcgCode(alert.tcgCode) && selectedTcgs.includes(alert.tcgCode) && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)), [alerts, selectedTcgs, tcgFilter]);
-  const initialVisibleAlerts = useMemo(() => alerts.slice(0, INITIAL_ALERT_LIMITS[stage]).filter((alert) => isTcgCode(alert.tcgCode) && selectedTcgs.includes(alert.tcgCode) && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)), [alerts, selectedTcgs, stage, tcgFilter]);
+  const counts = useMemo(() => countCanonicalAlertBasisByStage(alertReadBasis, tcgFilter), [alertReadBasis, tcgFilter]);
+  const filtered = useMemo(() => alerts.filter((alert) => alert.fateStage === stage && isTcgCode(alert.tcgCode) && selectedTcgs.includes(alert.tcgCode) && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)), [alerts, selectedTcgs, stage, tcgFilter]);
+  const initialVisibleAlerts = useMemo(() => filtered.slice(0, INITIAL_ALERT_LIMITS[stage]), [filtered, stage]);
 
   useEffect(() => {
     const incomingStage = first(params.stage)?.toUpperCase();
@@ -113,33 +119,63 @@ export default function AlertsScreenV4() {
   }, [params.stage, params.tcg, params.view, selectedTcgs]);
 
   useEffect(() => {
+    pageRequestGeneration.current += 1;
+    setLoadingEarlier(false);
     if (!pageQuery) {
       setAlerts([]);
       setNextCursor(null);
       return;
     }
     const cached = peekCanonicalAlertPage(pageQuery);
-    setAlerts(cached.data?.alerts ?? []);
+    setAlerts(cached.data?.alerts.filter((alert) => alert.fateStage === pageQuery.stage) ?? []);
     setNextCursor(cached.data?.nextCursor ?? null);
   }, [pageQuery]);
 
-  const updateUnreadFromBasis = useCallback(async (allowNetwork = true, force = false) => {
-    if (!signedIn || !userId || !readBasisQuery) {
+  useEffect(() => {
+    readBasisRequestGeneration.current += 1;
+    if (!readBasisQuery) {
+      setAlertReadBasis([]);
       setUnreadCounts(emptyUnreadCounts());
       return;
     }
     const cached = peekCanonicalAlertReadBasis(readBasisQuery);
-    if (cached.data) setUnreadCounts(await countUnreadCanonicalAlertsByStage(userId, cached.data));
+    setAlertReadBasis(cached.data ?? []);
+    if (cached.data === undefined) setUnreadCounts(emptyUnreadCounts());
+  }, [readBasisQuery]);
+
+  const updateUnreadFromBasis = useCallback(async (allowNetwork = true, force = false) => {
+    const generation = readBasisRequestGeneration.current;
+    if (!signedIn || !userId || !readBasisQuery) {
+      setAlertReadBasis([]);
+      setUnreadCounts(emptyUnreadCounts());
+      return;
+    }
+    const cached = peekCanonicalAlertReadBasis(readBasisQuery);
+    if (cached.data && generation === readBasisRequestGeneration.current) {
+      setAlertReadBasis(cached.data);
+      const nextUnread = await countUnreadCanonicalAlertsByStage(userId, cached.data);
+      if (generation !== readBasisRequestGeneration.current) return;
+      setUnreadCounts(nextUnread);
+    }
     if (!allowNetwork || (!force && cached.data !== undefined && cached.fresh)) return;
     try {
       const basis = await queryCanonicalAlertReadBasis(readBasisQuery, { force });
-      setUnreadCounts(await countUnreadCanonicalAlertsByStage(userId, basis));
+      if (generation !== readBasisRequestGeneration.current) return;
+      setAlertReadBasis(basis);
+      const nextUnread = await countUnreadCanonicalAlertsByStage(userId, basis);
+      if (generation !== readBasisRequestGeneration.current) return;
+      setUnreadCounts(nextUnread);
     } catch {
-      if (cached.data === undefined) setUnreadCounts(emptyUnreadCounts());
+      if (generation !== readBasisRequestGeneration.current) return;
+      if (cached.data === undefined) {
+        setAlertReadBasis([]);
+        setUnreadCounts(emptyUnreadCounts());
+      }
     }
   }, [readBasisQuery, signedIn, userId]);
 
   const loadSelectedStage = useCallback(async (force = false) => {
+    const generation = ++pageRequestGeneration.current;
     if (!signedIn || !pageQuery) {
       setAlerts([]);
       setNextCursor(null);
@@ -148,7 +184,7 @@ export default function AlertsScreenV4() {
     }
     const cached = peekCanonicalAlertPage(pageQuery);
     if (cached.data) {
-      setAlerts(cached.data.alerts);
+      setAlerts(cached.data.alerts.filter((alert) => alert.fateStage === pageQuery.stage));
       setNextCursor(cached.data.nextCursor);
     }
     setLoading(cached.data === undefined);
@@ -156,13 +192,17 @@ export default function AlertsScreenV4() {
     setError(null);
     try {
       const next = await queryCanonicalAlertPage(pageQuery, { force });
-      setAlerts(next.alerts);
+      if (generation !== pageRequestGeneration.current) return;
+      setAlerts(next.alerts.filter((alert) => alert.fateStage === pageQuery.stage));
       setNextCursor(next.nextCursor);
     } catch (cause) {
+      if (generation !== pageRequestGeneration.current) return;
       setError(cause instanceof Error ? cause.message : 'Alert inbox unavailable.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (generation === pageRequestGeneration.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [pageQuery, signedIn]);
 
@@ -194,19 +234,24 @@ export default function AlertsScreenV4() {
 
   const loadEarlier = useCallback(async () => {
     if (!pageQuery || !nextCursor || stage === 'MANIFESTED' || loadingEarlier) return;
+    const generation = pageRequestGeneration.current;
+    const requestedStage = stage;
     setLoadingEarlier(true);
     setError(null);
     try {
       const page = await queryCanonicalAlertPage({ ...pageQuery, limit: EARLIER_ALERT_PAGE_SIZE, cursor: nextCursor });
+      if (generation !== pageRequestGeneration.current) return;
       setAlerts((previous) => {
-        const seen = new Set(previous.map((alert) => alert.id));
-        return [...previous, ...page.alerts.filter((alert) => !seen.has(alert.id))];
+        const scoped = previous.filter((alert) => alert.fateStage === requestedStage);
+        const seen = new Set(scoped.map((alert) => alert.id));
+        return [...scoped, ...page.alerts.filter((alert) => alert.fateStage === requestedStage && !seen.has(alert.id))];
       });
       setNextCursor(page.nextCursor);
     } catch (cause) {
+      if (generation !== pageRequestGeneration.current) return;
       setError(cause instanceof Error ? cause.message : 'Earlier alert history is temporarily unavailable.');
     } finally {
-      setLoadingEarlier(false);
+      if (generation === pageRequestGeneration.current) setLoadingEarlier(false);
     }
   }, [loadingEarlier, nextCursor, pageQuery, stage]);
 
@@ -242,7 +287,7 @@ export default function AlertsScreenV4() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tcgFilters}><Pressable onPress={()=>setTcgFilter('all')} style={[styles.tcgFilter,tcgFilter==='all'&&styles.tcgFilterActive]}><Text style={[styles.tcgFilterText,tcgFilter==='all'&&styles.tcgFilterTextActive]}>ALL</Text></Pressable>{selectedTcgs.map((code)=>{const entry=TCG_REGISTRY.find((item)=>item.code===code);if(!entry)return null;return <Pressable key={code} onPress={()=>setTcgFilter(code)} style={[styles.tcgFilter,tcgFilter===code&&{borderColor:entry.accent,backgroundColor:`${entry.accent}15`}]}><Text style={[styles.tcgFilterText,tcgFilter===code&&{color:entry.accent}]}>{entry.shortName.toUpperCase()}</Text></Pressable>;})}</ScrollView>
 
     {view === 'signals' ? <>
-      <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn && selected ? filtered.length : '—'}</Text></Pressable>; })}</View>
+      <View style={styles.tabs}>{stages.map((value) => { const item = meta[value]; const selected = value === stage; return <Pressable key={value} onPress={() => setStage(value)} style={[styles.tab, selected && { borderColor: `${item.color}77`, backgroundColor: `${item.color}0F` }]}><View style={styles.tabLabelRow}><Text style={[styles.tabLabel, selected && { color: item.color }]}>{item.label.toUpperCase()}</Text>{signedIn && unreadCounts[value] > 0 ? <View testID={`alert-unread-dot-${value}`} style={[styles.tabUnreadDot, { backgroundColor: item.color }]} /> : null}</View><Text style={styles.tabCount}>{signedIn ? counts[value] : '—'}</Text></Pressable>; })}</View>
       {!signedIn ? <SignIn /> : <>
         <LifecycleMarketFilter
           color={active.color}
@@ -253,7 +298,7 @@ export default function AlertsScreenV4() {
         />
         {marketMessage ? <View style={styles.marketError}><Ionicons name="warning-outline" size={15} color={FateDropColors.warning} /><Text style={styles.marketErrorText}>{marketMessage}</Text></View> : null}
         {error ? <View style={styles.error}><Ionicons name="warning-outline" size={18} color={FateDropColors.warning} /><Text style={styles.errorText}>{error}</Text></View> : null}
-        <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text><Text style={styles.sectionHint}>Tap an alert for a quick in-app look · ↗ opens in your browser.</Text></View><Text style={styles.sectionCount}>{filtered.length}</Text></View>
+        <View style={styles.sectionHead}><View><Text style={[styles.sectionEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} IS WATCHING</Text><Text style={styles.sectionTitle}>{active.label} alerts</Text><Text style={styles.sectionHint}>Tap an alert for a quick in-app look · ↗ opens in your browser.</Text></View><Text style={styles.sectionCount}>{counts[stage]}</Text></View>
       </>}
     </> : <Matches signedIn={signedIn} snapshot={snapshot} tcgFilter={tcgFilter} />}
   </>;

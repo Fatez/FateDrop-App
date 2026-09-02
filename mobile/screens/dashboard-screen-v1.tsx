@@ -20,12 +20,12 @@ type StatusResponse = {
 const metric = (value: number | null | undefined) => value == null ? '—' : value.toLocaleString('en-GB');
 
 export default function DashboardScreenV1() {
-  const { snapshot, signedIn, refresh, syncing } = useFateDropId();
+  const { snapshot, signedIn, refresh, refreshIfStale, syncing } = useFateDropId();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceIdentity = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -34,7 +34,7 @@ export default function DashboardScreenV1() {
           if (!response.ok) throw new Error(`Status HTTP ${response.status}`);
           return await response.json() as StatusResponse;
         }),
-        signedIn ? refresh().catch(() => null) : Promise.resolve(null),
+        signedIn ? (forceIdentity ? refresh() : refreshIfStale()).catch(() => null) : Promise.resolve(null),
       ]);
       setStatus(network);
     } catch (cause) {
@@ -43,10 +43,10 @@ export default function DashboardScreenV1() {
     } finally {
       setLoading(false);
     }
-  }, [refresh, signedIn]);
+  }, [refresh, refreshIfStale, signedIn]);
 
   useFocusEffect(useCallback(() => {
-    void load();
+    void load(false);
   }, [load]));
 
   const retailers = status?.state?.retailers ?? [];
@@ -71,7 +71,7 @@ export default function DashboardScreenV1() {
       <FateDropBackground />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading || syncing} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
+        refreshControl={<RefreshControl refreshing={loading || syncing} onRefresh={() => void load(true)} tintColor={FateDropColors.gold} />}
         showsVerticalScrollIndicator={false}
       >
         <Pressable onPress={() => router.back()} style={styles.back}>

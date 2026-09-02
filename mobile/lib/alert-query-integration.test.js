@@ -55,6 +55,27 @@ test('initial history is 20 Whisper 20 Echo 100 Manifested and 20 Vanished', () 
   assert.match(screen, /limit: INITIAL_ALERT_LIMITS\[stage\]/);
 });
 
+test('lifecycle totals come from the complete lightweight read basis, never the bounded rendered page', () => {
+  assert.match(screen, /countCanonicalAlertBasisByStage\(alertReadBasis, tcgFilter\)/);
+  assert.match(screen, /signedIn \? counts\[value\] : '—'/);
+  assert.match(screen, /styles\.sectionCount\}>\{counts\[stage\]\}/);
+  assert.doesNotMatch(screen, /styles\.tabCount\}>\{[^}]*filtered\.length/);
+  assert.doesNotMatch(screen, /styles\.sectionCount\}>\{filtered\.length\}/);
+});
+
+test('late lifecycle responses cannot place one lifecycle card inside another lifecycle screen', () => {
+  assert.match(screen, /const pageRequestGeneration = useRef\(0\)/);
+  assert.match(screen, /generation !== pageRequestGeneration\.current/);
+  assert.match(screen, /alert\.fateStage === pageQuery\.stage/);
+  assert.match(screen, /alert\.fateStage === stage/);
+});
+
+test('marking the visible page read cannot cancel an in-flight total-count basis request', () => {
+  assert.match(screen, /readBasisRequestGeneration\.current \+= 1/);
+  assert.match(screen, /const generation = readBasisRequestGeneration\.current/);
+  assert.doesNotMatch(screen, /const generation = \+\+readBasisRequestGeneration\.current/);
+});
+
 test('Whisper Echo and Vanished load earlier history in explicit 20-row cursor pages without duplicates', () => {
   assert.match(query, /EARLIER_ALERT_PAGE_SIZE = 20/);
   assert.match(screen, /View earlier Whispers/);
@@ -62,13 +83,14 @@ test('Whisper Echo and Vanished load earlier history in explicit 20-row cursor p
   assert.match(screen, /View earlier Vanished/);
   assert.match(screen, /stage === 'MANIFESTED'/);
   assert.match(screen, /limit: EARLIER_ALERT_PAGE_SIZE, cursor: nextCursor/);
-  assert.match(screen, /const seen = new Set\(previous\.map\(\(alert\) => alert\.id\)\)/);
-  assert.match(screen, /page\.alerts\.filter\(\(alert\) => !seen\.has\(alert\.id\)\)/);
+  assert.match(screen, /const scoped = previous\.filter\(\(alert\) => alert\.fateStage === requestedStage\)/);
+  assert.match(screen, /const seen = new Set\(scoped\.map\(\(alert\) => alert\.id\)\)/);
+  assert.match(screen, /page\.alerts\.filter\(\(alert\) => alert\.fateStage === requestedStage && !seen\.has\(alert\.id\)\)/);
 });
 
 test('pagination never deletes canonical history or marks earlier pages read', () => {
-  assert.match(screen, /return \[\.\.\.previous, \.\.\.page\.alerts\.filter/);
-  assert.match(screen, /alerts\.slice\(0, INITIAL_ALERT_LIMITS\[stage\]\)/);
+  assert.match(screen, /return \[\.\.\.scoped, \.\.\.page\.alerts\.filter/);
+  assert.match(screen, /filtered\.slice\(0, INITIAL_ALERT_LIMITS\[stage\]\)/);
   assert.match(screen, /markCanonicalAlertStageSeen\(userId, stage, visibleAlerts\)/);
   assert.doesNotMatch(screen, /splice\(|deleteCanonical|markCanonicalAlertStageSeen\(userId, stage, filtered\)/);
 });

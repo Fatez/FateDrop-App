@@ -14,7 +14,7 @@ export const EARLIER_ALERT_PAGE_SIZE = 20;
 
 export type CanonicalAlertCursor = { before: number; beforeId: string };
 export type CanonicalAlertPage = { alerts: CanonicalMobileAlert[]; nextCursor: CanonicalAlertCursor | null };
-export type CanonicalAlertReadBasisItem = Pick<CanonicalMobileAlert, 'id' | 'fateStage' | 'detectedAt'>;
+export type CanonicalAlertReadBasisItem = Pick<CanonicalMobileAlert, 'id' | 'tcgCode' | 'fateStage' | 'detectedAt'>;
 
 export type CanonicalAlertQuery = {
   accountId: string;
@@ -111,7 +111,7 @@ async function fetchReadBasis(): Promise<CanonicalAlertReadBasisItem[]> {
   const data = await authenticatedJson<AlertReadBasisResponse>('/api/mobile/alerts?readBasis=true&limit=100');
   if (data.success !== true || data.readBasis !== true || !Array.isArray(data.alerts)) throw new Error('Canonical alert read basis unavailable');
   const validStages = new Set<CanonicalAlertStage>(['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED']);
-  if (data.alerts.some((alert) => !alert?.id || !alert?.detectedAt || !validStages.has(alert.fateStage))) {
+  if (data.alerts.some((alert) => !alert?.id || !alert?.tcgCode || !alert?.detectedAt || !validStages.has(alert.fateStage))) {
     throw new Error('Canonical alert read basis returned invalid data');
   }
   return data.alerts;
