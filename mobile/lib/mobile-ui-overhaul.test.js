@@ -74,13 +74,16 @@ test('Alerts separates canonical lifecycle Signals from personal FateFind and Fa
   assert.match(alerts, /ECHO/);
   assert.match(alerts, /MANIFESTED/);
   assert.match(alerts, /VANISHED/);
-  assert.match(alerts, /fetchCanonicalAlerts\(100\)/);
+  assert.match(alerts, /queryCanonicalAlertPage/);
+  assert.doesNotMatch(alerts, /fetchCanonicalAlerts\(100\)/);
   assert.match(alerts, /FATEFIND → FATEMATCH/);
   assert.doesNotMatch(alerts, /fetchNetworkSignals/);
 });
 
-test('Alerts tab badge is live canonical history and never a hard-coded demo count', () => {
-  assert.match(tabLayout, /fetchCanonicalAlerts\(100\)/);
+test('Alerts tab badge uses shared canonical read basis and never a hard-coded demo count', () => {
+  assert.match(tabLayout, /queryCanonicalAlertReadBasis/);
   assert.match(tabLayout, /tabBarBadge: alertCount > 0/);
+  assert.doesNotMatch(tabLayout, /fetchCanonicalAlerts\(100\)/);
+  assert.doesNotMatch(tabLayout, /setInterval\(/);
   assert.doesNotMatch(tabLayout, /tabBarBadge:\s*3/);
 });

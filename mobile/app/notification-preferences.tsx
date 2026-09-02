@@ -23,6 +23,7 @@ import {
   type LifecycleMarketGroup,
   type LifecycleMarketStage,
 } from '@/services/notification-preference-contract';
+import { globalEchoAccessState } from '@/services/operator-access';
 
 type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'manifestedReminders' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
 
@@ -71,7 +72,8 @@ function pushStatusMessage(result: { enabled: boolean; reason?: string }) {
 }
 
 export default function NotificationPreferencesScreen() {
-  const { snapshot, signedIn, refresh, syncing } = useFateDropId();
+  const { snapshot, signedIn, refresh, syncing, loading, error } = useFateDropId();
+  const globalEchoAccess = globalEchoAccessState({ snapshot, signedIn, loading, syncing, error });
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, markets: FALLBACK_ALERT_MARKETS, sets: [] });
@@ -214,14 +216,14 @@ export default function NotificationPreferencesScreen() {
           <PreferenceRow title="Push on this device" detail="Native device alert permission and this installation's FateDrop push registration." enabled={devicePushEnabled} disabled={Boolean(working) || !deviceReadinessLoaded} onPress={() => void togglePush()} />
           {deviceWarning ? <Pressable onPress={() => void Linking.openSettings()} style={styles.deviceWarning}><Ionicons name="warning-outline" size={17} color={FateDropColors.manifested} /><View style={styles.rowCopy}><Text style={styles.deviceWarningTitle}>IPHONE DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceWarning} Tap to open Settings.</Text></View></Pressable> : null}
           {deviceRegistrationMessage ? <View style={styles.deviceRegistration}><Ionicons name="phone-portrait-outline" size={17} color={FateDropColors.cyan} /><View style={styles.rowCopy}><Text style={styles.deviceRegistrationTitle}>FATEDROP DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceRegistrationMessage}</Text></View></View> : null}
-          <Pressable onPress={() => router.push('/manual-echo-intake')} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
+          {globalEchoAccess === 'authorized' ? <Pressable onPress={() => router.push('/manual-echo-intake')} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
             <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
             <View style={styles.rowCopy}>
               <Text style={styles.localRadarTestTitle}>SEND GLOBAL ECHO ALERT</Text>
               <Text style={styles.rowDetail}>Your authorised human-intervention control: write the alert, attach an HTTPS link and notify eligible Echo subscribers.</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={FateDropColors.cyan} />
-          </Pressable>
+          </Pressable> : null}
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
           {signalRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}

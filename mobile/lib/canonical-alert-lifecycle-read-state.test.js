@@ -20,6 +20,7 @@ const alerts = [
 
 const screen = fs.readFileSync(path.join(__dirname, '..', 'screens', 'alerts-screen-v4.tsx'), 'utf8');
 const layout = fs.readFileSync(path.join(__dirname, '..', 'app', '(tabs)', '_layout.tsx'), 'utf8');
+const query = fs.readFileSync(path.join(__dirname, '..', 'services', 'canonical-alert-query.ts'), 'utf8');
 
 test('unseen canonical alerts are counted independently by lifecycle', () => {
   const counts = countUnreadCanonicalAlertsByStageFromState(alerts, createCanonicalAlertReadState('user-1'));
@@ -68,17 +69,21 @@ test('lifecycle unread dots use the shared lifecycle colour selected from FateDr
   assert.match(screen, /unreadCounts\[value\] > 0[\s\S]*backgroundColor: item\.color/);
 });
 
-test('opening the active lifecycle marks only that lifecycle seen', () => {
+test('opening the active lifecycle marks only its initial visible window seen', () => {
+  assert.match(screen, /const visibleAlerts = initialVisibleAlerts;/);
   assert.match(screen, /markCanonicalAlertStageSeen\(userId, stage, visibleAlerts\)/);
-  assert.doesNotMatch(screen, /markCanonicalAlertsSeen\(userId, next\)/);
+  assert.doesNotMatch(screen, /markCanonicalAlertsSeen\(userId/);
 });
 
-test('opening a filtered TCG lifecycle never marks hidden games as seen', () => {
-  assert.match(screen, /const visibleAlerts = filtered;/);
-  assert.doesNotMatch(screen, /const visibleAlerts = alerts\.filter/);
+test('opening a filtered TCG lifecycle never marks hidden games or paginated earlier history as seen', () => {
+  assert.match(screen, /initialVisibleAlerts = useMemo\(\(\) => alerts\.slice\(0, INITIAL_ALERT_LIMITS\[stage\]\)\.filter/);
+  assert.match(screen, /tcgFilter === 'all' \|\| alert\.tcgCode === tcgFilter/);
+  assert.doesNotMatch(screen, /markCanonicalAlertStageSeen\(userId, stage, filtered\)/);
 });
 
-test('bottom Alerts badge recalculates aggregate unread after lifecycle read-state changes', () => {
-  assert.match(layout, /changedUserId === userId\) void refreshAlertCount\(\)/);
-  assert.doesNotMatch(layout, /changedUserId === userId\) setAlertCount\(0\)/);
+test('bottom Alerts badge recalculates from the shared 100-per-stage read basis after read-state changes', () => {
+  assert.match(layout, /changedUserId === userId\) void refreshAlertCount\(false\)/);
+  assert.match(layout, /queryCanonicalAlertReadBasis/);
+  assert.match(query, /readBasis=true&limit=100/);
+  assert.doesNotMatch(layout, /fetchCanonicalAlerts\(100\)/);
 });

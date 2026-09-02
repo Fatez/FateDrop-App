@@ -1,22 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { buildManualGlobalEchoIntake } from '@/services/manual-echo-intake';
+import { globalEchoAccessState } from '@/services/operator-access';
 
 function Field({ label, value, onChangeText, placeholder, multiline = false, url = false, maxLength }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean; url?: boolean; maxLength: number }) {
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={FateDropColors.muted} autoCapitalize={url ? 'none' : 'sentences'} autoCorrect={false} keyboardType={url ? 'url' : 'default'} maxLength={maxLength} multiline={multiline} style={[styles.input, multiline && styles.multiline]} /></View>;
 }
 
 export default function ManualEchoIntakeScreen() {
+  const { snapshot, signedIn, loading, syncing, error } = useFateDropId();
+  const operatorAccess = globalEchoAccessState({ snapshot, signedIn, loading, syncing, error });
   const [headline, setHeadline] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (operatorAccess === 'denied') router.replace('/notification-preferences');
+  }, [operatorAccess]);
 
   const preview = useMemo(() => {
     try {
@@ -65,6 +73,10 @@ export default function ManualEchoIntakeScreen() {
       ],
     );
   };
+
+  if (operatorAccess !== 'authorized') {
+    return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground/></SafeAreaView>;
+  }
 
   return <SafeAreaView style={styles.safe} edges={['top']}><FateDropBackground/><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Fate Network</Text></Pressable>

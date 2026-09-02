@@ -13,17 +13,20 @@ import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
 import { PushRegistrationBoundary } from '@/components/push-registration-boundary';
 import { LocalRadarOperatorNotice, type LocalRadarOperatorNoticeData } from '@/components/local-radar-operator-notice';
 import { FateDropColors } from '@/constants/theme';
-import { FateDropIdProvider } from '@/contexts/fatedrop-id-context';
+import { FateDropIdProvider, useFateDropId } from '@/contexts/fatedrop-id-context';
 import { LocalRadarNoticeProvider, useLocalRadarNotice } from '@/contexts/local-radar-notice-context';
 import { TcgCapabilitiesProvider } from '@/contexts/tcg-capabilities-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
+import { invalidateCanonicalAlertQueries } from '@/services/canonical-alert-query';
+import type { CanonicalAlertStage } from '@/services/canonical-alerts';
 
 export const unstable_settings = { anchor: '(tabs)' };
 
 function notificationText(value: unknown) { return typeof value === 'string' ? value.trim() : ''; }
 function notificationCount(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0; }
 function notificationBoolean(value: unknown) { return value === true || value === 'true' || value === 1 || value === '1'; }
+function canonicalAlertStage(value: unknown): CanonicalAlertStage | null { const stage = notificationText(value).toUpperCase(); return stage === 'WHISPER' || stage === 'ECHO' || stage === 'MANIFESTED' || stage === 'VANISHED' ? stage : null; }
 
 function operatorNoticeFromData(data: Record<string, unknown>): LocalRadarOperatorNoticeData {
   const stage = data.stage === 'WHISPER' || data.stage === 'ECHO' ? data.stage : '';
@@ -61,7 +64,9 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 function FateDropShell() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const { snapshot } = useFateDropId();
   const { notice, collapsed, showNotice, collapseNotice, expandNotice, dismissNotice } = useLocalRadarNotice();
+  const userId = snapshot?.user?.id ?? null;
 
   useEffect(() => {
     let active = true;
@@ -76,6 +81,15 @@ function FateDropShell() {
         const handleLocalRadarData = (data: Record<string, unknown>, navigateToRadar: boolean) => {
           showNotice(operatorNoticeFromData(data));
           if (navigateToRadar) router.push('/local-radar');
+        };
+
+        const invalidateAlertData = (data: Record<string, unknown>) => {
+          if (!userId || data?.route !== 'alerts') return;
+          invalidateCanonicalAlertQueries({
+            accountId: userId,
+            stage: canonicalAlertStage(data.stage),
+            tcgCode: notificationText(data.tcgCode) || null,
+          });
         };
 
         const handleResponse = (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
@@ -94,6 +108,7 @@ function FateDropShell() {
             return;
           }
           if (data?.route === 'alerts') {
+            invalidateAlertData(data);
             router.push('/alerts');
             return;
           }
@@ -104,6 +119,7 @@ function FateDropShell() {
         receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
           const data = notification.request.content.data as Record<string, unknown>;
           if (data?.route === 'local-radar') handleLocalRadarData(data, false);
+          if (data?.route === 'alerts') invalidateAlertData(data);
         });
 
         responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => { handleResponse(response); });
@@ -126,7 +142,7 @@ function FateDropShell() {
       responseSubscription?.remove();
       receivedSubscription?.remove();
     };
-  }, [showNotice]);
+  }, [showNotice, userId]);
 
   return <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
     <Stack>
