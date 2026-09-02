@@ -7,14 +7,16 @@ const notifications = fs.readFileSync(path.join(__dirname, 'notifications.ts'), 
 const preferences = fs.readFileSync(path.join(__dirname, '../app/notification-preferences.tsx'), 'utf8');
 const localRadarHelper = notifications.slice(notifications.indexOf('export async function sendLocalRadarPresentationTest'));
 
-test('Notifications exposes one Local Radar QA control and no retired Vanished test control', () => {
-  assert.match(preferences, /TEST LOCAL RADAR ALERT/);
-  assert.match(preferences, /sendLocalRadarPresentationTest/);
+test('Notifications exposes the real Manual Echo control and no visible Local Radar QA alert', () => {
+  assert.match(preferences, /MANUAL ECHO CONTROL/);
+  assert.match(preferences, /router\.push\('\/manual-echo-intake'\)/);
+  assert.doesNotMatch(preferences, /TEST LOCAL RADAR ALERT/);
+  assert.doesNotMatch(preferences, /sendLocalRadarPresentationTest/);
   assert.doesNotMatch(preferences, /TEST VANISHED ALERT/);
   assert.doesNotMatch(preferences, /sendVanishedPresentationTest/);
 });
 
-test('Local Radar presentation test uses the production notification route shape without stock persistence', () => {
+test('Local Radar presentation test helper remains isolated from stock persistence', () => {
   assert.match(localRadarHelper, /export async function sendLocalRadarPresentationTest/);
   assert.match(localRadarHelper, /route: 'local-radar'/);
   assert.match(localRadarHelper, /stage: 'ECHO'/);
