@@ -1,0 +1,57 @@
+name: Build restored FateDrop for TestFlight
+
+on:
+  push:
+    branches:
+      - ops/testflight-build-2026-09-02
+    paths:
+      - '.github/workflows/testflight-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI: '1'
+    steps:
+      - name: Require Expo authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${EXPO_TOKEN:-}" || { echo "Missing EXPO_TOKEN repository secret"; exit 2; }
+
+      - name: Checkout exact restored App checkpoint
+        uses: actions/checkout@v4
+        with:
+          ref: 64354e3228bfeee22085d6d3708b04558f03f3fc
+          fetch-depth: 0
+
+      - name: Prove exact App checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "64354e3228bfeee22085d6d3708b04558f03f3fc"
+          test -z "$(git status --porcelain)"
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install locked mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Verify Expo account
+        working-directory: mobile
+        run: npx --yes eas-cli@latest whoami
+
+      - name: Build iOS production and submit to TestFlight
+        working-directory: mobile
+        run: npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --auto-submit
