@@ -138,7 +138,7 @@ export async function sendLocalRadarPresentationTest() {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Big Fate Signal · Echo',
-      body: 'Official allocation intelligence names 2 participating branches inside your test radius.',
+      body: 'The Entertainer expects Pokémon TCG 30th Celebration stock at participating stores on 16 September.',
       sound: 'default',
       data: {
         route: 'local-radar',
@@ -152,10 +152,10 @@ export async function sendLocalRadarPresentationTest() {
         retailerName: 'The Entertainer',
         retailerUrl: 'https://www.thetoyshop.com/pokemon-at-the-entertainer',
         ctaLabel: 'CHECK YOUR LOCAL ENTERTAINER',
-        productTitle: '[TEST] Pokémon TCG 30th Celebration',
+        productTitle: 'Pokémon TCG 30th Celebration',
         expectedFrom,
         expectedTo,
-        expectedLabel: 'TEST · Expected tomorrow',
+        expectedLabel: 'Expected 16 September',
         branchCount: 2,
         evidenceObservedAt: new Date(now).toISOString(),
         intelligenceSurfaceId: 'entertainer-pokemon-drop-hub',
