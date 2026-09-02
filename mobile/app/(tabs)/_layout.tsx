@@ -1,12 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { countUnreadCanonicalAlerts, fetchCanonicalAlerts, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
+import { countUnreadCanonicalAlerts, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
+import {
+  peekCanonicalAlertReadBasis,
+  queryCanonicalAlertReadBasis,
+  revalidateStaleCanonicalAlertQueries,
+  subscribeCanonicalAlertQueryCache,
+  type CanonicalAlertReadBasisQuery,
+} from '@/services/canonical-alert-query';
 
 const NAV_GOLD = FateDropColors.goldBright;
 
@@ -15,41 +22,55 @@ export default function TabLayout() {
   const [alertCount, setAlertCount] = useState(0);
   const [toolboxOpen, setToolboxOpen] = useState(false);
   const userId = snapshot?.user?.id ?? null;
+  const selectedTcgCodes = useMemo(() => snapshot?.tcgPreferences?.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences?.selectedTcgCodes]);
+  const alertFilterKey = useMemo(() => JSON.stringify({
+    notificationUpdatedAt: snapshot?.notificationPreferences?.updatedAt ?? 0,
+    tcgAlertPreferences: snapshot?.tcgPreferences?.alertPreferences ?? null,
+  }), [snapshot?.notificationPreferences?.updatedAt, snapshot?.tcgPreferences?.alertPreferences]);
+  const readBasisQuery = useMemo<CanonicalAlertReadBasisQuery | null>(() => userId ? ({
+    accountId: userId,
+    selectedTcgCodes,
+    filterKey: alertFilterKey,
+  }) : null, [alertFilterKey, selectedTcgCodes, userId]);
 
-  const refreshAlertCount = useCallback(async () => {
-    if (!signedIn || !userId) {
+  const refreshAlertCount = useCallback(async (allowNetwork = true) => {
+    if (!signedIn || !userId || !readBasisQuery) {
       setAlertCount(0);
       return;
     }
+    const cached = peekCanonicalAlertReadBasis(readBasisQuery);
+    if (cached.data) setAlertCount(await countUnreadCanonicalAlerts(userId, cached.data));
+    if (!allowNetwork || (cached.data !== undefined && cached.fresh)) return;
     try {
-      const alerts = await fetchCanonicalAlerts(100);
-      setAlertCount(await countUnreadCanonicalAlerts(userId, alerts));
+      const basis = await queryCanonicalAlertReadBasis(readBasisQuery);
+      setAlertCount(await countUnreadCanonicalAlerts(userId, basis));
     } catch {
-      setAlertCount(0);
+      if (cached.data === undefined) setAlertCount(0);
     }
-  }, [signedIn, userId]);
+  }, [readBasisQuery, signedIn, userId]);
 
   useEffect(() => {
-    if (!signedIn || !userId) {
+    if (!signedIn || !userId || !readBasisQuery) {
       setAlertCount(0);
       return;
     }
 
-    void refreshAlertCount();
-    const interval = setInterval(() => { void refreshAlertCount(); }, 60_000);
+    void refreshAlertCount(true);
     const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refreshAlertCount();
+      if (state !== 'active') return;
+      void revalidateStaleCanonicalAlertQueries(userId).then(() => refreshAlertCount(false));
     });
     const unsubscribeReadState = subscribeCanonicalAlertReadState((changedUserId) => {
-      if (changedUserId === userId) void refreshAlertCount();
+      if (changedUserId === userId) void refreshAlertCount(false);
     });
+    const unsubscribeCache = subscribeCanonicalAlertQueryCache(() => { void refreshAlertCount(false); });
 
     return () => {
-      clearInterval(interval);
       appStateSubscription.remove();
       unsubscribeReadState();
+      unsubscribeCache();
     };
-  }, [refreshAlertCount, signedIn, userId]);
+  }, [readBasisQuery, refreshAlertCount, signedIn, userId]);
 
   const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies' | '/(tabs)/search' | '/(tabs)/watchlist') => {
     setToolboxOpen(false);

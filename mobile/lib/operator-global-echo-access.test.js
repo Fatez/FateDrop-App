@@ -12,7 +12,7 @@ const tools = fs.readFileSync(path.join(__dirname, '../app/tools.tsx'), 'utf8');
 test('operator capability is consumed from the authoritative identity snapshot and fails closed', () => {
   assert.match(identity, /operatorCapabilities:FateDropOperatorCapabilities/);
   assert.match(identity, /canSendGlobalEcho:accessAllowed&&input\?\.canSendGlobalEcho===true/);
-  assert.match(identity, /snapshot\?\.operatorCapabilities\?\.canSendGlobalEcho===true/);
+  assert.match(identity, /snapshot\?\.accessAllowed&&snapshot\.betaAccess\?\.approved&&snapshot\.operatorCapabilities\?\.canSendGlobalEcho===true/);
   assert.doesNotMatch(access, /email|fateId|AsyncStorage|SecureStore/i);
 });
 

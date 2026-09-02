@@ -11,6 +11,7 @@ import {
   type FateCapability,
   type FateDropSyncSnapshot,
 } from '@/services/fatedrop-id';
+import { clearCanonicalAlertQueryCache } from '@/services/canonical-alert-query';
 
 type FateDropIdContextValue = {
   snapshot: FateDropSyncSnapshot | null;
@@ -41,7 +42,10 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
       setError(null);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'FateDrop ID could not sync.';
-      if (/sign in|expired/i.test(message)) setSnapshot(null);
+      if (/sign in|expired/i.test(message)) {
+        clearCanonicalAlertQueryCache();
+        setSnapshot(null);
+      }
       setError(message);
     } finally {
       setSyncing(false);
@@ -62,6 +66,7 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
   }, [refresh]);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    clearCanonicalAlertQueryCache();
     setSyncing(true);
     try {
       const next = await signInFateDropId(email, password);
@@ -77,12 +82,14 @@ export function FateDropIdProvider({ children }: PropsWithChildren) {
   }, [refresh]);
 
   const forgetLocalSession = useCallback(async () => {
+    clearCanonicalAlertQueryCache();
     await clearStoredSession();
     setSnapshot(null);
     setError(null);
   }, []);
 
   const signOut = useCallback(async () => {
+    clearCanonicalAlertQueryCache();
     setSyncing(true);
     try {
       await signOutFateDropId();
