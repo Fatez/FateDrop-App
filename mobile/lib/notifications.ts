@@ -137,7 +137,7 @@ export async function sendLocalRadarPresentationTest() {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: '[TEST] Big Fate Signal · Echo',
+      title: 'Big Fate Signal · Echo',
       body: 'Official allocation intelligence names 2 participating branches inside your test radius.',
       sound: 'default',
       data: {
