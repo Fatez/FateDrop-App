@@ -8,7 +8,7 @@ import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
 import { FateDropColors } from '@/constants/theme';
 import { TCG_REGISTRY } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
-import { registerForStockAlerts, sendLocalRadarPresentationTest, stockAlertDeviceReadiness, unregisterStockAlerts } from '@/lib/notifications';
+import { registerForStockAlerts, stockAlertDeviceReadiness, unregisterStockAlerts } from '@/lib/notifications';
 import {
   FALLBACK_ALERT_LANGUAGES,
   FALLBACK_ALERT_MARKETS,
@@ -174,22 +174,6 @@ export default function NotificationPreferencesScreen() {
     }
   };
 
-  const testLocalRadar = async () => {
-    if (working) return;
-    setWorking('test-local-radar');
-    setMessage(null);
-    try {
-      const result = await sendLocalRadarPresentationTest();
-      if (result.sent) setMessage('Big Fate Signal TEST alert sent. Tap the banner to inspect the Echo card, retailer link and Local Radar handoff.');
-      else if (result.reason === 'permission-denied') setMessage('Local Radar test could not run because iOS notification permission is off.');
-      else setMessage('Local Radar test requires a physical device.');
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'Local Radar test could not be sent.');
-    } finally {
-      setWorking(null);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
@@ -208,12 +192,13 @@ export default function NotificationPreferencesScreen() {
           <Text style={styles.sectionLabel}>DEVICE</Text>
           <PreferenceRow title="Push on this device" detail="Native device alert permission and FateDrop push registration." enabled={Boolean(preferences.push)} disabled={Boolean(working)} onPress={() => void togglePush()} />
           {deviceWarning ? <Pressable onPress={() => void Linking.openSettings()} style={styles.deviceWarning}><Ionicons name="warning-outline" size={17} color={FateDropColors.manifested} /><View style={styles.rowCopy}><Text style={styles.deviceWarningTitle}>IPHONE DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceWarning} Tap to open Settings.</Text></View></Pressable> : null}
-          <Pressable disabled={Boolean(working)} onPress={() => void testLocalRadar()} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push('/manual-echo-intake')} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
             <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
             <View style={styles.rowCopy}>
-              <Text style={styles.localRadarTestTitle}>{working === 'test-local-radar' ? 'Sending Local Radar test…' : 'TEST LOCAL RADAR ALERT'}</Text>
-              <Text style={styles.rowDetail}>QA only · fires the real Big Fate Signal route and Echo card without creating stock data or claiming availability.</Text>
+              <Text style={styles.localRadarTestTitle}>MANUAL ECHO CONTROL</Text>
+              <Text style={styles.rowDetail}>Open the existing authorised operator intake for real Echo intelligence. Cloud remains the authority; this control never creates Manifested stock.</Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color={FateDropColors.cyan} />
           </Pressable>
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
