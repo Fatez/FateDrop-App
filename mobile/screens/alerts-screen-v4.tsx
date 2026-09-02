@@ -209,11 +209,13 @@ function MarketPill({ color, disabled, enabled, onPress, title }: { color: strin
 }
 
 function AlertRow({ alert }: { alert: CanonicalMobileAlert }) {
+  if (alert.signalKind === 'operator_readiness') return <OperatorEchoRow alert={alert} />;
+
   const item = meta[alert.fateStage];
   const reference = referenceLine(alert);
   const confidence = confidenceLabel(alert.confidence);
   const truePrice = alert.product?.deliveredPricePence == null ? null : money(alert.product.deliveredPricePence);
-  const retailerId = alert.retailer || 'unknown-retailer';
+  const retailerId = alert.retailerId || alert.retailer || 'unknown-retailer';
   const openInApp = () => {
     if (!alert.productUrl) return;
     void openTrackedRetailerLink({ destinationUrl: alert.productUrl, retailerId, placement: 'lifecycle-alert' }).catch(() => undefined);
@@ -240,6 +242,29 @@ function AlertRow({ alert }: { alert: CanonicalMobileAlert }) {
     <Pressable accessibilityLabel="Open retailer in external browser" onPress={openExternal} style={styles.externalButton}>
       <Ionicons name="open-outline" size={17} color={FateDropColors.goldBright} />
     </Pressable>
+  </View>;
+}
+
+function OperatorEchoRow({ alert }: { alert: CanonicalMobileAlert }) {
+  const operatorMessage = alert.operatorIntelligence?.expectedLabel || alert.message;
+  const retailerId = alert.retailerId || 'fatedrop-intelligence';
+  const openLink = () => {
+    if (!alert.productUrl) return;
+    void openTrackedRetailerLink({ destinationUrl: alert.productUrl, retailerId, placement: 'global-operator-echo' }).catch(() => undefined);
+  };
+
+  return <View style={styles.operatorEcho}>
+    <View style={styles.operatorEchoTop}>
+      <View style={styles.operatorEchoIcon}><Ionicons name="radio-outline" size={18} color={FateDropColors.cyan} /></View>
+      <View style={styles.flex}>
+        <Text style={styles.operatorEchoEyebrow}>BIG FATE SIGNAL · ECHO</Text>
+        <Text style={styles.operatorEchoTitle}>{alert.product?.title || alert.title}</Text>
+      </View>
+    </View>
+    <Text style={styles.operatorEchoMessage}>{operatorMessage}</Text>
+    <View style={styles.operatorEchoTruth}><Text style={styles.operatorEchoTruthText}>READINESS · NOT CONFIRMED STOCK</Text></View>
+    <Text style={styles.operatorEchoMeta}>{alert.retailer || 'FateDrop Intelligence'} · {ago(alert.detectedAt)}</Text>
+    {alert.productUrl ? <Pressable accessibilityRole="link" accessibilityLabel="Check the linked source" onPress={openLink} style={styles.operatorEchoButton}><Text style={styles.operatorEchoButtonText}>CHECK LINK</Text><Ionicons name="open-outline" size={15} color={FateDropColors.background} /></Pressable> : null}
   </View>;
 }
 
@@ -272,6 +297,7 @@ const styles = StyleSheet.create({
   marketFilter: { marginHorizontal: 18, marginTop: 10, padding: 13, borderRadius: 16, borderWidth: 1, backgroundColor: FateDropColors.surface }, marketFilterHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, marketFilterEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: .9 }, marketFilterHint: { color: FateDropColors.muted, fontSize: 9, lineHeight: 13, marginTop: 3 }, marketFilterStatus: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 1 }, marketPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 11 }, marketPill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card }, marketPillDisabled: { opacity: .55 }, marketPillDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1 }, marketPillText: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '800' }, marketError: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 18, marginTop: 7 }, marketErrorText: { color: FateDropColors.warning, flex: 1, fontSize: 9, lineHeight: 13 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginHorizontal: 18, marginTop: 20, marginBottom: 8 }, sectionEyebrow: { color: FateDropColors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, sectionTitle: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900', marginTop: 2 }, sectionHint: { color: FateDropColors.muted, fontSize: 9, lineHeight: 13, marginTop: 4 }, sectionCount: { color: FateDropColors.ivory, fontSize: 19, fontWeight: '900' },
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 24, marginBottom: 7, padding: 7, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, alertBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 6 }, alertDot: { width: 8, height: 8, borderRadius: 4 }, alertTop: { flexDirection: 'row', justifyContent: 'space-between' }, alertStage: { fontSize: 8, fontWeight: '900' }, alertTime: { color: FateDropColors.muted, fontSize: 9 }, alertTitleRow:{flexDirection:'row',alignItems:'center',gap:6,marginTop:3},alertTitle: { flex:1,color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },tcgBadge:{paddingHorizontal:6,paddingVertical:3,borderRadius:999,borderWidth:1,borderColor:FateDropColors.border,color:FateDropColors.goldBright,fontSize:7,fontWeight:'900'}, alertFacets: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '800', marginTop: 3 }, alertValue: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800', marginTop: 5 }, alertReference: { color: FateDropColors.goldBright, fontSize: 9, marginTop: 3 }, alertMeta: { color: FateDropColors.secondary, fontSize: 9, marginTop: 4 }, alertTruePrice: { color: FateDropColors.manifested, fontSize: 9, fontWeight: '800', marginTop: 3 }, externalButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}45`, backgroundColor: FateDropColors.cardElevated },
+  operatorEcho:{marginHorizontal:18,marginBottom:9,padding:16,borderRadius:18,borderWidth:1,borderColor:`${FateDropColors.cyan}55`,backgroundColor:'rgba(7,12,20,.96)'},operatorEchoTop:{flexDirection:'row',alignItems:'center',gap:10},operatorEchoIcon:{width:38,height:38,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:`${FateDropColors.cyan}14`},operatorEchoEyebrow:{color:FateDropColors.cyan,fontSize:8,fontWeight:'900',letterSpacing:1},operatorEchoTitle:{color:FateDropColors.ivory,fontSize:15,fontWeight:'900',lineHeight:20,marginTop:3},operatorEchoMessage:{color:FateDropColors.secondary,fontSize:11,lineHeight:17,marginTop:12},operatorEchoTruth:{alignSelf:'flex-start',marginTop:10,paddingHorizontal:9,paddingVertical:5,borderRadius:999,borderWidth:1,borderColor:`${FateDropColors.echo}48`,backgroundColor:`${FateDropColors.echo}18`},operatorEchoTruthText:{color:FateDropColors.echo,fontSize:8,fontWeight:'900',letterSpacing:.7},operatorEchoMeta:{color:FateDropColors.muted,fontSize:8,marginTop:9},operatorEchoButton:{minHeight:42,marginTop:12,borderRadius:12,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7,backgroundColor:FateDropColors.echo},operatorEchoButtonText:{color:FateDropColors.background,fontSize:9,fontWeight:'900',letterSpacing:.6},
   error: { flexDirection: 'row', gap: 9, margin: 18, padding: 13, borderRadius: 15, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, errorText: { color: FateDropColors.secondary, flex: 1, fontSize: 11 },
   empty: { marginHorizontal: 18, marginTop: 10, alignItems: 'center', padding: 22, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface }, emptyTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 6 }, emptyCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 4 }, signIn: { marginTop: 12, paddingHorizontal: 17, paddingVertical: 10, borderRadius: 11, backgroundColor: FateDropColors.violet }, signInText: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '900' },
   matchIntro: { margin: 18, padding: 17, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: FateDropColors.surface }, matchEyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, matchTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 22, fontWeight: '700', marginTop: 4 }, matchCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 5 }, newFind: { alignSelf: 'flex-start', flexDirection: 'row', gap: 5, alignItems: 'center', marginTop: 12, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 11, backgroundColor: FateDropColors.goldBright }, newFindText: { color: FateDropColors.ink, fontSize: 10, fontWeight: '900' },

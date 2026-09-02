@@ -17,6 +17,13 @@ export type ManualEchoInput = {
   note: string;
 };
 
+export type ManualGlobalEchoInput = {
+  headline: string;
+  message: string;
+  sourceUrl: string;
+  expiresAt?: string;
+};
+
 function clean(value: string, max: number) {
   return value.trim().slice(0, max);
 }
@@ -55,6 +62,7 @@ export function buildManualEchoIntake(input: ManualEchoInput, now = Date.now()) 
   const body = {
     schemaVersion: 1,
     testOnly: false,
+    tcgCode: 'pokemon',
     retailerId,
     retailerName,
     rawProductTitle,
@@ -83,4 +91,28 @@ export function buildManualEchoIntake(input: ManualEchoInput, now = Date.now()) 
     physicalEvidenceState: physicalEvidenceState || null,
     shareText: `${issueTitle}\n\n${issueBody}`,
   };
+}
+
+export function buildManualGlobalEchoIntake(input: ManualGlobalEchoInput, now = Date.now()) {
+  const headline = clean(input.headline, 220);
+  const message = clean(input.message, 120).replace(/\.+$/, '');
+  const sourceUrl = input.sourceUrl.trim();
+
+  if (!headline) throw new Error('Add the alert headline.');
+  if (!message) throw new Error('Add the short alert message.');
+  if (!sourceUrl) throw new Error('Add the HTTPS link customers should check.');
+
+  return buildManualEchoIntake({
+    scope: 'online_retailer_readiness',
+    sourceType: 'operator_manual',
+    retailerId: 'fatedrop-intelligence',
+    retailerName: 'FateDrop Intelligence',
+    signalTitle: headline,
+    sourceUrl,
+    timingLabel: message,
+    expiresAt: input.expiresAt || new Date(now + 6 * 60 * 60 * 1000).toISOString(),
+    targetBranches: '',
+    evidenceBasis: 'Authorised FateDrop operator supplied time-sensitive collector intelligence for global Echo delivery.',
+    note: 'Global operator Echo only. Follow the linked source and do not treat this message as confirmed stock.',
+  }, now);
 }

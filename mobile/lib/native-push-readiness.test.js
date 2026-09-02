@@ -9,6 +9,7 @@ const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
 const notifications = fs.readFileSync(path.join(root, 'lib/notifications.ts'), 'utf8');
 const rootLayout = fs.readFileSync(path.join(root, 'app/_layout.tsx'), 'utf8');
 const pushBoundary = fs.readFileSync(path.join(root, 'components/push-registration-boundary.tsx'), 'utf8');
+const notificationPreferences = fs.readFileSync(path.join(root, 'app/notification-preferences.tsx'), 'utf8');
 
 test('FateDrop has stable native application identifiers', () => {
   assert.equal(app.expo.name, 'FateDrop');
@@ -53,4 +54,28 @@ test('signed-in devices force self-heal on boot, app activation and token roll',
   assert.match(pushBoundary, /refreshStockAlertRegistration\(\{ force \}\)/);
   assert.match(pushBoundary, /refresh\(true\);\s*const appStateSubscription/);
   assert.match(pushBoundary, /if \(state === 'active'\) refresh\(true\);/);
+});
+
+test('iOS push permission follows the native authorization status', () => {
+  assert.match(notifications, /permission\.ios\?\.status/);
+  assert.match(notifications, /IosAuthorizationStatus\.AUTHORIZED/);
+  assert.match(notifications, /IosAuthorizationStatus\.PROVISIONAL/);
+  assert.match(notifications, /IosAuthorizationStatus\.EPHEMERAL/);
+  assert.match(notifications, /notificationPermissionGranted\(permission\)/);
+});
+
+test('the device toggle reflects local registration as well as account preference', () => {
+  assert.match(notifications, /registeredOnDevice: Boolean\(storedToken\)/);
+  assert.match(notificationPreferences, /const devicePushEnabled = Boolean\(preferences\?\.push && registeredOnDevice\)/);
+  assert.match(notificationPreferences, /devicePushEnabled \? await unregisterStockAlerts\(\) : await registerForStockAlerts\(\)/);
+  assert.doesNotMatch(notificationPreferences, /preferences\.push \? await unregisterStockAlerts\(\)/);
+  assert.match(notificationPreferences, /AppState\.addEventListener\('change'/);
+});
+
+test('disabling push fails closed before removing this installation token', () => {
+  const preferenceWrite = notifications.indexOf("updateRemoteNotificationPreferences({ push: false })");
+  const localRemoval = notifications.indexOf('AsyncStorage.removeItem(PUSH_TOKEN_KEY)', preferenceWrite);
+  assert.ok(preferenceWrite > 0);
+  assert.ok(localRemoval > preferenceWrite);
+  assert.doesNotMatch(notifications, /updateRemoteNotificationPreferences\(\{ push: false \}\)\.catch/);
 });
