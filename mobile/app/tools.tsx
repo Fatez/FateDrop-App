@@ -6,8 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { globalEchoAccessState } from '@/services/operator-access';
 
 export default function ToolsScreen() {
+  const { snapshot, signedIn, loading, syncing, error } = useFateDropId();
+  const globalEchoAccess = globalEchoAccessState({ snapshot, signedIn, loading, syncing, error });
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
@@ -22,7 +26,7 @@ export default function ToolsScreen() {
         <Tool icon="notifications-outline" title="FateMatch" detail="Monitor the products and conditions you care about." onPress={() => router.push('/fate-match')} />
         <Tool icon="swap-horizontal-outline" title="Fate Trader" detail="Manage structured HAVE / WANT trading intentions and compatible trade opportunities." onPress={() => router.push('/fate-trader')} />
         <Tool icon="navigate-outline" title="Local Radar" detail="Explore nearby physical-store intelligence and collector events." onPress={() => router.push('/local-radar')} />
-        <Tool icon="radio-outline" title="Send Global Echo" detail="Authorised operator broadcast for urgent human intelligence. Add your text and link; never creates Manifested." onPress={() => router.push('/manual-echo-intake')} />
+        {globalEchoAccess === 'authorized' ? <Tool icon="radio-outline" title="Send Global Echo" detail="Authorised operator broadcast for urgent human intelligence. Add your text and link; never creates Manifested." onPress={() => router.push('/manual-echo-intake')} /> : null}
         <Tool icon="storefront-outline" title="Stores" detail="Discover the retailer network, including major retailers and independents." onPress={() => router.push('/(tabs)/indies')} />
         <Tool icon="search-outline" title="Search live database" detail="Browse the current network without starting monitoring." onPress={() => router.push('/(tabs)/search')} />
         <Tool icon="bookmark-outline" title="Wishlist" detail="Remember products without turning monitoring on." onPress={() => router.push('/(tabs)/watchlist')} />
