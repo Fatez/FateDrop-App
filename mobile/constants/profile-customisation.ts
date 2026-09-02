@@ -36,6 +36,28 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   fatedrop14: require('../assets/images/fdwallpaper14.png'),
 };
 
+export const profileWallpaperThumbnailSources: Record<ProfileWallpaperId, number> = {
+  koruHome: require('../assets/images/wallpaper-thumbnails/koru-home.webp'),
+  default: require('../assets/images/wallpaper-thumbnails/default.webp'),
+  oru: require('../assets/images/wallpaper-thumbnails/oru.webp'),
+  fenn: require('../assets/images/wallpaper-thumbnails/fenn.webp'),
+  nyxen: require('../assets/images/wallpaper-thumbnails/nyxen.webp'),
+  fatedrop1: require('../assets/images/wallpaper-thumbnails/fatedrop-1.webp'),
+  fatedrop2: require('../assets/images/wallpaper-thumbnails/fatedrop-2.webp'),
+  fatedrop3: require('../assets/images/wallpaper-thumbnails/fatedrop-3.webp'),
+  fatedrop4: require('../assets/images/wallpaper-thumbnails/fatedrop-4.webp'),
+  fatedrop5: require('../assets/images/wallpaper-thumbnails/fatedrop-5.webp'),
+  fatedrop6: require('../assets/images/wallpaper-thumbnails/fatedrop-6.webp'),
+  fatedrop7: require('../assets/images/wallpaper-thumbnails/fatedrop-7.webp'),
+  fatedrop8: require('../assets/images/wallpaper-thumbnails/fatedrop-8.webp'),
+  fatedrop9: require('../assets/images/wallpaper-thumbnails/fatedrop-9.webp'),
+  fatedrop10: require('../assets/images/wallpaper-thumbnails/fatedrop-10.webp'),
+  fatedrop11: require('../assets/images/wallpaper-thumbnails/fatedrop-11.webp'),
+  fatedrop12: require('../assets/images/wallpaper-thumbnails/fatedrop-12.webp'),
+  fatedrop13: require('../assets/images/wallpaper-thumbnails/fatedrop-13.webp'),
+  fatedrop14: require('../assets/images/wallpaper-thumbnails/fatedrop-14.webp'),
+};
+
 export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; accent: string }> = {
   koruHome: { name: 'Koru', accent: '#7C6EFF' },
   default: { name: 'Default', accent: '#D6BA73' },

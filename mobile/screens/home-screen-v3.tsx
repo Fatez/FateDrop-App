@@ -27,7 +27,7 @@ const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished:
 
 export default function HomeScreenV3() {
   const insets = useSafeAreaInsets();
-  const { snapshot, signedIn, refresh } = useFateDropId();
+  const { snapshot, signedIn, refreshIfStale } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
   const [pulseError, setPulseError] = useState(false);
@@ -40,7 +40,7 @@ export default function HomeScreenV3() {
     const [nextPulse, nextLive, , customisation] = await Promise.all([
       fetchNetworkPulse(7).catch(() => null),
       signedIn ? fetchCanonicalLiveOpportunities(20).catch(() => null) : Promise.resolve([]),
-      signedIn ? refresh().catch(() => null) : Promise.resolve(null),
+      signedIn ? refreshIfStale().catch(() => null) : Promise.resolve(null),
       loadProfileCustomisation(identity).catch(() => null),
     ]);
     if (nextPulse) {
@@ -57,7 +57,7 @@ export default function HomeScreenV3() {
       setLiveError(signedIn);
     }
     if (customisation) setHomeWallpaperId(customisation.wallpaperId);
-  }, [identity, refresh, signedIn]);
+  }, [identity, refreshIfStale, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 

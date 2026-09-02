@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
@@ -81,58 +81,57 @@ export default function ProfileCustomisationScreen() {
   }
 
   const changed = draft.avatarId !== saved.avatarId || draft.wallpaperId !== saved.wallpaperId;
+  const wallpaperData = tab === 'wallpapers' ? PROFILE_WALLPAPER_IDS : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <FateDropHeader title="Profile Customisation" rightAction={<MembershipPill premium={tier !== 'FREE'} />} />
+      <FlatList
+        data={wallpaperData}
+        keyExtractor={(id) => id}
+        numColumns={2}
+        renderItem={({ item: id }) => (
+          <View style={styles.wallpaperCell}>
+            <WallpaperChoice
+              id={id}
+              selected={draft.wallpaperId === id}
+              onPress={() => setDraft((current) => ({ ...current, wallpaperId: id }))}
+            />
+          </View>
+        )}
+        ListHeaderComponent={<>
+          <FateDropHeader title="Profile Customisation" rightAction={<MembershipPill premium={tier !== 'FREE'} />} />
 
-        <Text style={styles.title}>Profile Customisation</Text>
+          <Text style={styles.title}>Profile Customisation</Text>
 
-        <ProfilePreview draft={draft} />
+          <ProfilePreview draft={draft} />
 
-        <View style={styles.tabs}>
-          <TabButton icon="person" label="Avatar" selected={tab === 'avatar'} onPress={() => setTab('avatar')} />
-          <TabButton icon="image" label="Wallpapers" selected={tab === 'wallpapers'} onPress={() => setTab('wallpapers')} />
-          <TabButton icon="paw" label="Companions" selected={tab === 'companions'} onPress={() => setTab('companions')} />
-        </View>
+          <View style={styles.tabs}>
+            <TabButton icon="person" label="Avatar" selected={tab === 'avatar'} onPress={() => setTab('avatar')} />
+            <TabButton icon="image" label="Wallpapers" selected={tab === 'wallpapers'} onPress={() => setTab('wallpapers')} />
+            <TabButton icon="paw" label="Companions" selected={tab === 'companions'} onPress={() => setTab('companions')} />
+          </View>
 
-        {tab === 'avatar' ? (
-          <>
-            <SectionLabel label="CHOOSE AVATAR" />
-            <View style={styles.avatarGrid}>
-              {PROFILE_AVATAR_IDS.map((id) => (
-                <AvatarChoice
-                  key={id}
-                  id={id}
-                  selected={draft.avatarId === id}
-                  onPress={() => setDraft((current) => ({ ...current, avatarId: id }))}
-                />
-              ))}
-            </View>
-          </>
-        ) : null}
+          {tab === 'avatar' ? (
+            <>
+              <SectionLabel label="CHOOSE AVATAR" />
+              <View style={styles.avatarGrid}>
+                {PROFILE_AVATAR_IDS.map((id) => (
+                  <AvatarChoice
+                    key={id}
+                    id={id}
+                    selected={draft.avatarId === id}
+                    onPress={() => setDraft((current) => ({ ...current, avatarId: id }))}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
 
-        {tab === 'wallpapers' ? (
-          <>
-            <SectionLabel label="CHOOSE WALLPAPER" />
-            <View style={styles.wallpaperGrid}>
-              {PROFILE_WALLPAPER_IDS.map((id) => (
-                <WallpaperChoice
-                  key={id}
-                  id={id}
-                  selected={draft.wallpaperId === id}
-                  onPress={() => setDraft((current) => ({ ...current, wallpaperId: id }))}
-                />
-              ))}
-            </View>
-          </>
-        ) : null}
-
-        {tab === 'companions' ? <CompanionGallery /> : null}
-
-        <View style={styles.actions}>
+          {tab === 'wallpapers' ? <SectionLabel label="CHOOSE WALLPAPER" /> : null}
+          {tab === 'companions' ? <CompanionGallery /> : null}
+        </>}
+        ListFooterComponent={<View style={styles.actions}>
           <Pressable onPress={reset} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
             <Ionicons name="refresh-outline" size={17} color={FateDropColors.goldBright} />
             <Text style={styles.secondaryButtonText}>Reset</Text>
@@ -148,8 +147,14 @@ export default function ProfileCustomisationScreen() {
           >
             <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Apply & Save'}</Text>
           </Pressable>
-        </View>
-      </ScrollView>
+        </View>}
+        columnWrapperStyle={styles.wallpaperRow}
+        contentContainerStyle={styles.content}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={3}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }
@@ -196,7 +201,7 @@ function WallpaperChoice({ id, selected, onPress }: { id: ProfileWallpaperId; se
   const meta = profileWallpaperMeta[id];
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.wallpaperChoice, selected && styles.choiceSelected, pressed && styles.pressed]}>
-      <ProfileWallpaperArt wallpaperId={id} />
+      <ProfileWallpaperArt wallpaperId={id} thumbnail />
       <View style={styles.wallpaperShade} />
       {selected ? (
         <View style={styles.check}>
@@ -288,8 +293,9 @@ const styles = StyleSheet.create({
   avatarChoiceSelected: { borderWidth: 2, borderColor: FateDropColors.goldBright },
   avatarChoiceImage: { width: '94%', height: '94%' },
   avatarCheck: { position: 'absolute', right: -1, bottom: -1, width: 21, height: 21, borderRadius: 10.5, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.shell },
-  wallpaperGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9, marginBottom: 14 },
-  wallpaperChoice: { width: '48.7%', aspectRatio: 1.55, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
+  wallpaperRow: { justifyContent: 'space-between', columnGap: 9 },
+  wallpaperCell: { flex: 1, maxWidth: '48.7%', marginBottom: 9 },
+  wallpaperChoice: { width: '100%', aspectRatio: 1.55, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface, justifyContent: 'flex-end' },
   wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,11,.04)' },
   choiceSelected: { borderColor: FateDropColors.goldBright, borderWidth: 1.5 },
   wallpaperLabelWrap: { borderTopWidth: 1, backgroundColor: 'rgba(5,9,14,.76)' },
