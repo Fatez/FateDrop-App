@@ -42,7 +42,7 @@ test('foreground push presentation is installed when the app shell boots', () =>
   assert.match(notifications, /shouldPlaySound:\s*true/);
 });
 
-test('signed-in devices self-heal Expo registration after app activation and token roll', () => {
+test('signed-in devices force self-heal on boot, app activation and token roll', () => {
   assert.match(rootLayout, /PushRegistrationBoundary/);
   assert.match(notifications, /refreshStockAlertRegistration/);
   assert.match(notifications, /getPermissionsAsync\(\)/);
@@ -51,4 +51,6 @@ test('signed-in devices self-heal Expo registration after app activation and tok
   assert.match(pushBoundary, /AppState\.addEventListener\('change'/);
   assert.match(pushBoundary, /Notifications\.addPushTokenListener/);
   assert.match(pushBoundary, /refreshStockAlertRegistration\(\{ force \}\)/);
+  assert.match(pushBoundary, /refresh\(true\);\s*const appStateSubscription/);
+  assert.match(pushBoundary, /if \(state === 'active'\) refresh\(true\);/);
 });
