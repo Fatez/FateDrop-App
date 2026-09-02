@@ -8,12 +8,12 @@ import { FateDropBackground, StatusBadge } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import type { CanonicalMobileAlert } from '@/services/canonical-alerts';
-import { globalEchoAccessState } from '@/services/operator-access';
+import { globalEchoRetractionAccessState } from '@/services/operator-access';
 import { listRetractableGlobalEchoes, retractGlobalEcho } from '@/services/operator-global-echo-retraction';
 
 export default function ManualEchoRetractionsScreen() {
   const { snapshot, signedIn, loading, syncing, error } = useFateDropId();
-  const operatorAccess = globalEchoAccessState({ snapshot, signedIn, loading, syncing, error });
+  const operatorAccess = globalEchoRetractionAccessState({ snapshot, signedIn, loading, syncing, error });
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
