@@ -7,8 +7,8 @@ const notifications = fs.readFileSync(path.join(__dirname, 'notifications.ts'), 
 const preferences = fs.readFileSync(path.join(__dirname, '../app/notification-preferences.tsx'), 'utf8');
 const localRadarHelper = notifications.slice(notifications.indexOf('export async function sendLocalRadarPresentationTest'));
 
-test('Notifications exposes the real Manual Echo control and no visible Local Radar QA alert', () => {
-  assert.match(preferences, /MANUAL ECHO CONTROL/);
+test('Notifications exposes the real global Echo control and no visible Local Radar QA alert', () => {
+  assert.match(preferences, /SEND GLOBAL ECHO ALERT/);
   assert.match(preferences, /router\.push\('\/manual-echo-intake'\)/);
   assert.doesNotMatch(preferences, /TEST LOCAL RADAR ALERT/);
   assert.doesNotMatch(preferences, /sendLocalRadarPresentationTest/);
@@ -25,7 +25,9 @@ test('Local Radar presentation test helper remains isolated from stock persisten
   assert.match(localRadarHelper, /availabilityVerified: false/);
   assert.match(localRadarHelper, /retailerName: 'The Entertainer'/);
   assert.match(localRadarHelper, /pokemon-at-the-entertainer/);
-  assert.match(localRadarHelper, /productTitle: '\[TEST\] Pokémon TCG 30th Celebration'/);
+  assert.match(localRadarHelper, /body: 'The Entertainer expects Pokémon TCG 30th Celebration stock at participating stores on 16 September\.'/);
+  assert.match(localRadarHelper, /productTitle: 'Pokémon TCG 30th Celebration'/);
+  assert.match(localRadarHelper, /expectedLabel: 'Expected 16 September'/);
   assert.match(localRadarHelper, /branchCount: 2/);
   assert.match(localRadarHelper, /radiusTargeted: true/);
   assert.match(localRadarHelper, /test: true/);

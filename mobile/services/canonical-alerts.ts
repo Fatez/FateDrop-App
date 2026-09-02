@@ -107,6 +107,16 @@ export type CanonicalMobileAlert = {
       providerMessageId: string | null;
     } | null;
   };
+  operatorIntelligence?: {
+    availabilityScope: 'online_retailer_readiness';
+    availabilityVerified: false;
+    sourceType: string | null;
+    expectedFrom: string | null;
+    expectedTo: string | null;
+    expectedLabel: string | null;
+    expiresAt: string | null;
+    operatorIssue: number | null;
+  } | null;
 };
 
 type CanonicalAlertResponse = {

@@ -26,8 +26,8 @@ function expoProjectId() {
 async function ensureNotificationPermission() {
   if (!Device.isDevice) return { granted: false, reason: 'physical-device-required' as const };
   const existing = await Notifications.getPermissionsAsync();
-  const permission = existing.status === 'granted' ? existing : await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') return { granted: false, reason: 'permission-denied' as const };
+  const permission = notificationPermissionGranted(existing) ? existing : await Notifications.requestPermissionsAsync();
+  if (!notificationPermissionGranted(permission)) return { granted: false, reason: 'permission-denied' as const };
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('stock-alerts', {
       name: 'FateDrop alerts', importance: Notifications.AndroidImportance.MAX,
@@ -35,6 +35,15 @@ async function ensureNotificationPermission() {
     });
   }
   return { granted: true as const };
+}
+
+function notificationPermissionGranted(permission: Notifications.NotificationPermissionsStatus) {
+  if (Platform.OS !== 'ios') return permission.status === 'granted';
+  const iosStatus = permission.ios?.status;
+  if (iosStatus === undefined) return permission.status === 'granted';
+  return iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED
+    || iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL
+    || iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
 }
 
 async function postPushEndpoint(sessionToken: string, token: string) {
@@ -93,7 +102,7 @@ export async function refreshStockAlertRegistration({ force = false }: { force?:
     Notifications.getPermissionsAsync(),
   ]);
   if (!sessionToken) return { refreshed: false, reason: 'fatedrop-id-required' as const };
-  if (permission.status !== 'granted') return { refreshed: false, reason: 'permission-not-granted' as const };
+  if (!notificationPermissionGranted(permission)) return { refreshed: false, reason: 'permission-not-granted' as const };
   const registration = await acquireAndPersistExpoPushToken(sessionToken);
   return registration.enabled
     ? { refreshed: true, token: registration.token }
@@ -101,10 +110,16 @@ export async function refreshStockAlertRegistration({ force = false }: { force?:
 }
 
 export async function stockAlertDeviceReadiness() {
-  const permission = await Notifications.getPermissionsAsync();
+  const [permission, storedToken] = await Promise.all([
+    Notifications.getPermissionsAsync(),
+    AsyncStorage.getItem(PUSH_TOKEN_KEY),
+  ]);
+  const permissionGranted = notificationPermissionGranted(permission);
   return {
     physicalDevice: Device.isDevice,
-    permission: permission.status,
+    permission: permissionGranted ? 'granted' : permission.status,
+    permissionGranted,
+    registeredOnDevice: Boolean(storedToken),
     iosAllowsAlert: permission.ios?.allowsAlert !== false,
     iosAllowsSound: permission.ios?.allowsSound !== false,
     iosAllowsBadge: permission.ios?.allowsBadge !== false,
@@ -114,6 +129,12 @@ export async function stockAlertDeviceReadiness() {
 
 export async function unregisterStockAlerts() {
   const [sessionToken, token] = await Promise.all([getStoredSessionToken(), AsyncStorage.getItem(PUSH_TOKEN_KEY)]);
+  if (!sessionToken) return { enabled: false, reason: 'fatedrop-id-required' as const };
+
+  // Disable the canonical delivery preference first. If that write fails, keep
+  // this installation registered so the UI cannot claim push is off while the
+  // account remains eligible for delivery.
+  await updateRemoteNotificationPreferences({ push: false });
   if (sessionToken && token) {
     await fetch(`${FATEDROP_WEB_URL}/api/mobile/push`, {
       method: 'DELETE',
@@ -122,7 +143,6 @@ export async function unregisterStockAlerts() {
     }).catch(() => null);
   }
   await AsyncStorage.removeItem(PUSH_TOKEN_KEY);
-  if (sessionToken) await updateRemoteNotificationPreferences({ push: false }).catch(() => null);
   return { enabled: false };
 }
 

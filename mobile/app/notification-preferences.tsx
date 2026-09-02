@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppState, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
@@ -78,7 +78,11 @@ export default function NotificationPreferencesScreen() {
   const [facetError, setFacetError] = useState<string | null>(null);
   const [setSearch, setSetSearch] = useState('');
   const [deviceWarning, setDeviceWarning] = useState<string | null>(null);
+  const [deviceRegistrationMessage, setDeviceRegistrationMessage] = useState<string | null>(null);
+  const [registeredOnDevice, setRegisteredOnDevice] = useState(false);
+  const [deviceReadinessLoaded, setDeviceReadinessLoaded] = useState(false);
   const preferences = snapshot?.notificationPreferences;
+  const devicePushEnabled = Boolean(preferences?.push && registeredOnDevice);
   const visibleSets = useMemo(() => {
     const query = setSearch.trim().toLowerCase();
     if (!query) return facetOptions.sets;
@@ -97,19 +101,35 @@ export default function NotificationPreferencesScreen() {
     return () => { active = false; };
   }, []);
 
+  const refreshDeviceReadiness = useCallback(async () => {
+    const readiness = await stockAlertDeviceReadiness();
+    setRegisteredOnDevice(readiness.registeredOnDevice);
+    setDeviceReadinessLoaded(true);
+    setDeviceRegistrationMessage(null);
+    if (!readiness.physicalDevice) setDeviceWarning('Push requires a physical device.');
+    else if (!readiness.easProjectConfigured) setDeviceWarning('This build is not linked to the canonical FateDrop push project.');
+    else if (!readiness.permissionGranted) setDeviceWarning('iPhone notification permission is not granted.');
+    else if (!readiness.iosAllowsAlert) setDeviceWarning('iPhone banners and Notification Centre alerts are disabled for FateDrop.');
+    else if (!readiness.iosAllowsSound) setDeviceWarning('FateDrop alarms may arrive silently because iPhone sounds are disabled.');
+    else {
+      setDeviceWarning(null);
+      if (!preferences?.push) setDeviceRegistrationMessage('iPhone permission is on, but FateDrop push delivery is off. Use the switch above to register this installation.');
+      else if (!readiness.registeredOnDevice) setDeviceRegistrationMessage('FateDrop push is enabled for your account, but this installation is not registered. Use the switch above to repair it.');
+    }
+  }, [preferences?.push]);
+
   useEffect(() => {
     let active = true;
-    void stockAlertDeviceReadiness().then((readiness) => {
-      if (!active) return;
-      if (!readiness.physicalDevice) setDeviceWarning('Push requires a physical device.');
-      else if (!readiness.easProjectConfigured) setDeviceWarning('This build is not linked to the canonical FateDrop push project.');
-      else if (readiness.permission !== 'granted') setDeviceWarning('iPhone notification permission is not granted.');
-      else if (!readiness.iosAllowsAlert) setDeviceWarning('iPhone banners and Notification Centre alerts are disabled for FateDrop.');
-      else if (!readiness.iosAllowsSound) setDeviceWarning('FateDrop alarms may arrive silently because iPhone sounds are disabled.');
-      else setDeviceWarning(null);
-    }).catch(() => null);
-    return () => { active = false; };
-  }, [preferences?.push]);
+    const refreshReadiness = () => {
+      void refreshDeviceReadiness().catch(() => { if (active) setDeviceReadinessLoaded(true); });
+    };
+    refreshReadiness();
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') refreshReadiness(); });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [refreshDeviceReadiness]);
 
   const toggle = async (key: PreferenceKey) => {
     if (!preferences || working) return;
@@ -164,9 +184,10 @@ export default function NotificationPreferencesScreen() {
     setWorking('push');
     setMessage(null);
     try {
-      const result = preferences.push ? await unregisterStockAlerts() : await registerForStockAlerts();
+      const result = devicePushEnabled ? await unregisterStockAlerts() : await registerForStockAlerts();
       setMessage(pushStatusMessage(result));
       await refresh();
+      await refreshDeviceReadiness();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Push preference could not be updated.');
     } finally {
@@ -190,13 +211,14 @@ export default function NotificationPreferencesScreen() {
           <View style={styles.explainer}><Text style={styles.explainerTitle}>{(snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon']).map((code) => TCG_REGISTRY.find((entry) => entry.code === code)?.shortName ?? code).join(' · ')}</Text><Text style={styles.explainerCopy}>Change your selected games and each game’s lifecycle choices. This never turns the entire app into a global game mode.</Text><Pressable onPress={() => router.push('/tcg-onboarding')} style={styles.primary}><Text style={styles.primaryText}>EDIT MY TCGS & ALERTS</Text></Pressable></View>
 
           <Text style={styles.sectionLabel}>DEVICE</Text>
-          <PreferenceRow title="Push on this device" detail="Native device alert permission and FateDrop push registration." enabled={Boolean(preferences.push)} disabled={Boolean(working)} onPress={() => void togglePush()} />
+          <PreferenceRow title="Push on this device" detail="Native device alert permission and this installation's FateDrop push registration." enabled={devicePushEnabled} disabled={Boolean(working) || !deviceReadinessLoaded} onPress={() => void togglePush()} />
           {deviceWarning ? <Pressable onPress={() => void Linking.openSettings()} style={styles.deviceWarning}><Ionicons name="warning-outline" size={17} color={FateDropColors.manifested} /><View style={styles.rowCopy}><Text style={styles.deviceWarningTitle}>IPHONE DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceWarning} Tap to open Settings.</Text></View></Pressable> : null}
+          {deviceRegistrationMessage ? <View style={styles.deviceRegistration}><Ionicons name="phone-portrait-outline" size={17} color={FateDropColors.cyan} /><View style={styles.rowCopy}><Text style={styles.deviceRegistrationTitle}>FATEDROP DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceRegistrationMessage}</Text></View></View> : null}
           <Pressable onPress={() => router.push('/manual-echo-intake')} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
             <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
             <View style={styles.rowCopy}>
-              <Text style={styles.localRadarTestTitle}>MANUAL ECHO CONTROL</Text>
-              <Text style={styles.rowDetail}>Open the existing authorised operator intake for real Echo intelligence. Cloud remains the authority; this control never creates Manifested stock.</Text>
+              <Text style={styles.localRadarTestTitle}>SEND GLOBAL ECHO ALERT</Text>
+              <Text style={styles.rowDetail}>Your authorised human-intervention control: write the alert, attach an HTTPS link and notify eligible Echo subscribers.</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={FateDropColors.cyan} />
           </Pressable>
@@ -302,6 +324,8 @@ const styles = StyleSheet.create({
   localRadarTestTitle: { color: FateDropColors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
   deviceWarning: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginBottom: 8, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.manifested}55`, backgroundColor: `${FateDropColors.manifested}0D` },
   deviceWarningTitle: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: .45 },
+  deviceRegistration: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginBottom: 8, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },
+  deviceRegistrationTitle: { color: FateDropColors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: .45 },
   rowCopy: { flex: 1 },
   rowTitle: { color: FateDropColors.text, fontSize: 12, fontWeight: '900' },
   rowDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
