@@ -6,6 +6,7 @@ import {
   countUnreadCanonicalAlertsByStageFromState,
   markCanonicalAlertStageSeenInState,
   normalizeCanonicalAlertReadState,
+  type CanonicalAlertReadItem,
   type CanonicalAlertReadState,
 } from '@/lib/canonical-alert-read-state';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
@@ -176,13 +177,13 @@ export function subscribeCanonicalAlertReadState(listener: CanonicalAlertReadSta
   return () => { readStateListeners.delete(listener); };
 }
 
-export async function countUnreadCanonicalAlertsByStage(userId: string, alerts: CanonicalMobileAlert[]) {
+export async function countUnreadCanonicalAlertsByStage(userId: string, alerts: CanonicalAlertReadItem[]) {
   if (!userId || alerts.length === 0) return emptyUnreadCounts();
   const state = await loadCanonicalAlertReadState(userId);
   return countUnreadCanonicalAlertsByStageFromState(alerts, state);
 }
 
-export async function countUnreadCanonicalAlerts(userId: string, alerts: CanonicalMobileAlert[]) {
+export async function countUnreadCanonicalAlerts(userId: string, alerts: CanonicalAlertReadItem[]) {
   const counts = await countUnreadCanonicalAlertsByStage(userId, alerts);
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
@@ -190,7 +191,7 @@ export async function countUnreadCanonicalAlerts(userId: string, alerts: Canonic
 export async function markCanonicalAlertStageSeen(
   userId: string,
   stage: CanonicalAlertStage,
-  alerts: CanonicalMobileAlert[],
+  alerts: CanonicalAlertReadItem[],
 ) {
   if (!userId) return;
   const stageAlerts = alerts.filter((alert) => alert.fateStage === stage);
@@ -200,7 +201,7 @@ export async function markCanonicalAlertStageSeen(
   ));
 }
 
-export async function markCanonicalAlertsSeen(userId: string, alerts: CanonicalMobileAlert[]) {
+export async function markCanonicalAlertsSeen(userId: string, alerts: CanonicalAlertReadItem[]) {
   if (!userId || alerts.length === 0) return;
   await mutateCanonicalAlertReadState(userId, (previous) => {
     const updatedAt = Date.now();
@@ -251,10 +252,8 @@ export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileA
   if (!token) return [];
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
 
-  // Each lifecycle stage has an independent canonical window. Do not read a single
-  // mixed newest-N feed and then bucket it locally: a Whisper burst must never make
-  // Manifested, Echo or Vanished appear to be zero. Fail the refresh if any stage
-  // cannot be read rather than silently presenting a false zero.
+  // Legacy aggregate reader retained for non-inbox compatibility only. The active
+  // Alerts screen and unread badge use the shared stage-scoped query owner instead.
   const stageWindows = await Promise.all(
     CANONICAL_ALERT_QUERY_STATES.map((state) => fetchCanonicalAlertStage(token, state, safeLimit)),
   );
