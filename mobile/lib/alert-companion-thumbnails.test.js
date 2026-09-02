@@ -18,7 +18,7 @@ test('mobile Alerts maps each canonical lifecycle to the correct companion hero 
 
 test('companion artwork remains presentation over canonical lifecycle alerts', () => {
   assert.match(screen, /queryCanonicalAlertPage/);
-  assert.match(screen, /alert\.fateStage === stage/);
+  assert.match(screen, /const item = meta\[alert\.fateStage\]/);
   assert.match(screen, /active\.companion\.toUpperCase\(\).*active\.label\.toUpperCase\(\)/s);
   assert.doesNotMatch(screen, /fetchCanonicalAlerts\(100\)/);
 });
