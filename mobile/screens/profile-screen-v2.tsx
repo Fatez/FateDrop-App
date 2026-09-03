@@ -157,6 +157,8 @@ export default function ProfileScreenV2() {
 
           <SectionTitle label="PREFERENCES" />
           <View style={styles.panel}>
+            <Preference icon="pulse-outline" title="Live Network" detail="Retailer coverage, monitor health and FateDrop network activity." onPress={() => router.push('/(tabs)/network')} />
+            <Divider />
             <Preference icon="notifications-outline" title="Notifications" detail="Whisper, Echo, Manifested, Vanished and FateMatch delivery." onPress={() => router.push('/notification-preferences')} />
             <Divider />
             <Preference icon="pricetag-outline" title="Price & FateMatch rules" detail="Manage hosted hunts, RRP tolerance and budget thresholds." onPress={() => router.push('/fate-match')} />
