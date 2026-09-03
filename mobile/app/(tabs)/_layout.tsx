@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
-import { FateDropColors, Fonts } from '@/constants/theme';
+import { FateDropColors } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { countUnreadCanonicalAlerts, subscribeCanonicalAlertReadState } from '@/services/canonical-alerts';
 import {
@@ -17,10 +17,12 @@ import {
 
 const NAV_GOLD = FateDropColors.goldBright;
 
+type NetworkPath = '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies' | '/(tabs)/watchlist';
+
 export default function TabLayout() {
   const { signedIn, snapshot } = useFateDropId();
   const [alertCount, setAlertCount] = useState(0);
-  const [toolboxOpen, setToolboxOpen] = useState(false);
+  const [compassOpen, setCompassOpen] = useState(false);
   const userId = snapshot?.user?.id ?? null;
   const selectedTcgCodes = useMemo(() => snapshot?.tcgPreferences?.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences?.selectedTcgCodes]);
   const alertFilterKey = useMemo(() => JSON.stringify({
@@ -73,8 +75,8 @@ export default function TabLayout() {
 
   const visibleAlertCount = signedIn && userId && readBasisQuery ? alertCount : 0;
 
-  const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies' | '/(tabs)/search' | '/(tabs)/watchlist') => {
-    setToolboxOpen(false);
+  const openTool = (path: NetworkPath) => {
+    setCompassOpen(false);
     router.push(path);
   };
 
@@ -101,42 +103,70 @@ export default function TabLayout() {
           listeners={{
             tabPress: (event) => {
               event.preventDefault();
-              setToolboxOpen(true);
+              setCompassOpen(true);
             },
           }}
           options={{
             title: '',
             tabBarLabel: () => null,
+            tabBarAccessibilityLabel: 'Open Fate Network compass',
             tabBarIcon: () => <View style={styles.emblemSlot}><FateDropNavEmblem size={48} /></View>,
           }}
         />
-        <Tabs.Screen name="network" options={{ title: 'Live Network', tabBarIcon: ({ color }) => <Ionicons name="pulse-outline" size={20} color={color} /> }} />
+        <Tabs.Screen name="market" options={{ title: 'Fate Market', tabBarIcon: ({ color }) => <Ionicons name="analytics-outline" size={20} color={color} /> }} />
         <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={20} color={color} /> }} />
+        <Tabs.Screen name="network" options={{ href: null }} />
         <Tabs.Screen name="search" options={{ href: null }} />
         <Tabs.Screen name="indies" options={{ href: null }} />
         <Tabs.Screen name="watchlist" options={{ href: null }} />
         <Tabs.Screen name="more" options={{ href: null }} />
       </Tabs>
 
-      <Modal transparent visible={toolboxOpen} animationType="fade" onRequestClose={() => setToolboxOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setToolboxOpen(false)}>
-          <Pressable style={styles.toolbox} onPress={() => undefined}>
-            <View style={styles.toolboxBrand}>
-              <FateDropNavEmblem size={52} />
-              <View style={styles.toolboxBrandCopy}>
-                <Text style={styles.toolboxEyebrow}>FATE NETWORK</Text>
-                <Text style={styles.toolboxTitle}>What do you want FateDrop to do?</Text>
-                <Text style={styles.toolboxCopy}>Value finder, monitoring, trading, local intelligence and retailer discovery — one network, one Cloud truth.</Text>
-              </View>
-              <Pressable accessibilityLabel="Close Fate Network" onPress={() => setToolboxOpen(false)} style={styles.close}><Ionicons name="close" size={18} color={FateDropColors.ivory} /></Pressable>
+      <Modal transparent visible={compassOpen} animationType="fade" onRequestClose={() => setCompassOpen(false)}>
+        <Pressable style={styles.compassBackdrop} onPress={() => setCompassOpen(false)}>
+          <View style={styles.compassHeader} pointerEvents="none">
+            <Text style={styles.compassEyebrow}>FATE NETWORK</Text>
+            <Text style={styles.compassTitle}>Choose your direction</Text>
+          </View>
+
+          <Pressable style={styles.compassStage} onPress={() => undefined}>
+            <View pointerEvents="none" style={styles.outerRing} />
+            <View pointerEvents="none" style={styles.innerRing} />
+            <View pointerEvents="none" style={styles.northLine} />
+            <View pointerEvents="none" style={styles.westLine} />
+            <View pointerEvents="none" style={styles.eastLine} />
+
+            <View style={styles.nodeNorth}>
+              <CompassNode icon="notifications-outline" title="FateMatch" detail="Monitor" onPress={() => openTool('/fate-match')} />
             </View>
-            <ToolChoice icon="telescope-outline" title="FateFind" copy="Find the strongest qualifying place to buy this product." onPress={() => openTool('/fatefind')} />
-            <ToolChoice icon="notifications-outline" title="FateMatch" copy="Monitor products and the conditions you care about." onPress={() => openTool('/fate-match')} />
-            <ToolChoice icon="swap-horizontal-outline" title="Fate Trader" copy="Manage HAVE / WANT trade intentions and compatible collector opportunities." onPress={() => openTool('/fate-trader')} />
-            <ToolChoice icon="navigate-outline" title="Local Radar" copy="See what is happening physically around you, including branch intelligence and events." onPress={() => openTool('/local-radar')} />
-            <ToolChoice icon="storefront-outline" title="Retailers" copy="Browse major retailers, TCG specialists and independent or local storefronts." onPress={() => openTool('/(tabs)/indies')} />
-            <ToolChoice icon="search-outline" title="Search live database" copy="Browse the current network without starting monitoring." onPress={() => openTool('/(tabs)/search')} />
-            <ToolChoice icon="bookmark-outline" title="Wishlist" copy="Remember products without turning monitoring on." onPress={() => openTool('/(tabs)/watchlist')} />
+            <View style={styles.nodeNorthWest}>
+              <CompassNode icon="swap-horizontal-outline" title="Trader" detail="Trade" onPress={() => openTool('/fate-trader')} />
+            </View>
+            <View style={styles.nodeNorthEast}>
+              <CompassNode icon="navigate-outline" title="Local Radar" detail="Nearby" onPress={() => openTool('/local-radar')} />
+            </View>
+            <View style={styles.nodeWest}>
+              <CompassNode icon="storefront-outline" title="Retailers" detail="Discover" onPress={() => openTool('/(tabs)/indies')} />
+            </View>
+            <View style={styles.nodeEast}>
+              <CompassNode icon="bookmark-outline" title="Wishlist" detail="Save" onPress={() => openTool('/(tabs)/watchlist')} />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open FateFind"
+              onPress={() => openTool('/fatefind')}
+              style={({ pressed }) => [styles.fateFindCenter, pressed && styles.pressed]}>
+              <View style={styles.fateFindGlow} />
+              <FateDropNavEmblem size={58} />
+              <Text style={styles.fateFindEyebrow}>MAIN FEATURE</Text>
+              <Text style={styles.fateFindTitle}>FateFind</Text>
+              <Text style={styles.fateFindDetail}>Find it now</Text>
+            </Pressable>
+          </Pressable>
+
+          <Pressable accessibilityRole="button" accessibilityLabel="Close Fate Network compass" onPress={() => setCompassOpen(false)} style={styles.closeCompass}>
+            <Ionicons name="close" size={18} color={FateDropColors.ivory} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -144,8 +174,14 @@ export default function TabLayout() {
   );
 }
 
-function ToolChoice({ icon, title, copy, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; copy: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.toolChoice, pressed && styles.pressed]}><View style={styles.toolIcon}><Ionicons name={icon} size={21} color={NAV_GOLD} /></View><View style={styles.toolCopy}><Text style={styles.toolTitle}>{title}</Text><Text style={styles.toolDetail}>{copy}</Text></View><Ionicons name="chevron-forward" size={17} color={NAV_GOLD} /></Pressable>;
+function CompassNode({ icon, title, detail, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={({ pressed }) => [styles.compassNode, pressed && styles.pressed]}>
+      <View style={styles.compassNodeIcon}><Ionicons name={icon} size={20} color={NAV_GOLD} /></View>
+      <Text style={styles.compassNodeTitle}>{title}</Text>
+      <Text style={styles.compassNodeDetail}>{detail}</Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -153,13 +189,33 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 9, fontWeight: '800', letterSpacing: .35 },
   badge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: FateDropColors.vanished, color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
   emblemSlot: { width: 74, height: 68, marginTop: -18, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: .76, transform: [{ scale: .985 }] },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.68)' },
-  toolbox: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, borderColor: FateDropColors.border, backgroundColor: FateDropColors.shell, gap: 9 },
-  toolboxBrand: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10 }, toolboxBrandCopy: { flex: 1 },
-  toolboxEyebrow: { color: NAV_GOLD, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 }, toolboxTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, fontWeight: '700', marginTop: 2 }, toolboxCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  close: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
-  toolChoice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
-  toolIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${NAV_GOLD}38`, backgroundColor: `${NAV_GOLD}0E` },
-  toolCopy: { flex: 1 }, toolTitle: { color: FateDropColors.ivory, fontSize: 16, fontWeight: '900' }, toolDetail: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  pressed: { opacity: .76, transform: [{ scale: .97 }] },
+
+  compassBackdrop: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: 'rgba(2,5,9,.82)' },
+  compassHeader: { position: 'absolute', bottom: 388, alignItems: 'center', paddingHorizontal: 24 },
+  compassEyebrow: { color: NAV_GOLD, fontSize: 10, fontWeight: '900', letterSpacing: 1.7 },
+  compassTitle: { color: FateDropColors.ivory, fontSize: 18, fontWeight: '900', marginTop: 4 },
+  compassStage: { width: '100%', maxWidth: 420, height: 372, overflow: 'hidden' },
+  outerRing: { position: 'absolute', width: 330, height: 330, borderRadius: 165, borderWidth: 1, borderColor: `${NAV_GOLD}35`, left: '50%', bottom: -84, transform: [{ translateX: -165 }], backgroundColor: 'rgba(10,16,24,.34)' },
+  innerRing: { position: 'absolute', width: 234, height: 234, borderRadius: 117, borderWidth: 1, borderColor: `${FateDropColors.manifested}30`, left: '50%', bottom: -35, transform: [{ translateX: -117 }] },
+  northLine: { position: 'absolute', width: 1, height: 190, backgroundColor: `${NAV_GOLD}28`, left: '50%', bottom: 92 },
+  westLine: { position: 'absolute', width: 150, height: 1, backgroundColor: `${NAV_GOLD}20`, left: 26, bottom: 121, transform: [{ rotate: '18deg' }] },
+  eastLine: { position: 'absolute', width: 150, height: 1, backgroundColor: `${NAV_GOLD}20`, right: 26, bottom: 121, transform: [{ rotate: '-18deg' }] },
+
+  nodeNorth: { position: 'absolute', top: 17, left: '50%', transform: [{ translateX: -42 }] },
+  nodeNorthWest: { position: 'absolute', top: 77, left: 45 },
+  nodeNorthEast: { position: 'absolute', top: 77, right: 45 },
+  nodeWest: { position: 'absolute', top: 177, left: 15 },
+  nodeEast: { position: 'absolute', top: 177, right: 15 },
+  compassNode: { width: 84, alignItems: 'center' },
+  compassNodeIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: `${NAV_GOLD}55`, backgroundColor: 'rgba(15,22,31,.96)', alignItems: 'center', justifyContent: 'center', shadowColor: NAV_GOLD, shadowOpacity: .16, shadowRadius: 10 },
+  compassNodeTitle: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '900', textAlign: 'center', marginTop: 6 },
+  compassNodeDetail: { color: FateDropColors.muted, fontSize: 8, fontWeight: '700', textAlign: 'center', marginTop: 1 },
+
+  fateFindCenter: { position: 'absolute', width: 116, height: 116, borderRadius: 58, left: '50%', bottom: 26, transform: [{ translateX: -58 }], alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${NAV_GOLD}88`, backgroundColor: 'rgba(8,14,20,.99)', shadowColor: NAV_GOLD, shadowOpacity: .28, shadowRadius: 20, elevation: 18 },
+  fateFindGlow: { position: 'absolute', width: 136, height: 136, borderRadius: 68, borderWidth: 1, borderColor: `${FateDropColors.manifested}30` },
+  fateFindEyebrow: { color: NAV_GOLD, fontSize: 6.5, fontWeight: '900', letterSpacing: .8, marginTop: -2 },
+  fateFindTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900', marginTop: 1 },
+  fateFindDetail: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '700', marginTop: 1 },
+  closeCompass: { position: 'absolute', right: 18, bottom: 352, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
 });
