@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FateDropBackground, PageNavigation, StatusBadge } from '@/components/fatedrop-ui';
@@ -12,14 +12,19 @@ import { FateDropColors } from '@/constants/theme';
 import { formatEventDate, isSafeExternalUrl, loadSavedEventIds, saveEventIds } from '@/lib/encounters';
 import type { CalendarEvent } from '@/types/encounter';
 
+function encounterReminderTime(startDateTime:string){
+  return Math.max(Date.now()+60000,Date.parse(startDateTime)-86400000);
+}
+
 export default function EncounterDetail(){
   const params=useLocalSearchParams<{id:string|string[];eventData?:string|string[]}>(),id=Array.isArray(params.id)?params.id[0]:params.id,eventData=Array.isArray(params.eventData)?params.eventData[0]:params.eventData;
-  const initialEvent=()=>{try{return eventData?JSON.parse(eventData) as CalendarEvent:null}catch{return null}};
-  const [event,setEvent]=useState<CalendarEvent|null>(initialEvent),[saved,setSaved]=useState(false),[error,setError]=useState(''),[vendorCount,setVendorCount]=useState(0),[reminderSet,setReminderSet]=useState(false),hasInitialEvent=useRef(Boolean(event)).current;
-  useEffect(()=>{let active=true;if(id){fetch(`${API_BASE_URL}/api/calendar-events/${encodeURIComponent(id)}`).then(response=>{if(!response.ok)throw new Error();return response.json()}).then(data=>{if(active&&data.event){setEvent(data.event);setError('')}}).catch(()=>{if(active&&!hasInitialEvent)setError('This encounter could not be loaded.')});fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(id)}/vendors`).then(response=>response.ok?response.json():null).then(data=>{if(active)setVendorCount(data?.count||0)}).catch(()=>undefined);loadSavedEventIds(AsyncStorage).then(ids=>{if(active)setSaved(ids.includes(id))});}else if(!hasInitialEvent)setError('This encounter could not be loaded.');return()=>{active=false}},[hasInitialEvent,id]);
+  const initialEvent=useMemo<CalendarEvent|null>(()=>{try{return eventData?JSON.parse(eventData) as CalendarEvent:null}catch{return null}},[eventData]);
+  const [event,setEvent]=useState<CalendarEvent|null>(initialEvent),[saved,setSaved]=useState(false),[error,setError]=useState(''),[vendorCount,setVendorCount]=useState(0),[reminderSet,setReminderSet]=useState(false);
+  const hasInitialEvent=initialEvent!==null;
+  useEffect(()=>{let active=true;if(id){fetch(`${API_BASE_URL}/api/calendar-events/${encodeURIComponent(id)}`).then(response=>{if(!response.ok)throw new Error();return response.json()}).then(data=>{if(active&&data.event){setEvent(data.event);setError('')}}).catch(()=>{if(active&&!hasInitialEvent)setError('This encounter could not be loaded.')});fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(id)}/vendors`).then(response=>response.ok?response.json():null).then(data=>{if(active)setVendorCount(data?.count||0)}).catch(()=>undefined);loadSavedEventIds(AsyncStorage).then(ids=>{if(active)setSaved(ids.includes(id))});}else if(!hasInitialEvent)void Promise.resolve().then(()=>{if(active)setError('This encounter could not be loaded.')});return()=>{active=false}},[hasInitialEvent,id]);
   const open=(url?:string|null)=>{if(url&&isSafeExternalUrl(url))void Linking.openURL(url)};
   const toggle=async()=>{const ids=await loadSavedEventIds(AsyncStorage),next=saved?ids.filter(value=>value!==id):[...ids,id];await saveEventIds(AsyncStorage,next);setSaved(!saved)};
-  const reminder=async()=>{if(!event)return;const eventTime=Date.parse(event.startDateTime),reminderTime=Math.max(Date.now()+60000,eventTime-86400000);await Notifications.scheduleNotificationAsync({content:{title:`Fate Encounter: ${event.name}`,body:`Tomorrow at ${event.venueName||event.townCity||'the venue'}`,data:{eventId:event.id}},trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date:new Date(reminderTime)}});setReminderSet(true)};
+  const reminder=async()=>{if(!event)return;const reminderTime=encounterReminderTime(event.startDateTime);await Notifications.scheduleNotificationAsync({content:{title:`Fate Encounter: ${event.name}`,body:`Tomorrow at ${event.venueName||event.townCity||'the venue'}`,data:{eventId:event.id}},trigger:{type:Notifications.SchedulableTriggerInputTypes.DATE,date:new Date(reminderTime)}});setReminderSet(true)};
   if(error)return <SafeAreaView style={styles.safe}><FateDropBackground/><View style={styles.stateShell}><PageNavigation/><Text style={styles.state}>{error}</Text></View></SafeAreaView>;
   if(!event)return <SafeAreaView style={styles.safe}><FateDropBackground/><View style={styles.stateShell}><PageNavigation/><ActivityIndicator style={styles.state} color={FateDropColors.violetLight}/></View></SafeAreaView>;
   const address=[event.venueName,event.address,event.townCity,event.postcode].filter(Boolean).join(', '),directions=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;

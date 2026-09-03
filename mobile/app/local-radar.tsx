@@ -121,7 +121,9 @@ export default function LocalRadarScreen() {
     }
   }, [radius, scopedRetailerId]);
 
-  useEffect(() => { if (area) void load(area, radius); }, [area, radius, load]);
+  useEffect(() => {
+    if (area) void Promise.resolve().then(() => load(area, radius));
+  }, [area, radius, load]);
 
   const handleDeviceLocation = async () => {
     if (locationActionInFlight.current) return;
@@ -159,7 +161,9 @@ export default function LocalRadarScreen() {
     [scopedRetailerId, shops, storeFilter],
   );
   useEffect(() => {
-    setSelected(current => current && filteredShops.some(shop => shop.id === current.id) ? current : null);
+    void Promise.resolve().then(() => {
+      setSelected(current => current && filteredShops.some(shop => shop.id === current.id) ? current : null);
+    });
   }, [filteredShops]);
   const mappedShops = useMemo(() => filteredShops.filter(shop => typeof shop.latitude === 'number' && typeof shop.longitude === 'number'), [filteredShops]);
   const mapPoints = useMemo(() => clusterShops(mappedShops, region, { maxMarkers: markerBudget }), [mappedShops, markerBudget, region]);

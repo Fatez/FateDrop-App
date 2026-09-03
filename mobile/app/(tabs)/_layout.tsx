@@ -51,11 +51,10 @@ export default function TabLayout() {
 
   useEffect(() => {
     if (!signedIn || !userId || !readBasisQuery) {
-      setAlertCount(0);
       return;
     }
 
-    void refreshAlertCount(true);
+    void Promise.resolve().then(() => refreshAlertCount(true));
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
       void revalidateStaleCanonicalAlertQueries(userId).then(() => refreshAlertCount(false));
@@ -71,6 +70,8 @@ export default function TabLayout() {
       unsubscribeCache();
     };
   }, [readBasisQuery, refreshAlertCount, signedIn, userId]);
+
+  const visibleAlertCount = signedIn && userId && readBasisQuery ? alertCount : 0;
 
   const openTool = (path: '/fatefind' | '/fate-match' | '/fate-trader' | '/local-radar' | '/(tabs)/indies' | '/(tabs)/search' | '/(tabs)/watchlist') => {
     setToolboxOpen(false);
@@ -92,7 +93,7 @@ export default function TabLayout() {
         <Tabs.Screen name="alerts" options={{
           title: 'Alerts',
           tabBarIcon: ({ color }) => <Ionicons name="notifications-outline" size={20} color={color} />,
-          tabBarBadge: alertCount > 0 ? (alertCount > 99 ? '99+' : alertCount) : undefined,
+          tabBarBadge: visibleAlertCount > 0 ? (visibleAlertCount > 99 ? '99+' : visibleAlertCount) : undefined,
           tabBarBadgeStyle: styles.badge,
         }} />
         <Tabs.Screen

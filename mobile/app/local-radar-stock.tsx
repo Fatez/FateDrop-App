@@ -76,7 +76,7 @@ export default function LocalRadarStockScreen() {
   }, [radius]);
 
   useEffect(() => {
-    if (area) void load(area, radius);
+    if (area) void Promise.resolve().then(() => load(area, radius));
   }, [area, radius, load]);
 
   const handleDeviceLocation = async () => {

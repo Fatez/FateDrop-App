@@ -117,12 +117,17 @@ export default function RetailerStorefront() {
   useEffect(() => {
     let cancelled = false;
     if (!id) {
-      setLoadingRetailer(false);
-      setRetailerError('Retailer could not be found.');
-      return;
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setLoadingRetailer(false);
+        setRetailerError('Retailer could not be found.');
+      });
+      return () => { cancelled = true; };
     }
 
     void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
       setLoadingRetailer(true);
       setRetailerError('');
       try {
