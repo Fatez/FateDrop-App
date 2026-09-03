@@ -147,7 +147,7 @@ export default function TabLayout() {
               <CompassNode icon="bookmark-outline" title="Wishlist" detail="Save" onPress={() => openTool('/(tabs)/watchlist')} />
             </View>
             <View style={styles.nodeEast}>
-              <CompassNode icon="search-outline" title="Search" detail="Browse live" onPress={() => openTool('/(tabs)/search')} />
+              <CompassNode icon="swap-horizontal-outline" title="Fate Trader" detail="Trade" onPress={() => openTool('/fate-trader')} />
             </View>
 
             <Pressable
