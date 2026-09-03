@@ -24,14 +24,6 @@ export type ManualGlobalEchoInput = {
   expiresAt?: string;
 };
 
-export type ManualGlobalEchoRevisionInput = {
-  operatorIssue: number | string;
-  retailerName: string;
-  headline: string;
-  message: string;
-  sourceUrl: string;
-};
-
 function clean(value: string, max: number) {
   return value.trim().slice(0, max);
 }
@@ -123,41 +115,4 @@ export function buildManualGlobalEchoIntake(input: ManualGlobalEchoInput, now = 
     evidenceBasis: 'Authorised FateDrop operator supplied time-sensitive collector intelligence for global Echo delivery.',
     note: 'Global operator Echo only. Follow the linked source and do not treat this message as confirmed stock.',
   }, now);
-}
-
-export function buildManualGlobalEchoRevisionIntake(input: ManualGlobalEchoRevisionInput) {
-  const operatorIssue = Number(String(input.operatorIssue).trim());
-  const retailerName = clean(input.retailerName, 120);
-  const headline = clean(input.headline, 220);
-  const message = clean(input.message, 120).replace(/\.+$/, '');
-  const sourceUrl = input.sourceUrl.trim() ? safeExternalHttpsUrl(input.sourceUrl) : null;
-
-  if (!Number.isInteger(operatorIssue) || operatorIssue <= 0) throw new Error('Add the original active Echo issue number.');
-  if (!retailerName) throw new Error('Add the retailer name shown on the active Echo.');
-  if (!headline) throw new Error('Add the corrected alert headline.');
-  if (!message) throw new Error('Add the corrected short message.');
-  if (input.sourceUrl.trim() && !sourceUrl) throw new Error('Source URL must be a public HTTPS page.');
-
-  const body = {
-    schemaVersion: 1,
-    revisionOnly: true,
-    revisionOfIssue: operatorIssue,
-    retailerName,
-    rawProductTitle: headline,
-    expectedLabel: message,
-    sourceUrl,
-    note: 'Owner-authorised correction to the active Echo presentation. This revision must not create a second signal or request another push.',
-  };
-  const issueTitle = `[FATEDROP ECHO EDIT] #${operatorIssue} · ${headline}`.slice(0, 240);
-  const issueBody = JSON.stringify(body, null, 2);
-  const issueUrl = `https://github.com/Fatez/Fatedrop-Cloud/issues/new?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(issueBody)}`;
-  return {
-    issueTitle,
-    issueBody,
-    issueUrl,
-    stage: 'ECHO' as const,
-    revisionOnly: true as const,
-    revisionOfIssue: operatorIssue,
-    shareText: `${issueTitle}\n\n${issueBody}`,
-  };
 }
