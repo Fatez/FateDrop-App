@@ -8,6 +8,8 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const tabs = read('app/(tabs)/_layout.tsx');
 const tools = read('app/tools.tsx');
+const marketRoute = read('app/(tabs)/market.tsx');
+const market = read('screens/fate-market-screen.tsx');
 const search = read('screens/search-screen-v2.tsx');
 const fateFindRoute = read('app/fatefind.tsx');
 const fateFind = read('screens/fatefind-live-screen-v2.tsx');
@@ -15,20 +17,20 @@ const fateMatch = read('screens/fatematch-screen-v2.tsx');
 const fateDropId = read('services/fatedrop-id.ts');
 const legacyTruePrice = read('app/true-price.tsx');
 
-test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile', () => {
+test('primary navigation is Home, Alerts, FateDrop compass, Fate Market and Profile', () => {
   assert.match(tabs, /name="index"/);
   assert.match(tabs, /name="alerts"/);
   assert.match(tabs, /name="tools"/);
   assert.match(tabs, /FateDropNavEmblem/);
-  assert.match(tabs, /setToolboxOpen\(true\)/);
-  assert.match(tabs, /title="FateFind"/);
+  assert.match(tabs, /setCompassOpen\(true\)/);
+  assert.match(tabs, /accessibilityLabel="Open FateFind"/);
   assert.match(tabs, /title="FateMatch"/);
-  assert.match(tabs, /title="Fate Trader"/);
   assert.match(tabs, /title="Local Radar"/);
   assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /title="Search live database"/);
+  assert.match(tabs, /title="Search"/);
   assert.match(tabs, /title="Wishlist"/);
-  assert.match(tabs, /name="network"/);
+  assert.match(tabs, /name="market"/);
+  assert.match(tabs, /name="network" options=\{\{ href: null \}\}/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
   assert.match(tools, /title="FateFind"/);
@@ -38,6 +40,10 @@ test('primary navigation is Home, Alerts, FateDrop emblem, Network and Profile',
   assert.match(tools, /title="Stores"/);
   assert.match(tools, /Search live database/);
   assert.match(tools, /Wishlist/);
+  assert.match(marketRoute, /fate-market-screen/);
+  assert.match(market, /title: 'Fate Trader'/);
+  assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'Fate Collectors'/);
 });
 
 test('FateFind owns live value finding, visible True Price and one Cloud Fate Verdict', () => {

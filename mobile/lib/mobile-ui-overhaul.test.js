@@ -12,6 +12,7 @@ const traderRoute = fs.readFileSync(path.join(__dirname, '../app/fate-trader.tsx
 const home = fs.readFileSync(path.join(__dirname, '../screens/home-screen-v3.tsx'), 'utf8');
 const alerts = fs.readFileSync(path.join(__dirname, '../screens/alerts-screen-v4.tsx'), 'utf8');
 const fateNetwork = fs.readFileSync(path.join(__dirname, '../app/tools.tsx'), 'utf8');
+const fateMarket = fs.readFileSync(path.join(__dirname, '../screens/fate-market-screen.tsx'), 'utf8');
 const persistentNav = fs.readFileSync(path.join(__dirname, '../components/persistent-bottom-nav.tsx'), 'utf8');
 const networkSignals = fs.readFileSync(path.join(__dirname, '../services/network-signals.ts'), 'utf8');
 
@@ -36,7 +37,7 @@ test('Home network pulse consumes public Cloud signal truth, never private diagn
   assert.doesNotMatch(networkSignals, /SIGNAL_ENGINE_URL\}\/api\/signal-health/);
 });
 
-test('Fate Network keeps the physically approved jobs and monitoring semantics in one launcher', () => {
+test('Fate Network keeps the complete directory while the compass stays focused', () => {
   assert.match(fateNetwork, /title="FateFind"/);
   assert.match(fateNetwork, /title="FateMatch"/);
   assert.match(fateNetwork, /title="Fate Trader"/);
@@ -46,14 +47,17 @@ test('Fate Network keeps the physically approved jobs and monitoring semantics i
   assert.match(fateNetwork, /Wishlist/);
   assert.match(fateNetwork, /Monitor the products and conditions you care about/);
   assert.doesNotMatch(fateNetwork, /FateMatch means it was found/);
-  assert.match(tabLayout, /setToolboxOpen\(true\)/);
-  assert.match(tabLayout, /title="FateFind"/);
+  assert.match(tabLayout, /setCompassOpen\(true\)/);
+  assert.match(tabLayout, /accessibilityLabel="Open FateFind"/);
   assert.match(tabLayout, /title="FateMatch"/);
-  assert.match(tabLayout, /title="Fate Trader"/);
   assert.match(tabLayout, /title="Local Radar"/);
   assert.match(tabLayout, /title="Retailers"/);
-  assert.match(tabLayout, /title="Search live database"/);
+  assert.match(tabLayout, /title="Search"/);
   assert.match(tabLayout, /title="Wishlist"/);
+  assert.doesNotMatch(tabLayout, /title="Fate Trader"/);
+  assert.match(fateMarket, /title: 'Fate Trader'/);
+  assert.match(fateMarket, /title: 'FatePulse'/);
+  assert.match(fateMarket, /title: 'Fate Collectors'/);
 });
 
 test('Fate Trader and Local Radar destinations cannot become dead Fate Network buttons', () => {
@@ -82,7 +86,7 @@ test('Alerts separates canonical lifecycle Signals from personal FateFind and Fa
 
 test('Alerts tab badge uses shared canonical read basis and never a hard-coded demo count', () => {
   assert.match(tabLayout, /queryCanonicalAlertReadBasis/);
-  assert.match(tabLayout, /tabBarBadge: alertCount > 0/);
+  assert.match(tabLayout, /tabBarBadge: visibleAlertCount > 0/);
   assert.doesNotMatch(tabLayout, /fetchCanonicalAlerts\(100\)/);
   assert.doesNotMatch(tabLayout, /setInterval\(/);
   assert.doesNotMatch(tabLayout, /tabBarBadge:\s*3/);

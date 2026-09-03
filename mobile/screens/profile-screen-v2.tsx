@@ -163,6 +163,8 @@ export default function ProfileScreenV2() {
             <Divider />
             <Preference icon="bookmark-outline" title="Wishlist" detail="Products you want to keep across stock and retailer changes." onPress={() => router.push('/(tabs)/watchlist')} />
             <Divider />
+            <Preference icon="pulse-outline" title="Live Network" detail="Retailer coverage, monitor health and FateDrop network activity." onPress={() => router.push('/(tabs)/network')} />
+            <Divider />
             <Preference icon="speedometer-outline" title="App dashboard" detail="Live monitor health, account sync and optimisation visibility." onPress={() => router.push('/dashboard')} />
             <Divider />
             <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
