@@ -1,12 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import {
+  fetchFateCollectorsSummary,
+  fetchFatePulse,
+  type FateCollectorsSnapshot,
+  type FatePulseSnapshot,
+} from '@/services/fate-market';
 
 type MarketAreaKey = 'trader' | 'pulse' | 'collectors';
 
@@ -55,15 +61,45 @@ export default function FateMarketScreen() {
   const params = useLocalSearchParams<{ area?: string | string[] }>();
   const { signedIn } = useFateDropId();
   const [activeArea, setActiveArea] = useState<MarketAreaKey>(() => marketArea(params.area));
+  const [loading, setLoading] = useState(false);
+  const [pulse, setPulse] = useState<FatePulseSnapshot | null>(null);
+  const [pulseError, setPulseError] = useState('');
+  const [collectors, setCollectors] = useState<FateCollectorsSnapshot | null>(null);
+  const [collectorsError, setCollectorsError] = useState('');
 
   useEffect(() => {
     setActiveArea(marketArea(params.area));
   }, [params.area]);
 
+  const loadMarket = useCallback(async () => {
+    setLoading(true);
+    const pulseRequest = fetchFatePulse();
+    const collectorsRequest = signedIn ? fetchFateCollectorsSummary() : Promise.resolve(null);
+    const [pulseResult, collectorsResult] = await Promise.allSettled([pulseRequest, collectorsRequest]);
+    if (pulseResult.status === 'fulfilled') {
+      setPulse(pulseResult.value);
+      setPulseError('');
+    } else {
+      setPulseError('Verified market evidence is temporarily unavailable.');
+    }
+    if (collectorsResult.status === 'fulfilled') {
+      setCollectors(collectorsResult.value);
+      setCollectorsError('');
+    } else {
+      setCollectorsError('Your collection could not be read safely right now.');
+    }
+    setLoading(false);
+  }, [signedIn]);
+
+  useFocusEffect(useCallback(() => { void loadMarket(); }, [loadMarket]));
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void loadMarket()} tintColor={FateDropColors.goldBright} />}
+        showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>FATEDROP MARKET</Text>
@@ -73,7 +109,7 @@ export default function FateMarketScreen() {
           <View pointerEvents="none" style={styles.marketMark}>
             <View style={styles.marketMarkOuter} />
             <View style={styles.marketMarkInner} />
-            <Ionicons name="analytics-outline" size={27} color={FateDropColors.goldBright} />
+            {loading ? <ActivityIndicator color={FateDropColors.goldBright} /> : <Ionicons name="analytics-outline" size={27} color={FateDropColors.goldBright} />}
           </View>
         </View>
 
@@ -104,8 +140,8 @@ export default function FateMarketScreen() {
         </View>
 
         {activeArea === 'trader' ? <TraderPanel /> : null}
-        {activeArea === 'pulse' ? <PulsePanel /> : null}
-        {activeArea === 'collectors' ? <CollectorsPanel signedIn={signedIn} /> : null}
+        {activeArea === 'pulse' ? <PulsePanel data={pulse} error={pulseError} loading={loading} /> : null}
+        {activeArea === 'collectors' ? <CollectorsPanel data={collectors} error={collectorsError} loading={loading} signedIn={signedIn} /> : null}
 
         <View style={styles.truthCard}>
           <Ionicons name="shield-checkmark-outline" size={20} color={FateDropColors.goldBright} />
@@ -139,18 +175,28 @@ function TraderPanel() {
   );
 }
 
-function PulsePanel() {
+function movementText(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function PulsePanel({ data, error, loading }: { data: FatePulseSnapshot | null; error: string; loading: boolean }) {
+  const movement = data?.pulse?.movement.d7 ?? null;
+  const status = data?.status === 'available' ? 'EVIDENCE LIVE' : loading && !data ? 'LOADING' : 'HISTORY BUILDING';
+  const historyDetail = data
+    ? `${data.readiness.history.distinctMarketDays} verified market days · ${data.readiness.canonical.mappedCards} exact card mappings.`
+    : 'Waiting for the Cloud evidence boundary.';
   return (
     <View style={[styles.panel, { borderColor: `${FateDropColors.manifested}55` }]}>
-      <PanelHeading eyebrow="FATEPULSE" title="What is happening in the market?" accent={FateDropColors.manifested} status="HISTORY BUILDING" />
+      <PanelHeading eyebrow="FATEPULSE" title="What is happening in the market?" accent={FateDropColors.manifested} status={status} />
       <View style={styles.metricGrid}>
         <MarketMetric label="MARKET HEAT" value="—" detail="Activity" />
-        <MarketMetric label="PRICE" value="—" detail="Direction" />
+        <MarketMetric label="PRICE" value={movementText(movement?.medianPercent)} detail={`7D · ${movement?.contributors ?? 0}/${movement?.eligible ?? 0} lanes`} />
         <MarketMetric label="VOLATILITY" value="—" detail="Stability" />
       </View>
       <View style={styles.readinessRow}>
-        <Ionicons name="time-outline" size={17} color={FateDropColors.manifested} />
-        <Text style={styles.readinessCopy}>Verified daily history is still being established. Heat, movement and rankings remain blank until their evidence gates pass.</Text>
+        <Ionicons name={error ? 'cloud-offline-outline' : 'time-outline'} size={17} color={FateDropColors.manifested} />
+        <Text style={styles.readinessCopy}>{error || `${historyDetail} Heat, volatility and rankings stay blank until their calibration gates pass.`}</Text>
       </View>
       <View style={styles.pulseList}>
         <PulseRow label="Heating up" />
@@ -161,21 +207,37 @@ function PulsePanel() {
   );
 }
 
-function CollectorsPanel({ signedIn }: { signedIn: boolean }) {
+function valueText(data: FateCollectorsSnapshot | null) {
+  const collection=data?.summary.collection;
+  if (!collection || collection.pricedUnits === 0) return '—';
+  return `€${collection.knownValue.toFixed(2)}`;
+}
+
+function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; signedIn: boolean }) {
+  const summary=data?.summary;
+  const status=!signedIn?'FATEDROP ID REQUIRED':data?'PRIVATE EVIDENCE':loading?'LOADING':'PRIVATE PREVIEW';
+  const collectionCopy = !signedIn
+    ? 'Connect a FateDrop ID now; ownership, imports and valuation are always private and owner-scoped.'
+    : error
+      ? error
+      : data?.status === 'empty'
+        ? 'Your collection is empty. FateDrop will accept only a user-exported Collectr CSV and will preview exact matches before anything can be added.'
+        : 'Completion uses verified canonical printings. Price gaps and incomplete set catalogues stay visible instead of becoming fake precision.';
   return (
     <View style={[styles.panel, { borderColor: `${FateDropColors.echo}55` }]}>
-      <PanelHeading eyebrow="FATE COLLECTORS" title="What do I own, and what does it mean?" accent={FateDropColors.echo} status="PRIVATE PREVIEW" />
+      <PanelHeading eyebrow="FATE COLLECTORS" title="What do I own, and what does it mean?" accent={FateDropColors.echo} status={status} />
       <View style={styles.collectorHero}>
         <Text style={styles.collectorLabel}>KNOWN COLLECTION VALUE</Text>
-        <Text style={styles.collectorValue}>—</Text>
-        <Text style={styles.collectorCoverage}>Price coverage —</Text>
+        <Text style={styles.collectorValue}>{valueText(data)}</Text>
+        <Text style={styles.collectorCoverage}>Price coverage {summary ? `${summary.collection.priceCoveragePercent}%` : '—'} · native EUR evidence</Text>
       </View>
       <View style={styles.collectorStats}>
-        <CollectorMetric label="CARDS" />
-        <CollectorMetric label="SETS" />
-        <CollectorMetric label="CLOSEST SET" />
+        <CollectorMetric label="CARDS" value={summary ? String(summary.cardUnits) : '—'} />
+        <CollectorMetric label="SETS" value={summary ? String(summary.setsOwned) : '—'} />
+        <CollectorMetric label="CLOSEST SET" value={summary?.closestSet ? `${summary.closestSet.completionPercent}%` : '—'} />
       </View>
-      <Text style={styles.panelCopy}>{signedIn ? 'No collection is connected yet. Import, completion and valuation stay closed until the compatibility and catalogue evidence gates pass.' : 'Connect a FateDrop ID now; collection import and truthful valuation will follow once their evidence gates pass.'}</Text>
+      <Text style={styles.panelCopy}>{collectionCopy}</Text>
+      {signedIn ? <Text style={styles.importNote}>COLLECTR · User-export preview only. No account automation, scraping or imported price claims.</Text> : null}
       {!signedIn ? (
         <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
           <Text style={styles.secondaryButtonText}>CONNECT FATEDROP ID</Text>
@@ -204,8 +266,8 @@ function MarketMetric({ detail, label, value }: { detail: string; label: string;
   return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricDetail}>{detail}</Text></View>;
 }
 
-function CollectorMetric({ label }: { label: string }) {
-  return <View style={styles.collectorMetric}><Text style={styles.collectorMetricValue}>—</Text><Text style={styles.collectorMetricLabel}>{label}</Text></View>;
+function CollectorMetric({ label, value }: { label: string; value: string }) {
+  return <View style={styles.collectorMetric}><Text numberOfLines={1} adjustsFontSizeToFit style={styles.collectorMetricValue}>{value}</Text><Text style={styles.collectorMetricLabel}>{label}</Text></View>;
 }
 
 function FlowStep({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
@@ -240,6 +302,7 @@ const styles = StyleSheet.create({
   statusPill: { maxWidth: 108, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
   statusText: { fontSize: 7, lineHeight: 9, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
   panelCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 14 },
+  importNote: { color: FateDropColors.muted, fontSize: 8, lineHeight: 13, fontWeight: '800', letterSpacing: .35, marginTop: 10 },
   traderFlow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 18 },
   flowStep: { flex: 1, minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, borderWidth: 1, borderColor: `${FateDropColors.goldBright}35`, backgroundColor: `${FateDropColors.goldBright}0A` },
   flowLabel: { color: FateDropColors.ivory, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
