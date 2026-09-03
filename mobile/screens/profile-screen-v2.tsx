@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
@@ -163,6 +163,8 @@ export default function ProfileScreenV2() {
             <Divider />
             <Preference icon="bookmark-outline" title="Wishlist" detail="Products you want to keep across stock and retailer changes." onPress={() => router.push('/(tabs)/watchlist')} />
             <Divider />
+            <Preference icon="pulse-outline" title="Live Network" detail="Retailer coverage, monitor health and FateDrop network activity." onPress={() => router.push('/(tabs)/network')} />
+            <Divider />
             <Preference icon="speedometer-outline" title="App dashboard" detail="Live monitor health, account sync and optimisation visibility." onPress={() => router.push('/dashboard')} />
             <Divider />
             <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
 
   profileIdentity: { alignItems: 'center', marginBottom: 10 },
   cover: { width: '100%', height: 210, overflow: 'hidden', backgroundColor: FateDropColors.surface },
-  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,8,13,.04)' },
+  coverShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(4,8,13,.04)' },
   overlayHeader: { position: 'absolute', top: 10, left: 14, right: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   logoPlate: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 12, backgroundColor: 'rgba(3,7,12,.34)' },
   wordmark: { width: 174, height: 58 },

@@ -96,7 +96,7 @@ export default function HomeScreenV2() {
         <View style={styles.hero}>
           <Image
             source={require('../assets/images/home-koru-hero.webp')}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             contentFit="contain"
             contentPosition="center"
             transition={180}
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   headerBadge: { position: 'absolute', right: -3, top: -3, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, backgroundColor: FateDropColors.vanished, alignItems: 'center', justifyContent: 'center' },
   headerBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
   hero: { height: 500, marginHorizontal: -18, marginBottom: 22, overflow: 'hidden', position: 'relative' },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,6,13,.08)' },
+  heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,6,13,.08)' },
   heroContent: { position: 'absolute', left: 24, right: 138, bottom: 28, zIndex: 3 },
   heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: 6, textShadowColor: 'rgba(0,0,0,.85)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 30, lineHeight: 34, fontWeight: '700', textShadowColor: 'rgba(0,0,0,.9)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },

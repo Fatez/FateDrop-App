@@ -22,7 +22,7 @@ export function ScreenBackground() {
     <View pointerEvents="none" style={styles.backgroundLayer}>
       <Image
         source={require('@/assets/images/app-background-cosmic.webp')}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         contentFit="cover"
       />
       <View style={styles.backgroundOverlay} />
@@ -35,7 +35,7 @@ export const FateDropBackground = ScreenBackground;
 export function AbstractHero({ eyebrow, title, subtitle, icon = 'sparkles' }: { eyebrow: string; title: string; subtitle: string; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <View style={styles.abstractHero}>
-      <Image source={require('@/assets/images/app-background-cosmic.webp')} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <Image source={require('@/assets/images/app-background-cosmic.webp')} style={StyleSheet.absoluteFill} contentFit="cover" />
       <View style={styles.abstractHeroShade} />
       <View style={styles.abstractHeroIcon}><Ionicons name={icon} size={19} color={FateDropColors.cyan} /></View>
       <Text style={styles.abstractEyebrow}>{eyebrow}</Text>
@@ -393,17 +393,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: `${FateDropColors.violetLight}55`, marginBottom: 18,
     shadowColor: FateDropColors.violet, shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 5,
   },
-  abstractHeroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,7,15,0.44)' },
+  abstractHeroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,7,15,0.44)' },
   abstractHeroIcon: { position: 'absolute', right: 18, top: 18, width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,24,40,.78)', borderWidth: 1, borderColor: `${FateDropColors.cyan}44` },
   abstractEyebrow: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 7 },
   abstractTitle: { color: FateDropColors.text, fontSize: 25, lineHeight: 30, fontWeight: '900', letterSpacing: -0.7, maxWidth: '82%' },
   abstractSubtitle: { color: '#CBD5E1', fontSize: 12, lineHeight: 18, marginTop: 7, maxWidth: '88%' },
   backgroundLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 0,
   },
   backgroundOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(4, 5, 11, 0.34)',
   },
   headerShell: {

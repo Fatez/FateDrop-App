@@ -34,7 +34,7 @@ test('retailer storefront resolves Cloud profile first and excludes static demo 
 });
 
 test('Fate Network exposes one Stores entry rather than a competing independent-store tool', () => {
-  assert.match(tabs, /setToolboxOpen\(true\)/);
+  assert.match(tabs, /setCompassOpen\(true\)/);
   assert.match(tabs, /title="Retailers"/);
   assert.match(tabs, /onPress=\{\(\) => openTool\('\/\(tabs\)\/indies'\)\}/);
   assert.match(tools, /title="Stores"/);

@@ -32,7 +32,7 @@ export function PersistentBottomNav() {
       <Pressable accessibilityLabel="Open Fate Network" onPress={() => router.push('/tools')} style={styles.emblemButton}>
         <FateDropNavEmblem size={48} />
       </Pressable>
-      <DockItem label="Live Network" icon="pulse-outline" onPress={() => router.replace('/(tabs)/network')} />
+      <DockItem label="Fate Market" icon="analytics-outline" onPress={() => router.replace('/(tabs)/market')} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
     </View>
   );

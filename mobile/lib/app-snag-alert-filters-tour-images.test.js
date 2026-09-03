@@ -60,7 +60,7 @@ test('profile wallpaper picker uses the full high-quality supplied wallpaper lib
 });
 
 test('wallpaper artwork renders centered without per-wallpaper transform overrides', () => {
-  assert.match(profileWallpaperArt, /style=\{StyleSheet\.absoluteFillObject\}/);
+  assert.match(profileWallpaperArt, /style=\{StyleSheet\.absoluteFill\}/);
   assert.match(profileWallpaperArt, /contentPosition="center"/);
   assert.doesNotMatch(profileWallpaperArt, /profileWallpaperTransforms|translateX|translateY|scale: 1\.1/);
 });

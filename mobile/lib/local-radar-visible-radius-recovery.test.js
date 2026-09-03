@@ -17,7 +17,7 @@ test('Local Radar fits returned mapped branches before falling back to a fixed u
 });
 
 test('central Fate Network Local Radar entry remains unscoped', () => {
-  assert.match(tabs, /setToolboxOpen\(true\)/);
+  assert.match(tabs, /setCompassOpen\(true\)/);
   assert.match(tabs, /onPress=\{\(\) => openTool\('\/local-radar'\)\}/);
   assert.doesNotMatch(tabs, /openTool\(\{[^}]*retailerId/);
   assert.match(tools, /title="Local Radar"/);

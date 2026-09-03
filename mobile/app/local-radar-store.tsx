@@ -64,16 +64,21 @@ export default function LocalRadarStoreScreen() {
   useEffect(() => {
     let cancelled = false;
     if (!area || !id) {
-      setShop(null);
-      setError('This store needs a Local Radar location context.');
-      setLoading(false);
-      return;
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setShop(null);
+        setError('This store needs a Local Radar location context.');
+        setLoading(false);
+      });
+      return () => { cancelled = true; };
     }
 
-    setShop(null);
-    setError('');
-    setLoading(true);
     void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setShop(null);
+      setError('');
+      setLoading(true);
       try {
         const payload = await fetchLocalRadar(area, radius, 'shops');
         const found = (payload.shops || []).find(item => item.id === id) || null;

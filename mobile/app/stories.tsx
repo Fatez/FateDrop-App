@@ -185,7 +185,7 @@ function ReaderButton({ icon, label, disabled, onPress }: { icon: keyof typeof I
 const styles = StyleSheet.create({
   screenRoot: { flex: 1, backgroundColor: '#030407' },
   introRoot: { flex: 1, backgroundColor: '#07090E' },
-  introShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,10,.31)' },
+  introShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,10,.31)' },
   introGlow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%', backgroundColor: 'rgba(4,6,12,.53)' },
   introSafe: { flex: 1, justifyContent: 'space-between' },
   introTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 6 },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   beginArrow: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.goldBright },
   readerRoot: { flex: 1, backgroundColor: '#030407' },
   mangaPage: { width: '100%', height: '100%', backgroundColor: '#030407' },
-  readerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+  readerOverlay: { ...StyleSheet.absoluteFill, justifyContent: 'space-between' },
   readerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 5 },
   pageCounter: { minWidth: 62, height: 38, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,.15)', backgroundColor: 'rgba(3,6,10,.76)' },
   pageCounterText: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', letterSpacing: .8 },

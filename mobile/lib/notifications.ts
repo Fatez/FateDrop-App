@@ -37,13 +37,33 @@ async function ensureNotificationPermission() {
   return { granted: true as const };
 }
 
+type NotificationPermissionCompat = {
+  status?: string;
+  granted?: boolean;
+};
+
 function notificationPermissionGranted(permission: Notifications.NotificationPermissionsStatus) {
-  if (Platform.OS !== 'ios') return permission.status === 'granted';
+  const compat = permission as unknown as NotificationPermissionCompat;
+
+  if (Platform.OS !== 'ios') {
+    return compat.granted === true || compat.status === 'granted';
+  }
+
   const iosStatus = permission.ios?.status;
-  if (iosStatus === undefined) return permission.status === 'granted';
+  if (iosStatus === undefined) {
+    return compat.granted === true || compat.status === 'granted';
+  }
+
   return iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED
     || iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL
     || iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
+}
+
+function notificationPermissionLabel(permission: Notifications.NotificationPermissionsStatus) {
+  const compat = permission as unknown as NotificationPermissionCompat;
+  return notificationPermissionGranted(permission)
+    ? 'granted'
+    : compat.status ?? 'denied';
 }
 
 async function postPushEndpoint(sessionToken: string, token: string) {
@@ -117,7 +137,7 @@ export async function stockAlertDeviceReadiness() {
   const permissionGranted = notificationPermissionGranted(permission);
   return {
     physicalDevice: Device.isDevice,
-    permission: permissionGranted ? 'granted' : permission.status,
+    permission: notificationPermissionLabel(permission),
     permissionGranted,
     registeredOnDevice: Boolean(storedToken),
     iosAllowsAlert: permission.ios?.allowsAlert !== false,

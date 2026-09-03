@@ -13,6 +13,10 @@ type DateWindow = 'all' | '30' | '90';
 type RadarRouteParams = Record<string, string | string[] | undefined>;
 const adapter = new ExpoLocationAdapter();
 
+function currentTimestamp() {
+  return Date.now();
+}
+
 export default function LocalRadarEventsScreen() {
   const params = useLocalSearchParams() as RadarRouteParams;
   const initialArea = useMemo(() => areaFromParams(params), [params]);
@@ -23,6 +27,7 @@ export default function LocalRadarEventsScreen() {
   const [events, setEvents] = useState<RadarEvent[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [referenceTime, setReferenceTime] = useState(0);
   const [dateWindow, setDateWindow] = useState<DateWindow>('90');
   const [eventType, setEventType] = useState('All types');
   const [organiser, setOrganiser] = useState('All organisers');
@@ -32,6 +37,7 @@ export default function LocalRadarEventsScreen() {
     setError('');
     try {
       const payload = await fetchLocalRadar(nextArea, nextRadius, 'events');
+      setReferenceTime(currentTimestamp());
       setEvents(payload.events || []);
     } catch (reason) {
       setEvents([]);
@@ -41,7 +47,9 @@ export default function LocalRadarEventsScreen() {
     }
   }, [radius]);
 
-  useEffect(() => { if (area) void load(area, radius); }, [area, radius, load]);
+  useEffect(() => {
+    if (area) void Promise.resolve().then(() => load(area, radius));
+  }, [area, radius, load]);
 
   const handleDeviceLocation = async () => {
     setLoading(true);
@@ -62,14 +70,14 @@ export default function LocalRadarEventsScreen() {
   const types = useMemo(() => ['All types', ...new Set(events.flatMap(event => event.categories || []))], [events]);
   const organisers = useMemo(() => ['All organisers', ...new Set(events.map(event => event.organiserName).filter((value): value is string => Boolean(value)))], [events]);
   const filtered = useMemo(() => events.filter(event => {
-    if (event.startDateTime) {
-      const days = (Date.parse(event.startDateTime) - Date.now()) / 86400000;
+    if (event.startDateTime && referenceTime > 0) {
+      const days = (Date.parse(event.startDateTime) - referenceTime) / 86400000;
       if (dateWindow !== 'all' && (days < 0 || days > Number(dateWindow))) return false;
     }
     if (eventType !== 'All types' && !event.categories?.includes(eventType)) return false;
     if (organiser !== 'All organisers' && event.organiserName !== organiser) return false;
     return true;
-  }), [dateWindow, eventType, events, organiser]);
+  }), [dateWindow, eventType, events, organiser, referenceTime]);
 
   const header = <>
     <Pressable onPress={() => router.back()} style={styles.back}><Ionicons name="arrow-back" size={20} color={FateDropColors.text}/><Text style={styles.backText}>Local Radar</Text></Pressable>

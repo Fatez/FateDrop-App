@@ -38,6 +38,6 @@ test('Stories retains bundled video intro and ten-page manga reader', () => {
 });
 
 test('Expo video is explicitly configured for the restored Stories experience', () => {
-  assert.match(packageJson, /"expo-video": "~3\.0\.16"/);
+  assert.match(packageJson, /"expo-video": "~57\.0\.3"/);
   assert.match(appJson, /"expo-video"/);
 });

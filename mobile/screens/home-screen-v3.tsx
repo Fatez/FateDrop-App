@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ArtworkEdgeBlend } from '@/components/artwork-edge-blend';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
+import { profileWallpaperMeta } from '@/constants/profile-customisation';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -75,6 +77,7 @@ export default function HomeScreenV3() {
   )), [liveOpportunities, selectedTcgCodes, tcgFilter]);
   const tcgParam = tcgFilter === 'all' ? undefined : tcgFilter;
   const filterLabel = tcgFilter === 'all' ? 'All selected games' : TCG_REGISTRY.find((entry) => entry.code === tcgFilter)?.shortName ?? tcgFilter;
+  const wallpaperAccent = profileWallpaperMeta[homeWallpaperId].accent;
 
   useEffect(() => {
     if (tcgFilter !== 'all' && !selectedTcgCodes.includes(tcgFilter)) setTcgFilter('all');
@@ -86,6 +89,7 @@ export default function HomeScreenV3() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
+          <ArtworkEdgeBlend accentColor={wallpaperAccent} />
           <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
@@ -101,6 +105,22 @@ export default function HomeScreenV3() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilters}>
           <Pressable onPress={() => setTcgFilter('all')} style={[styles.gameFilter, tcgFilter === 'all' && styles.gameFilterActive]}><Text style={[styles.gameFilterText, tcgFilter === 'all' && styles.gameFilterTextActive]}>ALL</Text></Pressable>
           {selectedTcgCodes.map((code) => { const entry = TCG_REGISTRY.find((item) => item.code === code); return entry ? <Pressable key={code} onPress={() => setTcgFilter(code)} style={[styles.gameFilter, tcgFilter === code && { borderColor: entry.accent, backgroundColor: `${entry.accent}15` }]}><Text style={[styles.gameFilterText, tcgFilter === code && { color: entry.accent }]}>{entry.shortName.toUpperCase()}</Text></Pressable> : null; })}
+        </ScrollView>
+
+        <View style={styles.marketPreviewHead}>
+          <View>
+            <Text style={styles.marketPreviewEyebrow}>FATE MARKET</Text>
+            <Text style={styles.marketPreviewTitle}>Market intelligence, kept simple.</Text>
+          </View>
+          <Pressable onPress={() => router.push('/(tabs)/market')} style={styles.marketPreviewLink}>
+            <Text style={styles.marketPreviewLinkText}>OPEN</Text>
+            <Ionicons name="arrow-forward" size={13} color={FateDropColors.goldBright} />
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketPreviewRail}>
+          <MarketPreviewCard area="trader" icon="swap-horizontal-outline" title="Fate Trader" detail="Have · Want · Match" status="AVAILABLE" accent={FateDropColors.goldBright} />
+          <MarketPreviewCard area="pulse" icon="pulse-outline" title="FatePulse" detail="Verified market history" status="BUILDING" accent={FateDropColors.manifested} />
+          <MarketPreviewCard area="collectors" icon="albums-outline" title="Fate Collectors" detail="Your position in the market" status="PREVIEW" accent={FateDropColors.echo} />
         </ScrollView>
 
         <View style={styles.sectionHead}>
@@ -185,7 +205,7 @@ export default function HomeScreenV3() {
         </View>
 
         <Pressable accessibilityRole="button" accessibilityLabel="Explore FateDrop events" onPress={() => router.push('/encounters')} style={({ pressed }) => [styles.eventPromo, pressed && styles.pressed]}>
-          <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+          <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
           <View style={styles.eventPromoShade} />
           <View style={styles.eventPromoContent}>
             <Text style={styles.eventPromoEyebrow}>EVENTS · CARD SHOWS · COMMUNITY</Text>
@@ -216,6 +236,26 @@ function Action({ title, detail, icon, onPress }: { title: string; detail: strin
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]}><View style={styles.actionIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} /></Pressable>;
 }
 
+function MarketPreviewCard({ accent, area, detail, icon, status, title }: {
+  accent: string;
+  area: 'trader' | 'pulse' | 'collectors';
+  detail: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  status: string;
+  title: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/(tabs)/market', params: { area } })}
+      style={({ pressed }) => [styles.marketPreviewCard, { borderColor: `${accent}42` }, pressed && styles.pressed]}>
+      <View style={[styles.marketPreviewIcon, { backgroundColor: `${accent}10`, borderColor: `${accent}45` }]}><Ionicons name={icon} size={19} color={accent} /></View>
+      <View style={styles.flex}><Text style={[styles.marketPreviewStatus, { color: accent }]}>{status}</Text><Text style={styles.marketPreviewCardTitle}>{title}</Text><Text style={styles.marketPreviewDetail}>{detail}</Text></View>
+      <Ionicons name="chevron-forward" size={15} color={accent} />
+    </Pressable>
+  );
+}
+
 function TcgFilter({ label, active, color, onPress }: { label: string; active: boolean; color: string; onPress: () => void }) {
   return <Pressable onPress={onPress} style={[styles.tcgFilter, active && { borderColor: color, backgroundColor: `${color}16` }]}><Text style={[styles.tcgFilterText, active && { color }]}>{label.toUpperCase()}</Text></Pressable>;
 }
@@ -239,10 +279,10 @@ const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { wid
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
-  hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background, marginBottom: 14 },
-  wordmark: { position: 'absolute', left: 18, width: 168, height: 56 },
-  profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.58)', borderWidth: 1, borderColor: FateDropColors.border },
-  heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 },
+  hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background },
+  wordmark: { position: 'absolute', left: 18, width: 168, height: 56, zIndex: 2 },
+  profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.58)', borderWidth: 1, borderColor: FateDropColors.border, zIndex: 2 },
+  heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 30, zIndex: 2 },
   heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, ...heroShadow },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700', maxWidth: 330, marginTop: 5, ...heroShadow },
   heroSubtitle: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 19, maxWidth: 340, marginTop: 7, ...heroShadow },
@@ -261,6 +301,17 @@ const styles = StyleSheet.create({
   gameFilterActive: { borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.goldBright}14` },
   gameFilterText: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '900' },
   gameFilterTextActive: { color: FateDropColors.goldBright },
+  marketPreviewHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingHorizontal: 18, marginTop: 2, marginBottom: 10 },
+  marketPreviewEyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1.15 },
+  marketPreviewTitle: { color: FateDropColors.ivory, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  marketPreviewLink: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5 },
+  marketPreviewLinkText: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .65 },
+  marketPreviewRail: { gap: 8, paddingHorizontal: 18, paddingBottom: 21 },
+  marketPreviewCard: { width: 220, minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 17, borderWidth: 1, backgroundColor: 'rgba(16,22,30,.95)' },
+  marketPreviewIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  marketPreviewStatus: { fontSize: 7, fontWeight: '900', letterSpacing: .6 },
+  marketPreviewCardTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900', marginTop: 2 },
+  marketPreviewDetail: { color: FateDropColors.secondary, fontSize: 9, marginTop: 3 },
   pulseGrid: { flexDirection: 'row', gap: 7, paddingHorizontal: 18, marginBottom: 22 },
   pulseCard: { flex: 1, minHeight: 108, padding: 11, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   pulseDot: { width: 7, height: 7, borderRadius: 4, marginBottom: 9 },
@@ -300,7 +351,7 @@ const styles = StyleSheet.create({
   eventSectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 28, fontWeight: '700', marginTop: 4 },
   eventSectionCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 5, maxWidth: 340 },
   eventPromo: { height: 232, marginHorizontal: 18, marginBottom: 24, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.goldBright}55`, backgroundColor: FateDropColors.surface },
-  eventPromoShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,6,11,.28)' },
+  eventPromoShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,6,11,.28)' },
   eventPromoContent: { position: 'absolute', left: 16, right: 16, bottom: 15 },
   eventPromoEyebrow: { color: FateDropColors.goldBright, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.05, ...heroShadow },
   eventPromoTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, lineHeight: 25, fontWeight: '700', maxWidth: 280, marginTop: 4, ...heroShadow },
