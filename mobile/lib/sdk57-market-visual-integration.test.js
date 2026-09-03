@@ -28,11 +28,12 @@ test('Home previews exactly the three Fate Market areas without inventing figure
 });
 
 test('FatePulse and Collectors fail visibly closed while evidence gates are incomplete', () => {
-  assert.match(market, /status="HISTORY BUILDING"/);
-  assert.match(market, /status="PRIVATE PREVIEW"/);
+  assert.match(market, /'HISTORY BUILDING'/);
+  assert.match(market, /'PRIVATE PREVIEW'/);
   assert.match(market, /MarketMetric label="MARKET HEAT" value="—"/);
   assert.match(market, /KNOWN COLLECTION VALUE/);
-  assert.match(market, /Price coverage —/);
+  assert.match(market, /collection\.pricedUnits === 0\) return '—'/);
+  assert.match(market, /Price coverage/);
   assert.match(market, /Missing evidence stays unknown/);
   assert.doesNotMatch(market, /useMemo\([^)]*(?:heat|volatility|value)/i);
 });
