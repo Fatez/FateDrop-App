@@ -1,1 +1,1 @@
-export { default } from '@/screens/fate-market-screen';
+export { default } from '@/screens/fate-market-screen-v2';
