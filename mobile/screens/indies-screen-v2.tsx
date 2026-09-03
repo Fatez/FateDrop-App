@@ -281,8 +281,8 @@ const styles = StyleSheet.create({
   pageSubtitle: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '800', letterSpacing: 1.6, marginTop: 6, textAlign: 'center' },
 
   hero: { height: 205, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.bronze}CC`, backgroundColor: FateDropColors.shell, marginBottom: 10 },
-  heroImage: { ...StyleSheet.absoluteFillObject },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,8,15,.35)' },
+  heroImage: { ...StyleSheet.absoluteFill },
+  heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,8,15,.35)' },
   heroTextBlock: { position: 'absolute', left: 20, bottom: 18, width: '54%', paddingRight: 6 },
   heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, lineHeight: 30, fontWeight: '700', textShadowColor: 'rgba(0,0,0,.72)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   heroCopy: { color: '#E8DDCF', fontFamily: Fonts?.serif, fontSize: 10.5, lineHeight: 15, marginTop: 8, textShadowColor: 'rgba(0,0,0,.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },

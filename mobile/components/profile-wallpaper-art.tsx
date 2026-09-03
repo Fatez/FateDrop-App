@@ -6,10 +6,10 @@ import type { ProfileWallpaperId } from '@/services/profile-customisation';
 
 export function ProfileWallpaperArt({ wallpaperId, thumbnail = false }: { wallpaperId: ProfileWallpaperId; thumbnail?: boolean }) {
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Image
         source={thumbnail ? profileWallpaperThumbnailSources[wallpaperId] : profileWallpaperSources[wallpaperId]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         cachePolicy="disk"
         contentFit="cover"
         contentPosition="center"
@@ -23,7 +23,7 @@ export function ProfileWallpaperArt({ wallpaperId, thumbnail = false }: { wallpa
 
 const styles = StyleSheet.create({
   vignette: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3, 7, 12, .14)',
   },
 });

@@ -277,7 +277,7 @@ export default function AlertsScreenV4() {
 
   const header = <>
     <View style={styles.hero}>
-      <Image source={active.hero} style={StyleSheet.absoluteFillObject} contentFit="cover" contentPosition="center" />
+      <Image source={active.hero} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
       <Pressable onPress={() => router.push('/notification-preferences')} style={[styles.settings, { top: insets.top + 13 }]}><Ionicons name="options-outline" size={18} color={FateDropColors.ivory} /></Pressable>
       <View style={styles.heroCopy}><Text style={[styles.heroEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} · {active.label.toUpperCase()}</Text><Text style={styles.heroTitle}>Signals without the noise.</Text><Text style={styles.heroSub}>Lifecycle intelligence stays separate from your personal FateFinds and FateMatches.</Text></View>
     </View>

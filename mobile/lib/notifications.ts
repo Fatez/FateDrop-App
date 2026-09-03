@@ -37,13 +37,13 @@ async function ensureNotificationPermission() {
   return { granted: true as const };
 }
 
-type NotificationPermissionCompat = Notifications.NotificationPermissionsStatus & {
-  status?: 'granted' | 'denied' | 'undetermined';
+type NotificationPermissionCompat = {
+  status?: string;
   granted?: boolean;
 };
 
 function notificationPermissionGranted(permission: Notifications.NotificationPermissionsStatus) {
-  const compat = permission as NotificationPermissionCompat;
+  const compat = permission as unknown as NotificationPermissionCompat;
 
   if (Platform.OS !== 'ios') {
     return compat.granted === true || compat.status === 'granted';
@@ -60,7 +60,7 @@ function notificationPermissionGranted(permission: Notifications.NotificationPer
 }
 
 function notificationPermissionLabel(permission: Notifications.NotificationPermissionsStatus) {
-  const compat = permission as NotificationPermissionCompat;
+  const compat = permission as unknown as NotificationPermissionCompat;
   return notificationPermissionGranted(permission)
     ? 'granted'
     : compat.status ?? 'denied';
