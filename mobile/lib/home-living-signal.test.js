@@ -17,6 +17,19 @@ test('Home implements the approved Living Signal hierarchy', () => {
   assert.match(home, /alert\.product\.imageUrl/);
 });
 
+test('Home keeps the briefing and lifecycle ribbon in vertical flow', () => {
+  assert.match(home, /paddingTop: insets\.top \+ 76/);
+  assert.match(home, /heroBriefing: \{ marginLeft: 24, marginRight: 22/);
+  assert.match(home, /heroLifecycle: \{ marginTop: 12, marginHorizontal: 18/);
+  assert.doesNotMatch(home, /heroBriefing: \{ position: 'absolute'/);
+  assert.doesNotMatch(home, /heroLifecycle: \{ position: 'absolute'/);
+});
+
+test('Home profile wallpaper rendering is paused while Living Signal assets are redesigned', () => {
+  assert.match(home, /HOME_PROFILE_WALLPAPER_ENABLED = false/);
+  assert.match(home, /HOME_PROFILE_WALLPAPER_ENABLED && homeWallpaperId !== 'koruHome'/);
+});
+
 test('personal briefing remains evidence-backed and fail closed', () => {
   assert.match(briefing, /HOME_VISIT_PREFIX/);
   assert.match(briefing, /alert\.fateStage !== 'ECHO'/);
