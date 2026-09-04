@@ -17,7 +17,7 @@ test('App reads current availability through the existing canonical alert gatewa
 });
 
 test('Home cycles verified stock without creating or replaying an alert', () => {
-  assert.match(home, /fetchCanonicalLiveOpportunities\(20\)/);
+  assert.match(home, /fetchCanonicalLiveOpportunities\(50\)/);
   assert.match(home, /VERIFIED LIVE NOW/);
   assert.match(home, /Seeing one here never repeats the alarm/);
   assert.match(home, /Nothing is freshly verified live right now/);

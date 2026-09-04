@@ -5,19 +5,28 @@ import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from '
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { deriveHomeSignalKind, type HomeSignalKind } from '@/lib/home-signal-state';
 import { loadWatchlist } from '@/lib/watchlist';
 import {
-  fetchCanonicalAlerts,
-  fetchCanonicalLiveOpportunities,
+  countUnreadCanonicalAlertsByStage,
+  type CanonicalAlertStage,
   type CanonicalMobileAlert,
 } from '@/services/canonical-alerts';
+import { INITIAL_ALERT_LIMITS, queryCanonicalAlertPage } from '@/services/canonical-alert-query';
 import { migrateLegacyWatchlist } from '@/services/wishlist';
 import type { WishlistItem } from '@/types/domain';
 
 const POKEMON_CENTER_UK_ID = 'pokemon-center-uk';
 const POKEMON_CENTER_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
+const HOME_SIGNAL_STAGES: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'VANISHED'];
 
 type LoadState = 'idle' | 'ready' | 'error';
+const EMPTY_PERSONAL_UNREAD: Record<CanonicalAlertStage, number> = {
+  WHISPER: 0,
+  ECHO: 0,
+  MANIFESTED: 0,
+  VANISHED: 0,
+};
 
 function normalizeRetailerName(value: string | null | undefined) {
   return String(value || '')
@@ -48,36 +57,57 @@ function wishlistItemMatchesLiveOpportunity(item: WishlistItem, alert: Canonical
   return false;
 }
 
-export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean }) {
+export function HomePersonalBriefing({
+  embedded = false,
+  liveOpportunities,
+  liveState,
+  onSignalStateChange,
+}: {
+  embedded?: boolean;
+  liveOpportunities: CanonicalMobileAlert[];
+  liveState: 'loading' | 'ready' | 'error';
+  onSignalStateChange?: (state: HomeSignalKind) => void;
+}) {
   const { signedIn, snapshot } = useFateDropId();
   const fateId = snapshot?.user?.fateId || null;
+  const userId = snapshot?.user?.id || null;
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
-  const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [alertState, setAlertState] = useState<LoadState>('idle');
-  const [liveState, setLiveState] = useState<LoadState>('idle');
   const [wishlistState, setWishlistState] = useState<LoadState>('idle');
+  const [personalUnread, setPersonalUnread] = useState<Record<CanonicalAlertStage, number>>(EMPTY_PERSONAL_UNREAD);
   const [observedNow, setObservedNow] = useState(0);
   const [glow] = useState(() => new Animated.Value(0));
   const [reduceMotion, setReduceMotion] = useState(false);
+  const selectedTcgCodes = useMemo(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
+  const alertFilterKey = useMemo(() => JSON.stringify({
+    notificationUpdatedAt: snapshot?.notificationPreferences?.updatedAt ?? 0,
+    tcgAlertPreferences: snapshot?.tcgPreferences?.alertPreferences ?? null,
+  }), [snapshot?.notificationPreferences?.updatedAt, snapshot?.tcgPreferences?.alertPreferences]);
 
   const load = useCallback(async () => {
-    if (!signedIn) {
+    if (!signedIn || !userId) {
       setAlerts([]);
-      setLiveOpportunities([]);
       setWishlistItems([]);
       setAlertState('idle');
-      setLiveState('idle');
       setWishlistState('idle');
+      setPersonalUnread(EMPTY_PERSONAL_UNREAD);
       return;
     }
 
     const visitStartedAt = Date.now();
     setObservedNow(visitStartedAt);
 
-    const [nextAlerts, nextLive, nextWishlist] = await Promise.all([
-      fetchCanonicalAlerts(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
-      fetchCanonicalLiveOpportunities(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
+    const [nextAlerts, nextWishlist] = await Promise.all([
+      Promise.all(HOME_SIGNAL_STAGES.map((stage) => queryCanonicalAlertPage({
+        accountId: userId,
+        stage,
+        selectedTcgCodes,
+        filterKey: alertFilterKey,
+        limit: INITIAL_ALERT_LIMITS[stage],
+      })))
+        .then((pages) => ({ ok: true as const, data: pages.flatMap((page) => page.alerts) }))
+        .catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
       loadWatchlist()
         .then((keys) => migrateLegacyWatchlist(keys))
         .then((data) => ({ ok: true as const, data }))
@@ -92,22 +122,25 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
       setAlertState('error');
     }
 
-    if (nextLive.ok) {
-      setLiveOpportunities(nextLive.data);
-      setLiveState('ready');
-    } else {
-      setLiveOpportunities([]);
-      setLiveState('error');
-    }
-
+    const exactWishlistItems = nextWishlist.data.filter((item) => item.targetType === 'OFFER' || item.targetType === 'PRODUCT');
     if (nextWishlist.ok) {
-      setWishlistItems(nextWishlist.data.filter((item) => item.targetType === 'OFFER' || item.targetType === 'PRODUCT'));
+      setWishlistItems(exactWishlistItems);
       setWishlistState('ready');
     } else {
       setWishlistItems([]);
       setWishlistState('error');
     }
-  }, [signedIn]);
+
+    if (nextAlerts.ok && nextWishlist.ok && userId) {
+      const personalAlerts = nextAlerts.data.filter((alert) => (
+        exactWishlistItems.some((item) => wishlistItemMatchesLiveOpportunity(item, alert))
+      ));
+      const unread = await countUnreadCanonicalAlertsByStage(userId, personalAlerts).catch(() => EMPTY_PERSONAL_UNREAD);
+      setPersonalUnread(unread);
+    } else {
+      setPersonalUnread(EMPTY_PERSONAL_UNREAD);
+    }
+  }, [alertFilterKey, selectedTcgCodes, signedIn, userId]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -131,14 +164,37 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
   }, [liveOpportunities, liveState, wishlistItems, wishlistState]);
 
   const pokemonCenterActive = useMemo(() => {
-    if (alertState !== 'ready') return false;
+    if (!observedNow) return false;
     const floor = observedNow - POKEMON_CENTER_ACTIVITY_WINDOW_MS;
-    return alerts.some((alert) => (
+    return [...alerts, ...(liveState === 'ready' ? liveOpportunities : [])].some((alert) => (
       isPokemonCenterUk(alert)
       && alert.fateStage !== 'VANISHED'
       && newestActivityAt(alert) >= floor
     ));
-  }, [alertState, alerts, observedNow]);
+  }, [alerts, liveOpportunities, liveState, observedNow]);
+
+  const pcukEvidenceState: LoadState = pokemonCenterActive
+    ? 'ready'
+    : alertState === 'error' || liveState === 'error'
+      ? 'error'
+      : alertState === 'ready' && liveState === 'ready'
+        ? 'ready'
+        : 'idle';
+
+  const signalState = useMemo(() => deriveHomeSignalKind({
+    signedIn,
+    loading: alertState === 'idle' || liveState === 'loading' || wishlistState === 'idle',
+    error: alertState === 'error' || liveState === 'error' || wishlistState === 'error',
+    wantedLiveCount,
+    pokemonCenterActive,
+    unreadEchoes: personalUnread.ECHO,
+    unreadWhispers: personalUnread.WHISPER,
+    unreadVanished: personalUnread.VANISHED,
+  }), [alertState, liveState, personalUnread, pokemonCenterActive, signedIn, wantedLiveCount, wishlistState]);
+
+  useEffect(() => {
+    onSignalStateChange?.(signalState);
+  }, [onSignalStateChange, signalState]);
 
   useEffect(() => {
     if (!pokemonCenterActive) {
@@ -161,14 +217,14 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
 
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.58] });
   const glowScale = glow.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.05] });
-  const pcukStatus = alertState === 'idle'
+  const pcukStatus = pcukEvidenceState === 'idle'
     ? 'POKÉMON CENTER UK ACTIVITY CHECKING'
-    : alertState === 'error'
+    : pcukEvidenceState === 'error'
       ? 'POKÉMON CENTER UK STATUS UNAVAILABLE'
     : pokemonCenterActive
       ? 'POKÉMON CENTER UK ACTIVITY DETECTED'
       : 'NO POKÉMON CENTER UK ACTIVITY DETECTED';
-  const wantedLine = liveState === 'idle' || wishlistState === 'idle'
+  const wantedLine = liveState === 'loading' || wishlistState === 'idle'
     ? 'Wanted-item availability loading'
     : liveState === 'error' || wishlistState === 'error'
       ? 'Wanted-item availability unavailable'

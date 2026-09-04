@@ -23,6 +23,7 @@ import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry'
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { formatEventDate } from '@/lib/encounters';
+import type { HomeSignalKind } from '@/lib/home-signal-state';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import { fetchFateCollectorsSummary, fetchFatePulse, type FateCollectorsSnapshot, type FatePulseDirectionPeriod, type FatePulseSnapshot } from '@/services/fate-market';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
@@ -86,6 +87,7 @@ export default function HomeScreenV3() {
   const [sheet, setSheet] = useState<SheetState>(null);
   const [liveIndex, setLiveIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const [homeSignalState, setHomeSignalState] = useState<HomeSignalKind>('loading');
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroEntrance = useRef(new Animated.Value(0)).current;
   const intelligenceEntrance = useRef(new Animated.Value(0)).current;
@@ -95,7 +97,7 @@ export default function HomeScreenV3() {
     const [nextPulse, nextLive, , customisation, nextMarketPulse, nextCollectors, nextEvents] = await Promise.all([
       fetchNetworkPulse(7).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: null })),
       signedIn
-        ? fetchCanonicalLiveOpportunities(20).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] }))
+        ? fetchCanonicalLiveOpportunities(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] }))
         : Promise.resolve({ ok: true as const, data: [] as CanonicalMobileAlert[] }),
       signedIn ? refreshIfStale().catch(() => null) : Promise.resolve(null),
       loadProfileCustomisation(identity).catch(() => null),
@@ -217,7 +219,7 @@ export default function HomeScreenV3() {
       >
         <Animated.View style={[styles.hero, entranceStyle(heroEntrance, 10)]}>
           <View style={[styles.heroBriefing, { top: insets.top + 8 }]}>
-            <HomePersonalBriefing embedded />
+            <HomePersonalBriefing embedded liveOpportunities={liveOpportunities} liveState={liveState} onSignalStateChange={setHomeSignalState} />
           </View>
           <View style={styles.heroLifecycle}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
@@ -229,6 +231,8 @@ export default function HomeScreenV3() {
             market={marketPresentation}
             collection={collectionPresentation}
             accent={wallpaperAccent}
+            signalState={homeSignalState}
+            reduceMotion={Boolean(reduceMotion)}
           />
         </Animated.View>
 
@@ -314,11 +318,58 @@ function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadSta
 
 type IntelligencePresentation = { value: string; detail: string; secondary: string; foot: string };
 
-function OrbitalIntelligenceHub({ accent, collection, market }: {
+const crystalSignalMeta: Record<HomeSignalKind, {
+  accent: string;
+  artworkOpacity: number;
+  glowOpacity: number;
+  label: string;
+}> = {
+  loading: { accent: FateDropColors.muted, artworkOpacity: 0.62, glowOpacity: 0.05, label: 'Personal signal checking' },
+  error: { accent: FateDropColors.muted, artworkOpacity: 0.55, glowOpacity: 0.03, label: 'Personal signal unavailable' },
+  idle: { accent: FateDropColors.violetLight, artworkOpacity: 0.68, glowOpacity: 0.07, label: 'No personal signal requiring attention' },
+  manifested: { accent: FateDropColors.manifested, artworkOpacity: 1, glowOpacity: 0.34, label: 'A wanted item is verified live' },
+  echo: { accent: FateDropColors.echo, artworkOpacity: 0.96, glowOpacity: 0.27, label: 'A wanted-item Echo is unread' },
+  pcuk: { accent: FateDropColors.cyan, artworkOpacity: 0.92, glowOpacity: 0.26, label: 'Pokémon Center UK activity is detected' },
+  whisper: { accent: FateDropColors.whisper, artworkOpacity: 0.84, glowOpacity: 0.18, label: 'A wanted-item Whisper is unread' },
+  vanished: { accent: FateDropColors.vanished, artworkOpacity: 0.62, glowOpacity: 0.13, label: 'A wanted-item Vanished update is unread' },
+};
+
+function OrbitalIntelligenceHub({ accent, collection, market, reduceMotion, signalState }: {
   accent: string;
   collection: IntelligencePresentation;
   market: IntelligencePresentation;
+  reduceMotion: boolean;
+  signalState: HomeSignalKind;
 }) {
+  const signalEnergy = useRef(new Animated.Value(0)).current;
+  const signal = crystalSignalMeta[signalState];
+  const active = signalState !== 'idle' && signalState !== 'loading' && signalState !== 'error';
+
+  useEffect(() => {
+    signalEnergy.stopAnimation();
+    if (!active) {
+      signalEnergy.setValue(0);
+      return;
+    }
+    if (reduceMotion) {
+      signalEnergy.setValue(0.42);
+      return;
+    }
+    signalEnergy.setValue(0.12);
+    const pulse = Animated.sequence([
+      Animated.timing(signalEnergy, { toValue: 1, duration: 520, useNativeDriver: true }),
+      Animated.timing(signalEnergy, { toValue: 0.42, duration: 760, useNativeDriver: true }),
+    ]);
+    pulse.start();
+    return () => pulse.stop();
+  }, [active, reduceMotion, signalEnergy, signalState]);
+
+  const glowOpacity = signalEnergy.interpolate({
+    inputRange: [0, 1],
+    outputRange: [signal.glowOpacity, Math.min(0.68, signal.glowOpacity + 0.3)],
+  });
+  const crystalScale = signalEnergy.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
+
   return (
     <View style={styles.orbitalHub}>
       <View pointerEvents="none" style={styles.hubHorizon} />
@@ -332,24 +383,28 @@ function OrbitalIntelligenceHub({ accent, collection, market }: {
         presentation={market}
         onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })}
       />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open Fate Market"
-        onPress={() => router.push('/(tabs)/market')}
-        style={({ pressed }) => [styles.hubCrystal, pressed && styles.pressed]}
-      >
-        <View pointerEvents="none" style={styles.hubCrystalOrbitOuter} />
-        <View pointerEvents="none" style={styles.hubCrystalOrbitInner} />
-        <Image
-          source={require('../assets/images/home-orbital-crystal.png')}
-          style={styles.hubCrystalArtwork}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          enforceEarlyResizing
-        />
+      <View accessible accessibilityRole="image" accessibilityLabel={signal.label} style={styles.hubCrystal}>
+        <Animated.View pointerEvents="none" style={[styles.hubCrystalBloom, {
+          backgroundColor: signal.accent,
+          opacity: glowOpacity,
+          transform: [{ scale: crystalScale }],
+        }]} />
+        <View pointerEvents="none" style={[styles.hubCrystalOrbitOuter, { borderColor: `${signal.accent}${active ? 'B8' : '5C'}` }]} />
+        <View pointerEvents="none" style={[styles.hubCrystalOrbitInner, { borderColor: `${signal.accent}${signalState === 'pcuk' ? 'C8' : '78'}` }]} />
+        {signalState === 'pcuk' ? <View pointerEvents="none" style={styles.hubCrystalRadarRing} /> : null}
+        <Animated.View pointerEvents="none" style={{ opacity: signal.artworkOpacity, transform: [{ scale: crystalScale }] }}>
+          <Image
+            source={require('../assets/images/home-orbital-crystal.png')}
+            style={styles.hubCrystalArtwork}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            enforceEarlyResizing
+          />
+        </Animated.View>
+        <View pointerEvents="none" style={[styles.hubCrystalCore, { backgroundColor: signal.accent, opacity: active ? 0.22 : 0.08 }]} />
         <View pointerEvents="none" style={[styles.hubCrystalNeedle, { borderBottomColor: FateDropColors.goldBright }]} />
         <View pointerEvents="none" style={[styles.hubCrystalNeedle, styles.hubCrystalNeedleBottom, { borderBottomColor: FateDropColors.goldBright }]} />
-      </Pressable>
+      </View>
       <OrbitalIntelligenceNode
         side="right"
         accent={accent}
@@ -667,9 +722,12 @@ const styles = StyleSheet.create({
   hubNodeSecondary: { color: 'rgba(242,233,218,.57)', fontSize: 5.8, lineHeight: 8, textAlign: 'center', marginTop: 2 },
   hubNodeFoot: { color: 'rgba(242,233,218,.44)', fontSize: 5.8, lineHeight: 8, textAlign: 'center', marginTop: 1 },
   hubCrystal: { position: 'absolute', left: '50%', top: -3, width: 176, height: 178, marginLeft: -88, alignItems: 'center', justifyContent: 'center', zIndex: 4 },
+  hubCrystalBloom: { position: 'absolute', width: 116, height: 116, borderRadius: 58 },
   hubCrystalOrbitOuter: { position: 'absolute', width: 164, height: 164, borderRadius: 82, borderWidth: 1, borderColor: 'rgba(226,197,141,.62)' },
   hubCrystalOrbitInner: { position: 'absolute', width: 148, height: 148, borderRadius: 74, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.60)' },
+  hubCrystalRadarRing: { position: 'absolute', width: 174, height: 174, borderRadius: 87, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(99,225,255,.72)', transform: [{ scaleX: 1.08 }] },
   hubCrystalArtwork: { width: 160, height: 160 },
+  hubCrystalCore: { position: 'absolute', width: 19, height: 34, borderRadius: 10 },
   hubCrystalNeedle: { position: 'absolute', top: -2, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 17, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
   hubCrystalNeedleBottom: { top: undefined, bottom: -2, transform: [{ rotate: '180deg' }] },
   liveSection: { minHeight: 182, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },

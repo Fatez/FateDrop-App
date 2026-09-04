@@ -18,6 +18,13 @@ test('personal collection cache remains isolated by authenticated token', () => 
 });
 
 test('normal focus reuses fresh snapshots while pull-to-refresh bypasses them', () => {
-  assert.match(screen, /loadMarket\(false\)/);
+  assert.match(screen, /loadPulse\(false\)/);
+  assert.match(screen, /loadCollectors\(false\)/);
   assert.match(screen, /loadMarket\(true\)/);
+});
+
+test('changing market scope never refetches the private collection snapshot', () => {
+  assert.match(screen, /const loadPulse = useCallback/);
+  assert.match(screen, /const loadCollectors = useCallback/);
+  assert.doesNotMatch(screen, /const loadPulse[\s\S]*?fetchFateCollectorsSummary[\s\S]*?\}, \[selectedScope\]\)/);
 });
