@@ -20,7 +20,8 @@ test('Home cycles verified stock without creating or replaying an alert', () => 
   assert.match(home, /fetchCanonicalLiveOpportunities\(20\)/);
   assert.match(home, /VERIFIED LIVE NOW/);
   assert.match(home, /Seeing one here never repeats the alarm/);
-  assert.match(home, /Closed or stale Manifested alerts stay in history/);
+  assert.match(home, /Nothing is freshly verified live right now/);
+  assert.match(home, /alert\.product\.imageUrl/);
   assert.doesNotMatch(home, /sendPush|scheduleNotification|deliverSignals|enqueue/);
   assert.match(home, /openExternalRetailerLink/);
   assert.doesNotMatch(home, /Linking\.openURL\(alert\.productUrl/);

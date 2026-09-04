@@ -98,62 +98,65 @@ export default function HomeScreenV3() {
     <View style={styles.safe}>
       <FateDropBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
-          <View pointerEvents="none" style={styles.heroVeil} />
-          <ArtworkEdgeBlend accentColor={wallpaperAccent} height={156} />
-          <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 8 }]} contentFit="contain" contentPosition="left center" />
-          <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
-            <Ionicons name={signedIn ? 'settings-outline' : 'person-outline'} size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-          <View style={[styles.heroBriefing, { top: insets.top + 80 }]}>
-            <HomePersonalBriefing embedded />
-          </View>
-          <View style={styles.heroLifecycle}>
-            <Text style={styles.lifecycleWindow}>NETWORK · Last 7 days</Text>
-            <View style={styles.lifecycleRibbon}>
-              {stageOrder.map((state) => {
-                const meta = stageMeta[state];
-                return (
-                  <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={styles.lifecycleItem}>
-                    <View style={[styles.pulseDot, { backgroundColor: meta.color }]} />
-                    <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
-                    <Text style={[styles.lifecycleValue, { color: meta.color }]}>{pulseError ? '—' : pulse[state]}</Text>
-                  </Pressable>
-                );
-              })}
+        <View style={styles.livingStage}>
+          <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} cachePolicy="disk" contentFit="cover" contentPosition="top center" enforceEarlyResizing />
+          {homeWallpaperId !== 'koruHome' ? <View pointerEvents="none" style={styles.selectedWallpaperLayer}>
+            <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
+            <ArtworkEdgeBlend accentColor={wallpaperAccent} height={130} />
+          </View> : null}
+          <View pointerEvents="none" style={styles.stageVeil} />
+
+          <View style={styles.hero}>
+            <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 5 }]} contentFit="contain" contentPosition="left center" />
+            <View style={[styles.heroBriefing, { top: insets.top + 76 }]}>
+              <HomePersonalBriefing embedded />
+            </View>
+            <View style={styles.heroLifecycle}>
+              <View accessibilityLabel="Network signals · Last 7 days" style={styles.lifecycleRibbon}>
+                {stageOrder.map((state, index) => {
+                  const meta = stageMeta[state];
+                  return (
+                    <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast]}>
+                      <Ionicons name={state === 'whisper' ? 'sparkles-outline' : state === 'echo' ? 'radio-outline' : state === 'manifested' ? 'diamond-outline' : 'moon-outline'} size={12} color={meta.color} />
+                      <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
+                      <Text style={[styles.lifecycleValue, { color: meta.color }]}>{pulseError ? '—' : pulse[state]}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.intelligenceGrid}>
-          <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATEPULSE" icon="pulse-outline" title="Tracked set direction"
-            value={pulseAvailable ? movementPercent(pulse30d?.headlinePercent) : 'Building'}
-            detail={pulseAvailable ? `${pulse30d?.breadth.risingSets ?? 0} rising · ${pulse30d?.breadth.unchangedSets ?? 0} stable · ${pulse30d?.breadth.fallingSets ?? 0} falling` : 'Waiting for qualifying 30D evidence'}
-            foot={pulse30d ? `${marketPercent(pulse30d.coverage.currentPriceCoveragePct)} price coverage` : 'Evidence unavailable'}
-            breadth={pulseAvailable ? pulse30d?.breadth : undefined}
-            onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
-          <IntelligenceCard accent={FateDropColors.echo} eyebrow="FATE COLLECTORS" icon="albums-outline"
-            title={signedIn ? 'Known collection value' : 'Your collection'} value={signedIn ? collectionValue(collectors) : 'Connect'}
-            detail={signedIn ? `${collectors?.summary.cardUnits ?? 0} cards · ${collectors?.summary.setsOwned ?? 0} sets` : 'Sign in to make the market personal'}
-            foot={signedIn && closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}%` : signedIn ? `Price coverage ${marketPercent(collection?.priceCoveragePercent)}` : 'Import once. FateDrop does the thinking.'}
-            onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} />
-        </View>
-
-        <View style={styles.livePanel} accessible accessibilityLabel="Verified live opportunities" accessibilityHint="Seeing one here never repeats the alarm">
-          <View style={styles.liveHead}>
-            <Text style={[styles.sectionEyebrow, styles.liveEyebrow]}>✦ VERIFIED LIVE NOW</Text>
-            <Pressable onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'MANIFESTED', tcg: tcgParam } })} style={styles.viewAllLink}><Text style={styles.viewAllText}>VIEW ALL</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.goldBright} /></Pressable>
+          <View style={styles.intelligenceGrid}>
+            <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATEPULSE" icon="pulse-outline" title="Pokémon Market"
+              value={pulseAvailable ? movementPercent(pulse30d?.headlinePercent) : '— · 30D'}
+              detail={pulseAvailable ? `${pulse30d?.breadth.risingSets ?? 0} rising · ${pulse30d?.breadth.unchangedSets ?? 0} stable · ${pulse30d?.breadth.fallingSets ?? 0} falling` : 'Building qualifying market evidence'}
+              foot={pulse30d ? `Coverage ${marketPercent(pulse30d.coverage.currentPriceCoveragePct)}` : 'Coverage unavailable'}
+              breadth={pulseAvailable ? pulse30d?.breadth : undefined}
+              onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
+            <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATE COLLECTORS" icon="people-outline"
+              title="Your collection" value={signedIn ? collectionValue(collectors) : 'Connect'}
+              detail={signedIn ? `${collectors?.summary.cardUnits ?? 0} cards · ${collectors?.summary.setsOwned ?? 0} sets` : 'Make the market personal'}
+              foot={signedIn && closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}% complete` : signedIn ? `Price coverage ${marketPercent(collection?.priceCoveragePercent)}` : 'Import once. FateDrop does the thinking.'}
+              onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} />
           </View>
-          {visibleLiveOpportunities.length ? <View style={styles.liveRail}>
-            <LiveOpportunityCard alert={visibleLiveOpportunities[0]} observedNow={observedNow} />
-          </View> : <View style={styles.liveEmpty}>
-            <Ionicons name={liveError ? 'cloud-offline-outline' : 'hourglass-outline'} size={20} color={FateDropColors.muted} />
-            <View style={styles.flex}>
-              <Text style={styles.liveEmptyTitle}>{liveError ? 'Live verification is temporarily unavailable' : 'No stock is freshly verified live right now'}</Text>
-              <Text style={styles.liveEmptyCopy}>{liveError ? 'FateDrop will not fall back to stale stock.' : 'Closed or stale Manifested alerts stay in history; they are never recycled as current availability.'}</Text>
+
+          <View style={styles.livePanel} accessible accessibilityLabel="Verified live opportunities" accessibilityHint="Seeing one here never repeats the alarm">
+            <View style={styles.liveHead}>
+              <Text style={[styles.sectionEyebrow, styles.liveEyebrow]}>✦ VERIFIED LIVE NOW</Text>
+              <Pressable onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'MANIFESTED', tcg: tcgParam } })} style={styles.viewAllLink}><Text style={styles.viewAllText}>View all</Text><Ionicons name="chevron-forward" size={13} color={FateDropColors.goldBright} /></Pressable>
             </View>
-          </View>}
+            {visibleLiveOpportunities.length ? <View style={styles.liveRail}>
+              <LiveOpportunityCard alert={visibleLiveOpportunities[0]} observedNow={observedNow} />
+            </View> : <View style={styles.liveEmpty}>
+              <Ionicons name={liveError ? 'cloud-offline-outline' : 'diamond-outline'} size={22} color={liveError ? FateDropColors.muted : FateDropColors.manifested} />
+              <View style={styles.flex}>
+                <Text style={styles.liveEmptyTitle}>{liveError ? 'Live verification is temporarily unavailable' : 'Nothing is freshly verified live right now'}</Text>
+                <Text style={styles.liveEmptyCopy}>{liveError ? 'FateDrop will not fall back to stale stock.' : 'This space lights up only for current, verified availability.'}</Text>
+              </View>
+            </View>}
+          </View>
+          <ArtworkEdgeBlend accentColor={wallpaperAccent} height={90} />
         </View>
 
         <View style={styles.gameFilterHead}><Text style={styles.gameFilterEyebrow}>BROWSE YOUR HOME VIEW</Text><Text style={styles.sectionHint}>{filterLabel}</Text></View>
@@ -252,14 +255,18 @@ function IntelligenceCard({ accent, breadth, detail, eyebrow, foot, icon, onPres
   title: string;
   value: string;
 }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.intelligenceCard, { borderColor: `${accent}55` }, pressed && styles.pressed]}>
-    <View style={[styles.intelligenceIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}12` }]}><Ionicons name={icon} size={19} color={accent} /></View>
-    <Text style={[styles.intelligenceEyebrow, { color: accent }]}>{eyebrow}</Text>
+  return <Pressable onPress={onPress} style={({ pressed }) => [styles.intelligenceCard, pressed && styles.pressed]}>
+    <View pointerEvents="none" style={styles.intelligenceOrbit} />
+    <View pointerEvents="none" style={[styles.intelligenceStar, { borderColor: `${accent}66` }]} />
+    <View style={styles.intelligenceHeading}>
+      <View style={[styles.intelligenceIcon, { borderColor: `${accent}66`, backgroundColor: `${accent}0D` }]}><Ionicons name={icon} size={19} color={accent} /></View>
+      <Text style={styles.intelligenceEyebrow}>{eyebrow}</Text>
+    </View>
     <Text style={styles.intelligenceTitle}>{title}</Text>
-    <Text style={[styles.intelligenceValue, { color: value === '—' || value === 'Building' || value === 'Connect' ? FateDropColors.ivory : accent }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    <Text style={[styles.intelligenceValue, { color: value === 'Connect' ? FateDropColors.ivory : accent }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
     <Text style={styles.intelligenceDetail}>{detail}</Text>
     {breadth ? <MarketBreadth breadth={breadth} /> : null}
-    <View style={[styles.intelligenceRule, { backgroundColor: `${accent}44` }]} />
+    <View style={styles.intelligenceRule} />
     <Text style={styles.intelligenceFoot} numberOfLines={2}>{foot}</Text>
   </Pressable>;
 }
@@ -282,16 +289,35 @@ function Action({ title, detail, icon, onPress }: { title: string; detail: strin
 }
 
 function LiveOpportunityCard({ alert, observedNow }: { alert: CanonicalMobileAlert; observedNow: number }) {
-  const definition = TCG_REGISTRY.find((entry) => entry.code === alert.tcgCode);
   const price = alert.product.deliveredPricePence ?? alert.product.pricePence;
   const verifiedAt = alert.liveWindow?.lastConfirmedLiveAt ? Date.parse(alert.liveWindow.lastConfirmedLiveAt) : Number.NaN;
   const ageMinutes = observedNow > 0 && Number.isFinite(verifiedAt) ? Math.max(0, Math.floor((observedNow - verifiedAt) / 60_000)) : null;
   const verifiedLabel = ageMinutes == null ? 'Fresh confirmation' : ageMinutes < 1 ? 'Verified just now' : `Verified ${ageMinutes}m ago`;
+  const delta = alert.priceIntelligence.rrpDeltaPercent;
+  const priceContext = delta == null || !Number.isFinite(delta)
+    ? null
+    : delta < 0
+      ? `${Math.abs(delta).toFixed(1)}% below RRP`
+      : `${delta.toFixed(1)}% over RRP`;
   return <Pressable onPress={() => alert.productUrl ? void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live' }).catch(() => undefined) : undefined} style={({ pressed }) => [styles.liveCard, pressed && styles.pressed]}>
-    <View style={styles.liveCardTop}><Text style={styles.liveStatus}>STILL VERIFIED LIVE</Text><Text style={[styles.liveTcg, { borderColor: definition?.accent ?? FateDropColors.gold }]}>{definition?.shortName ?? alert.tcgCode}</Text></View>
-    <Text style={styles.liveTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
-    <Text style={styles.liveRetailer} numberOfLines={1}>{alert.retailer}</Text>
-    <View style={styles.liveCardBottom}><Text style={styles.livePrice}>{price == null ? 'PRICE UNKNOWN' : `£${(price / 100).toFixed(2)}`}</Text><Text style={styles.liveVerified}>{verifiedLabel}</Text></View>
+    <View style={styles.liveArtwork}>
+      <View pointerEvents="none" style={styles.liveArtworkOrbit} />
+      {alert.product.imageUrl
+        ? <Image source={{ uri: alert.product.imageUrl }} style={styles.liveProductImage} cachePolicy="disk" contentFit="contain" enforceEarlyResizing />
+        : <Ionicons name="diamond-outline" size={52} color={FateDropColors.manifested} />}
+    </View>
+    <View style={styles.liveCopy}>
+      <Text style={styles.liveTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
+      <Text style={styles.liveSet} numberOfLines={1}>{alert.facets.setName || alert.retailer}</Text>
+      <Text style={styles.liveRetailer} numberOfLines={1}>{alert.facets.setName ? alert.retailer : verifiedLabel}</Text>
+      <View style={styles.liveCardBottom}>
+        <View>
+          {priceContext ? <Text style={styles.livePriceContext}>{priceContext}</Text> : null}
+          <Text style={styles.livePrice}>{price == null ? 'Price unknown' : `£${(price / 100).toFixed(2)}`}</Text>
+        </View>
+        {alert.facets.setName ? <Text style={styles.liveVerified}>{verifiedLabel}</Text> : null}
+      </View>
+    </View>
   </Pressable>;
 }
 
@@ -300,10 +326,11 @@ const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { wid
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
-  hero: { height: 405, overflow: 'hidden', backgroundColor: FateDropColors.background },
-  heroVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,7,14,.12)' },
-  wordmark: { position: 'absolute', left: 20, width: 154, height: 52, zIndex: 2 },
-  profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.5)', borderWidth: 1, borderColor: 'rgba(226,197,141,.42)', zIndex: 2 },
+  livingStage: { overflow: 'hidden', backgroundColor: '#050A17' },
+  selectedWallpaperLayer: { position: 'absolute', left: 0, right: 0, top: 0, height: 405, overflow: 'hidden' },
+  stageVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,6,15,.10)' },
+  hero: { height: 405, overflow: 'hidden' },
+  wordmark: { position: 'absolute', left: 24, width: 140, height: 48, zIndex: 2, opacity: .94 },
   heroBriefing: { position: 'absolute', left: 24, right: 22, zIndex: 2 },
   heroLifecycle: { position: 'absolute', left: 18, right: 18, bottom: 12, zIndex: 3 },
   guideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 18, marginBottom: 20, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.goldBright}45`, backgroundColor: 'rgba(19,17,12,.94)' },
@@ -322,38 +349,43 @@ const styles = StyleSheet.create({
   gameFilterActive: { borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.goldBright}14` },
   gameFilterText: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '900' },
   gameFilterTextActive: { color: FateDropColors.goldBright },
-  intelligenceGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 18, marginTop: 10, marginBottom: 14 },
-  intelligenceCard: { flex: 1, minHeight: 190, padding: 13, borderRadius: 20, borderWidth: 1, backgroundColor: 'rgba(6,11,21,.82)' },
-  intelligenceIcon: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
-  intelligenceEyebrow: { fontSize: 8, fontWeight: '900', letterSpacing: .95 },
-  intelligenceTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 15, lineHeight: 18, marginTop: 4 },
-  intelligenceValue: { fontFamily: Fonts?.serif, fontSize: 23, lineHeight: 28, marginTop: 7 },
-  intelligenceDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 5 },
+  intelligenceGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 18, marginTop: 0, marginBottom: 14, zIndex: 2 },
+  intelligenceCard: { flex: 1, minHeight: 194, padding: 13, borderRadius: 3, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', backgroundColor: 'rgba(3,8,20,.58)' },
+  intelligenceOrbit: { position: 'absolute', width: 156, height: 156, borderRadius: 78, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(199,166,106,.13)', right: -54, top: 22 },
+  intelligenceStar: { position: 'absolute', width: 9, height: 9, right: 18, bottom: 24, borderWidth: StyleSheet.hairlineWidth, transform: [{ rotate: '45deg' }] },
+  intelligenceHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  intelligenceIcon: { width: 35, height: 35, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  intelligenceEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '800', letterSpacing: 1.12 },
+  intelligenceTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, lineHeight: 19, marginTop: 10 },
+  intelligenceValue: { fontFamily: Fonts?.serif, fontSize: 23, lineHeight: 28, marginTop: 5 },
+  intelligenceDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
   breadthBar: { height: 3, flexDirection: 'row', gap: 2, marginTop: 8, overflow: 'hidden', borderRadius: 2 },
   breadthSegment: { minWidth: 2, borderRadius: 2 },
-  intelligenceRule: { height: 1, marginTop: 'auto', marginBottom: 7 },
-  intelligenceFoot: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12 },
-  lifecycleWindow: { alignSelf: 'flex-start', color: FateDropColors.gold, fontSize: 7, fontWeight: '900', letterSpacing: 1.05, textTransform: 'uppercase', paddingHorizontal: 8, marginLeft: 9, marginBottom: 4, ...heroShadow },
-  lifecycleRibbon: { flexDirection: 'row', paddingVertical: 9, paddingHorizontal: 5, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(210,182,111,.32)', backgroundColor: 'rgba(5,10,19,.72)' },
-  lifecycleItem: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,.055)' },
-  pulseDot: { width: 6, height: 6, borderRadius: 3 },
-  lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.5, fontWeight: '900', letterSpacing: .25 },
-  lifecycleValue: { fontFamily: Fonts?.serif, fontSize: 18, lineHeight: 21 },
-  livePanel: { marginHorizontal: 18, marginBottom: 22, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(226,197,141,.34)', backgroundColor: 'rgba(6,11,21,.82)' },
-  liveHead: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.24)' },
+  intelligenceRule: { height: StyleSheet.hairlineWidth, marginTop: 'auto', marginBottom: 7, backgroundColor: 'rgba(226,197,141,.30)' },
+  intelligenceFoot: { color: 'rgba(242,233,218,.62)', fontSize: 8.5, lineHeight: 12 },
+  lifecycleRibbon: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 5, borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', backgroundColor: 'rgba(3,8,20,.52)' },
+  lifecycleItem: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
+  lifecycleItemLast: { borderRightWidth: 0 },
+  lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.1, fontWeight: '700', letterSpacing: .22 },
+  lifecycleValue: { fontFamily: Fonts?.serif, fontSize: 15, lineHeight: 18 },
+  livePanel: { marginHorizontal: 18, marginBottom: 30, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.52)', backgroundColor: 'rgba(3,8,20,.57)', zIndex: 2 },
+  liveHead: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.30)' },
   liveEyebrow: { paddingHorizontal: 0, marginBottom: 0, color: FateDropColors.goldBright },
   viewAllLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 3 },
-  viewAllText: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .65 },
+  viewAllText: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 10, letterSpacing: .15 },
   liveRail: { paddingHorizontal: 0 },
-  liveCard: { width: '100%', minHeight: 132, padding: 14, backgroundColor: 'transparent' },
-  liveCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
-  liveStatus: { color: FateDropColors.manifested, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
-  liveTcg: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, borderWidth: 1, color: FateDropColors.ivory, fontSize: 7, fontWeight: '900' },
-  liveTitle: { color: FateDropColors.ivory, fontSize: 14, lineHeight: 18, fontWeight: '900', marginTop: 12 },
-  liveRetailer: { color: FateDropColors.secondary, fontSize: 10, marginTop: 5 },
-  liveCardBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', paddingTop: 13 },
-  livePrice: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },
-  liveVerified: { flex: 1, color: FateDropColors.muted, fontSize: 8, textAlign: 'right' },
+  liveCard: { width: '100%', minHeight: 150, padding: 12, flexDirection: 'row', gap: 14, backgroundColor: 'transparent' },
+  liveArtwork: { width: 106, minHeight: 122, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  liveArtworkOrbit: { position: 'absolute', width: 90, height: 90, borderRadius: 45, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.46)', transform: [{ rotate: '25deg' }] },
+  liveProductImage: { width: 92, height: 112 },
+  liveCopy: { flex: 1, minWidth: 0, paddingVertical: 4 },
+  liveTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, lineHeight: 19 },
+  liveSet: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 14, marginTop: 5 },
+  liveRetailer: { color: FateDropColors.goldBright, fontSize: 9, lineHeight: 13, marginTop: 3 },
+  liveCardBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', paddingTop: 8 },
+  livePriceContext: { color: FateDropColors.manifested, fontSize: 8.5, marginBottom: 2 },
+  livePrice: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 17 },
+  liveVerified: { flex: 1, color: FateDropColors.secondary, fontSize: 7.5, textAlign: 'right', paddingBottom: 2 },
   liveEmpty: { minHeight: 100, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 15 },
   liveEmptyTitle: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900' },
   liveEmptyCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, marginTop: 3 },

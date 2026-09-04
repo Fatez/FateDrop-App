@@ -9,10 +9,12 @@ const briefing = read('components/home-personal-briefing.tsx');
 
 test('Home implements the approved Living Signal hierarchy', () => {
   assert.match(home, /HomePersonalBriefing embedded/);
-  assert.match(home, /NETWORK · Last 7 days/);
+  assert.match(home, /home-living-stage-v2\.png/);
+  assert.match(home, /styles\.lifecycleRibbon/);
   assert.match(home, /FATEPULSE/);
   assert.match(home, /FATE COLLECTORS/);
   assert.match(home, /visibleLiveOpportunities\[0\]/);
+  assert.match(home, /alert\.product\.imageUrl/);
 });
 
 test('personal briefing remains evidence-backed and fail closed', () => {
@@ -20,6 +22,8 @@ test('personal briefing remains evidence-backed and fail closed', () => {
   assert.match(briefing, /alert\.fateStage !== 'ECHO'/);
   assert.match(briefing, /wishlistItemMatchesLiveOpportunity/);
   assert.match(briefing, /POKÉMON CENTER UK STATUS UNAVAILABLE/);
+  assert.match(briefing, /color: FateDropColors\.cyan/);
+  assert.match(briefing, /backgroundColor: 'transparent'/);
 });
 
 test('Home market snapshots render Cloud values only when evidence is available', () => {

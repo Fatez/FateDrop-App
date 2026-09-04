@@ -221,9 +221,8 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         <Text style={styles.echoLine}>
           {alertState === 'error'
             ? 'Echo activity unavailable'
-            : `${echoesSinceLastVisit} ${echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit`}
+            : <><Text style={styles.echoCount}>{echoesSinceLastVisit}</Text> {echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit</>}
         </Text>
-        <Ionicons name="chevron-forward" size={16} color={FateDropColors.echo} />
       </Pressable>
 
       <Pressable
@@ -235,8 +234,11 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         <View style={[styles.signalGlyph, styles.stockGlyph]}>
           <Ionicons name="sparkles-outline" size={15} color={FateDropColors.cyan} />
         </View>
-        <Text style={styles.stockLine}>{wantedLine}</Text>
-        <Ionicons name="chevron-forward" size={16} color={FateDropColors.ivory} />
+        <Text style={styles.stockLine}>
+          {liveState === 'error' || wishlistState === 'error'
+            ? wantedLine
+            : <><Text style={styles.stockCount}>{wantedLiveCount}</Text> wanted {wantedLiveCount === 1 ? 'item is' : 'items are'} in stock</>}
+        </Text>
       </Pressable>
 
       <Pressable
@@ -246,10 +248,9 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         style={({ pressed }) => [styles.pcukRow, pokemonCenterActive && styles.pcukRowActive, pressed && styles.pressed]}
       >
         <View style={[styles.pcukGlyph, pokemonCenterActive && styles.pcukGlyphActive]}>
-          <Ionicons name="radio-outline" size={17} color={pokemonCenterActive ? FateDropColors.cyan : FateDropColors.muted} />
+          <Ionicons name="radio-outline" size={18} color={FateDropColors.cyan} />
         </View>
         <Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive]}>{pcukStatus}</Text>
-        <Ionicons name="chevron-forward" size={17} color={pokemonCenterActive ? FateDropColors.goldBright : FateDropColors.muted} />
       </Pressable>
     </View>
   );
@@ -284,8 +285,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   greeting: {
-    marginBottom: 10,
-    maxWidth: '72%',
+    marginBottom: 8,
+    maxWidth: '76%',
   },
   glow: {
     position: 'absolute',
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
   },
   welcomeKickerEmbedded: {
     color: FateDropColors.goldBright,
-    fontSize: 22,
-    lineHeight: 27,
+    fontSize: 20,
+    lineHeight: 25,
     textShadowColor: 'rgba(0,0,0,.95)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 9,
@@ -333,22 +334,22 @@ const styles = StyleSheet.create({
   },
   welcomeIdentityEmbedded: {
     color: FateDropColors.goldBright,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 30,
+    lineHeight: 35,
     textShadowColor: 'rgba(0,0,0,.96)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
   row: {
-    minHeight: 34,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 8,
   },
   signalGlyph: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
+    width: 25,
+    height: 25,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -364,47 +365,47 @@ const styles = StyleSheet.create({
   echoLine: {
     flex: 1,
     color: FateDropColors.echo,
-    fontFamily: Fonts.sans,
-    fontWeight: '600',
-    fontSize: 13,
+    fontFamily: Fonts?.serif,
+    fontSize: 14,
     textShadowColor: 'rgba(0,0,0,.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
+  echoCount: { color: FateDropColors.manifested, fontSize: 17 },
   stockLine: {
     flex: 1,
     color: FateDropColors.ivory,
-    fontFamily: Fonts.sans,
-    fontSize: 13,
+    fontFamily: Fonts?.serif,
+    fontSize: 14,
     textShadowColor: 'rgba(0,0,0,.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
+  stockCount: { color: FateDropColors.cyan, fontSize: 17 },
   pcukRow: {
-    marginTop: 7,
-    minHeight: 42,
-    paddingHorizontal: 10,
-    borderRadius: 13,
+    marginTop: 9,
+    minHeight: 43,
+    paddingHorizontal: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    backgroundColor: 'rgba(5,10,18,0.48)',
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(99,225,255,.24)',
+    backgroundColor: 'transparent',
   },
   pcukRowActive: {
-    borderColor: 'rgba(210,182,111,0.36)',
-    backgroundColor: 'rgba(22,84,111,0.18)',
+    borderColor: 'rgba(99,225,255,.56)',
   },
   pcukGlyph: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
+    width: 33,
+    height: 33,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(128,119,106,.35)',
-    backgroundColor: 'rgba(8,14,20,.4)',
+    borderColor: 'rgba(99,225,255,.32)',
+    backgroundColor: 'rgba(15,88,120,.16)',
   },
   pcukGlyphActive: {
     borderColor: `${FateDropColors.cyan}66`,
@@ -412,15 +413,15 @@ const styles = StyleSheet.create({
   },
   pcukText: {
     flex: 1,
-    color: FateDropColors.muted,
+    color: 'rgba(99,225,255,.58)',
     fontFamily: Fonts.sans,
-    fontWeight: '700',
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    fontSize: 9.5,
+    lineHeight: 12,
+    letterSpacing: 0.85,
   },
   pcukTextActive: {
-    color: FateDropColors.goldBright,
+    color: FateDropColors.cyan,
   },
   signInRow: {
     flexDirection: 'row',
