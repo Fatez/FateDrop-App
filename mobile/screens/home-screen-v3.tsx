@@ -281,7 +281,7 @@ export default function HomeScreenV3() {
                 disableIntervalMomentum
                 onMomentumScrollEnd={(event) => {
                   const next = Math.round(event.nativeEvent.contentOffset.x / (liveCardWidth + LIVE_CARD_GAP));
-                  setLiveIndex(Math.max(0, Math.min(rankedLiveOpportunities.length - 1, next));
+                  setLiveIndex(Math.max(0, Math.min(rankedLiveOpportunities.length - 1, next)));
                 }}
                 initialNumToRender={2}
                 maxToRenderPerBatch={2}
