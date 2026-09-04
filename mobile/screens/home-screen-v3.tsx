@@ -29,6 +29,10 @@ const stageMeta: Record<NetworkSignalState, { label: string; companion: string; 
 const stageOrder: NetworkSignalState[] = ['whisper', 'echo', 'manifested', 'vanished'];
 const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished: 0 };
 
+// Keep the preference plumbing intact, but do not render profile wallpapers on Home
+// until the wallpaper set has been redesigned around the Living Signal safe zones.
+const HOME_PROFILE_WALLPAPER_ENABLED = false;
+
 export default function HomeScreenV3() {
   const insets = useSafeAreaInsets();
   const { snapshot, signedIn, refreshIfStale } = useFateDropId();
@@ -100,15 +104,15 @@ export default function HomeScreenV3() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.livingStage}>
           <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} cachePolicy="disk" contentFit="cover" contentPosition="top center" enforceEarlyResizing />
-          {homeWallpaperId !== 'koruHome' ? <View pointerEvents="none" style={styles.selectedWallpaperLayer}>
+          {HOME_PROFILE_WALLPAPER_ENABLED && homeWallpaperId !== 'koruHome' ? <View pointerEvents="none" style={styles.selectedWallpaperLayer}>
             <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
             <ArtworkEdgeBlend accentColor={wallpaperAccent} height={130} />
           </View> : null}
           <View pointerEvents="none" style={styles.stageVeil} />
 
-          <View style={styles.hero}>
+          <View style={[styles.hero, { paddingTop: insets.top + 76 }]}>
             <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 5 }]} contentFit="contain" contentPosition="left center" />
-            <View style={[styles.heroBriefing, { top: insets.top + 76 }]}>
+            <View style={styles.heroBriefing}>
               <HomePersonalBriefing embedded />
             </View>
             <View style={styles.heroLifecycle}>
@@ -329,10 +333,10 @@ const styles = StyleSheet.create({
   livingStage: { overflow: 'hidden', backgroundColor: '#050A17' },
   selectedWallpaperLayer: { position: 'absolute', left: 0, right: 0, top: 0, height: 405, overflow: 'hidden' },
   stageVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,6,15,.10)' },
-  hero: { height: 405, overflow: 'hidden' },
+  hero: { minHeight: 405, paddingBottom: 18, overflow: 'hidden' },
   wordmark: { position: 'absolute', left: 24, width: 140, height: 48, zIndex: 2, opacity: .94 },
-  heroBriefing: { position: 'absolute', left: 24, right: 22, zIndex: 2 },
-  heroLifecycle: { position: 'absolute', left: 18, right: 18, bottom: 12, zIndex: 3 },
+  heroBriefing: { marginLeft: 24, marginRight: 22, zIndex: 2 },
+  heroLifecycle: { marginTop: 12, marginHorizontal: 18, zIndex: 3 },
   guideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 18, marginBottom: 20, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.goldBright}45`, backgroundColor: 'rgba(19,17,12,.94)' },
   guideIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}3D`, backgroundColor: `${FateDropColors.goldBright}12` },
   guideEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
