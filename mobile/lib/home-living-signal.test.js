@@ -21,8 +21,7 @@ test('Home implements the approved Orbital Command hierarchy', () => {
 });
 
 test('personal briefing remains evidence-backed and fail closed', () => {
-  assert.match(briefing, /HOME_VISIT_PREFIX/);
-  assert.match(briefing, /alert\.fateStage !== 'ECHO'/);
+  assert.doesNotMatch(briefing, /Echo activity loading|Echoes since your last visit|HOME_VISIT_PREFIX/);
   assert.match(briefing, /wishlistItemMatchesLiveOpportunity/);
   assert.match(briefing, /POKÉMON CENTER UK STATUS UNAVAILABLE/);
   assert.match(briefing, /POKÉMON CENTER UK ACTIVITY DETECTED/);

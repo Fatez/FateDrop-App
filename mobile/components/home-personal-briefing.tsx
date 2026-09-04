@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,7 +14,6 @@ import {
 import { migrateLegacyWatchlist } from '@/services/wishlist';
 import type { WishlistItem } from '@/types/domain';
 
-const HOME_VISIT_PREFIX = 'fatedrop:home:last-visit:v1';
 const POKEMON_CENTER_UK_ID = 'pokemon-center-uk';
 const POKEMON_CENTER_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
 
@@ -44,12 +42,6 @@ function isPokemonCenterUk(alert: CanonicalMobileAlert) {
   return normalizeRetailerName(alert.retailer) === 'pokemon center uk';
 }
 
-function parseStoredVisit(value: string | null) {
-  if (!value) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function wishlistItemMatchesLiveOpportunity(item: WishlistItem, alert: CanonicalMobileAlert) {
   if (item.targetType === 'OFFER') return Boolean(alert.offerId && item.targetId === alert.offerId);
   if (item.targetType === 'PRODUCT') return Boolean(alert.productId && item.targetId === alert.productId);
@@ -59,11 +51,9 @@ function wishlistItemMatchesLiveOpportunity(item: WishlistItem, alert: Canonical
 export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean }) {
   const { signedIn, snapshot } = useFateDropId();
   const fateId = snapshot?.user?.fateId || null;
-  const userId = snapshot?.user?.id || null;
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
-  const [visitFloorMs, setVisitFloorMs] = useState<number | null>(null);
   const [alertState, setAlertState] = useState<LoadState>('idle');
   const [liveState, setLiveState] = useState<LoadState>('idle');
   const [wishlistState, setWishlistState] = useState<LoadState>('idle');
@@ -72,11 +62,10 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const load = useCallback(async () => {
-    if (!signedIn || !userId) {
+    if (!signedIn) {
       setAlerts([]);
       setLiveOpportunities([]);
       setWishlistItems([]);
-      setVisitFloorMs(null);
       setAlertState('idle');
       setLiveState('idle');
       setWishlistState('idle');
@@ -85,9 +74,6 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
 
     const visitStartedAt = Date.now();
     setObservedNow(visitStartedAt);
-    const visitKey = `${HOME_VISIT_PREFIX}:${encodeURIComponent(userId)}`;
-    const previousVisit = parseStoredVisit(await AsyncStorage.getItem(visitKey).catch(() => null));
-    setVisitFloorMs(previousVisit);
 
     const [nextAlerts, nextLive, nextWishlist] = await Promise.all([
       fetchCanonicalAlerts(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
@@ -101,7 +87,6 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
     if (nextAlerts.ok) {
       setAlerts(nextAlerts.data);
       setAlertState('ready');
-      await AsyncStorage.setItem(visitKey, String(visitStartedAt)).catch(() => undefined);
     } else {
       setAlerts([]);
       setAlertState('error');
@@ -122,7 +107,7 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
       setWishlistItems([]);
       setWishlistState('error');
     }
-  }, [signedIn, userId]);
+  }, [signedIn]);
 
   useFocusEffect(useCallback(() => {
     void load();
@@ -139,15 +124,6 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
       subscription.remove();
     };
   }, []);
-
-  const echoesSinceLastVisit = useMemo(() => {
-    if (!visitFloorMs || alertState !== 'ready') return 0;
-    return alerts.filter((alert) => {
-      if (alert.fateStage !== 'ECHO') return false;
-      const detected = Date.parse(alert.detectedAt);
-      return Number.isFinite(detected) && detected > visitFloorMs;
-    }).length;
-  }, [alertState, alerts, visitFloorMs]);
 
   const wantedLiveCount = useMemo(() => {
     if (liveState !== 'ready' || wishlistState !== 'ready') return 0;
@@ -228,24 +204,6 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
           {fateId || 'FateDrop member'}
         </Text>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${echoesSinceLastVisit} Echoes since your last visit`}
-        onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'ECHO' } })}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <View style={[styles.signalGlyph, styles.echoGlyph]}>
-          <Ionicons name="radio-outline" size={15} color={FateDropColors.echo} />
-        </View>
-        <Text style={styles.echoLine}>
-          {alertState === 'idle'
-            ? 'Echo activity loading'
-            : alertState === 'error'
-              ? 'Echo activity unavailable'
-            : <><Text style={styles.echoCount}>{echoesSinceLastVisit}</Text> {echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit</>}
-        </Text>
-      </Pressable>
 
       <Pressable
         accessibilityRole="button"
@@ -376,24 +334,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  echoGlyph: {
-    borderColor: `${FateDropColors.echo}55`,
-    backgroundColor: `${FateDropColors.echo}10`,
-  },
   stockGlyph: {
     borderColor: `${FateDropColors.cyan}55`,
     backgroundColor: `${FateDropColors.cyan}12`,
   },
-  echoLine: {
-    flex: 1,
-    color: FateDropColors.echo,
-    fontFamily: Fonts?.serif,
-    fontSize: 14,
-    textShadowColor: 'rgba(0,0,0,.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-  },
-  echoCount: { color: FateDropColors.echo, fontSize: 17 },
   stockLine: {
     flex: 1,
     color: FateDropColors.ivory,

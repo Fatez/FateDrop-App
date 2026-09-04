@@ -15,7 +15,7 @@ test('approved Orbital Home is free-flowing and uses its dedicated centre crysta
   assert.match(home, /VERIFIED LIVE NOW/);
   assert.match(home, /OrnamentTitle title="YOUR FATEDROP"/);
   assert.match(home, /OrbitalCommandPortal/);
-  assert.doesNotMatch(home, /settings-outline|floatingSettings|QUICK ACTIONS/);
+  assert.doesNotMatch(home, /FATEDROP_WORDMARK_URI|settings-outline|floatingSettings|QUICK ACTIONS/);
 });
 
 test('Orbital Home preserves real evidence and interactive destinations', () => {

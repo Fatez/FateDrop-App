@@ -33,8 +33,8 @@ test('shared functional header is title-first and does not repeat the full wordm
   assert.doesNotMatch(brandHeader, /FATEDROP_WORDMARK_URI/);
 });
 
-test('active Home and Profile are the primary full-wordmark identity surfaces', () => {
-  assert.match(home, /FATEDROP_WORDMARK_URI/);
+test('Profile retains the full wordmark while the compact Orbital Home does not repeat it', () => {
+  assert.doesNotMatch(home, /FATEDROP_WORDMARK_URI/);
   assert.match(profile, /FATEDROP_WORDMARK_URI/);
   assert.doesNotMatch(alerts, /fatedrop-wordmark/);
   assert.doesNotMatch(alerts, /styles\.pageTitle/);

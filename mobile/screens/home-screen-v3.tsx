@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomePersonalBriefing } from '@/components/home-personal-briefing';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { API_BASE_URL } from '@/constants/api';
-import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { profileWallpaperMeta } from '@/constants/profile-customisation';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -217,13 +216,7 @@ export default function HomeScreenV3() {
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
         <Animated.View style={[styles.hero, entranceStyle(heroEntrance, 10)]}>
-          <Image
-            source={{ uri: FATEDROP_WORDMARK_URI }}
-            style={[styles.wordmark, { top: insets.top + 5 }]}
-            contentFit="contain"
-            contentPosition="left center"
-          />
-          <View style={[styles.heroBriefing, { top: insets.top + 58 }]}>
+          <View style={[styles.heroBriefing, { top: insets.top + 8 }]}>
             <HomePersonalBriefing embedded />
           </View>
           <View style={styles.heroLifecycle}>
@@ -644,8 +637,7 @@ const styles = StyleSheet.create({
   themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
   lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
-  hero: { height: 270, overflow: 'hidden' },
-  wordmark: { position: 'absolute', left: 22, width: 138, height: 38, zIndex: 2, opacity: .96 },
+  hero: { height: 239, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
   heroLifecycle: { position: 'absolute', left: 14, right: 14, bottom: 2, zIndex: 3 },
   lifecycleRibbon: { height: 44, flexDirection: 'row', alignItems: 'center', overflow: 'visible', backgroundColor: 'rgba(2,7,18,.12)' },
