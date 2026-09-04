@@ -42,6 +42,7 @@ const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished:
 const HOME_EVENTS_TTL_MS = 5 * 60_000;
 const LIVE_OPPORTUNITY_LIMIT = 5;
 const LIVE_CARD_GAP = 12;
+const HOME_PROFILE_WALLPAPER_ENABLED = false;
 
 type LoadState = 'loading' | 'ready' | 'error';
 type SheetState = { kind: 'live-details'; alert: CanonicalMobileAlert } | null;
@@ -176,7 +177,7 @@ export default function HomeScreenV3() {
     wantedProductIds,
     selectedTcgCodes,
   ).slice(0, LIVE_OPPORTUNITY_LIMIT), [liveOpportunities, selectedTcgCodes, wantedProductIds]);
-  const wallpaperAccent = profileWallpaperMeta[homeWallpaperId].accent;
+  const wallpaperAccent = profileWallpaperMeta[HOME_PROFILE_WALLPAPER_ENABLED ? homeWallpaperId : 'koruHome'].accent;
   const pulse30d = marketPulse?.pulse?.direction?.periods.d30;
   const marketPresentation = useMemo(
     () => buildMarketPresentation(pulse30d, marketState),
@@ -202,7 +203,7 @@ export default function HomeScreenV3() {
   return (
     <View style={styles.safe}>
       <Animated.View pointerEvents="none" style={[styles.themeBackdrop, { transform: [{ translateY: backdropTranslate }] }]}>
-        {homeWallpaperId === 'koruHome'
+        {!HOME_PROFILE_WALLPAPER_ENABLED || homeWallpaperId === 'koruHome'
           ? <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} cachePolicy="disk" contentFit="cover" contentPosition="top center" enforceEarlyResizing recyclingKey="home-theme:koru" />
           : <ProfileWallpaperArt wallpaperId={homeWallpaperId} home />}
         <View style={[styles.themeAccent, { backgroundColor: `${wallpaperAccent}0A` }]} />
@@ -216,14 +217,14 @@ export default function HomeScreenV3() {
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
-        <Animated.View style={[styles.hero, entranceStyle(heroEntrance, 10)]}>
+        <Animated.View style={[styles.hero, { paddingTop: insets.top + 58 }, entranceStyle(heroEntrance, 10)]}>
           <Image
             source={{ uri: FATEDROP_WORDMARK_URI }}
             style={[styles.wordmark, { top: insets.top + 5 }]}
             contentFit="contain"
             contentPosition="left center"
           />
-          <View style={[styles.heroBriefing, { top: insets.top + 58 }]}>
+          <View style={styles.heroBriefing}>
             <HomePersonalBriefing embedded />
           </View>
           <View style={styles.heroLifecycle}>
@@ -644,10 +645,10 @@ const styles = StyleSheet.create({
   themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
   lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
-  hero: { height: 270, overflow: 'hidden' },
+  hero: { minHeight: 270, paddingBottom: 8, overflow: 'hidden' },
   wordmark: { position: 'absolute', left: 22, width: 138, height: 38, zIndex: 2, opacity: .96 },
-  heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
-  heroLifecycle: { position: 'absolute', left: 14, right: 14, bottom: 2, zIndex: 3 },
+  heroBriefing: { marginLeft: 23, marginRight: 19, zIndex: 2 },
+  heroLifecycle: { marginTop: 10, marginLeft: 14, marginRight: 14, zIndex: 3 },
   lifecycleRibbon: { height: 44, flexDirection: 'row', alignItems: 'center', overflow: 'visible', backgroundColor: 'rgba(2,7,18,.12)' },
   lifecycleArcOuter: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: -41, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.60)' },
   lifecycleArcInner: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: -31, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)' },
