@@ -6,11 +6,14 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { loadWatchlist } from '@/lib/watchlist';
 import {
   fetchCanonicalAlerts,
   fetchCanonicalLiveOpportunities,
   type CanonicalMobileAlert,
 } from '@/services/canonical-alerts';
+import { migrateLegacyWatchlist } from '@/services/wishlist';
+import type { WishlistItem } from '@/types/domain';
 
 const HOME_VISIT_PREFIX = 'fatedrop:home:last-visit:v1';
 const POKEMON_CENTER_UK_ID = 'pokemon-center-uk';
@@ -18,17 +21,11 @@ const POKEMON_CENTER_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
 
 type LoadState = 'idle' | 'ready' | 'error';
 
-function normalizeTitle(value: string | null | undefined) {
+function normalizeRetailerName(value: string | null | undefined) {
   return String(value || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
-}
-
-function titlesMatch(left: string | null | undefined, right: string | null | undefined) {
-  const a = normalizeTitle(left);
-  const b = normalizeTitle(right);
-  return Boolean(a && b && (a === b || a.includes(b) || b.includes(a)));
 }
 
 function newestActivityAt(alert: CanonicalMobileAlert) {
@@ -44,7 +41,7 @@ function newestActivityAt(alert: CanonicalMobileAlert) {
 
 function isPokemonCenterUk(alert: CanonicalMobileAlert) {
   if (alert.retailerId === POKEMON_CENTER_UK_ID) return true;
-  return normalizeTitle(alert.retailer) === 'pokemon center uk';
+  return normalizeRetailerName(alert.retailer) === 'pokemon center uk';
 }
 
 function parseStoredVisit(value: string | null) {
@@ -53,24 +50,34 @@ function parseStoredVisit(value: string | null) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function wishlistItemMatchesLiveOpportunity(item: WishlistItem, alert: CanonicalMobileAlert) {
+  if (item.targetType === 'OFFER') return Boolean(alert.offerId && item.targetId === alert.offerId);
+  if (item.targetType === 'PRODUCT') return Boolean(alert.productId && item.targetId === alert.productId);
+  return false;
+}
+
 export function HomePersonalBriefing() {
   const { signedIn, snapshot } = useFateDropId();
   const fateId = snapshot?.user?.fateId || null;
   const userId = snapshot?.user?.id || null;
   const [alerts, setAlerts] = useState<CanonicalMobileAlert[]>([]);
   const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [visitFloorMs, setVisitFloorMs] = useState<number | null>(null);
   const [alertState, setAlertState] = useState<LoadState>('idle');
   const [liveState, setLiveState] = useState<LoadState>('idle');
+  const [wishlistState, setWishlistState] = useState<LoadState>('idle');
   const glow = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async () => {
     if (!signedIn || !userId) {
       setAlerts([]);
       setLiveOpportunities([]);
+      setWishlistItems([]);
       setVisitFloorMs(null);
       setAlertState('idle');
       setLiveState('idle');
+      setWishlistState('idle');
       return;
     }
 
@@ -79,9 +86,13 @@ export function HomePersonalBriefing() {
     const previousVisit = parseStoredVisit(await AsyncStorage.getItem(visitKey).catch(() => null));
     setVisitFloorMs(previousVisit);
 
-    const [nextAlerts, nextLive] = await Promise.all([
+    const [nextAlerts, nextLive, nextWishlist] = await Promise.all([
       fetchCanonicalAlerts(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
       fetchCanonicalLiveOpportunities(50).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] })),
+      loadWatchlist()
+        .then((keys) => migrateLegacyWatchlist(keys))
+        .then((data) => ({ ok: true as const, data }))
+        .catch(() => ({ ok: false as const, data: [] as WishlistItem[] })),
     ]);
 
     if (nextAlerts.ok) {
@@ -100,6 +111,14 @@ export function HomePersonalBriefing() {
       setLiveOpportunities([]);
       setLiveState('error');
     }
+
+    if (nextWishlist.ok) {
+      setWishlistItems(nextWishlist.data.filter((item) => item.targetType === 'OFFER' || item.targetType === 'PRODUCT'));
+      setWishlistState('ready');
+    } else {
+      setWishlistItems([]);
+      setWishlistState('error');
+    }
   }, [signedIn, userId]);
 
   useFocusEffect(useCallback(() => {
@@ -116,10 +135,9 @@ export function HomePersonalBriefing() {
   }, [alertState, alerts, visitFloorMs]);
 
   const wantedLiveCount = useMemo(() => {
-    if (liveState !== 'ready') return 0;
-    const wanted = (snapshot?.wishlist ?? []).filter((item) => item.enabled !== false && Boolean(item.title));
-    return wanted.filter((item) => liveOpportunities.some((alert) => titlesMatch(item.title, alert.product?.title || alert.title))).length;
-  }, [liveOpportunities, liveState, snapshot?.wishlist]);
+    if (liveState !== 'ready' || wishlistState !== 'ready') return 0;
+    return wishlistItems.filter((item) => liveOpportunities.some((alert) => wishlistItemMatchesLiveOpportunity(item, alert))).length;
+  }, [liveOpportunities, liveState, wishlistItems, wishlistState]);
 
   const pokemonCenterActive = useMemo(() => {
     if (alertState !== 'ready') return false;
@@ -154,6 +172,11 @@ export function HomePersonalBriefing() {
     : pokemonCenterActive
       ? 'POKÉMON CENTER UK ACTIVITY DETECTED'
       : 'NO POKÉMON CENTER UK ACTIVITY DETECTED';
+  const wantedLine = liveState === 'error' || wishlistState === 'error'
+    ? 'Wanted-item availability unavailable'
+    : wantedLiveCount === 1
+      ? '1 wanted item is in stock'
+      : `${wantedLiveCount} wanted items are in stock`;
 
   if (!signedIn) {
     return (
@@ -194,17 +217,11 @@ export function HomePersonalBriefing() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${wantedLiveCount} wanted items are in stock`}
+        accessibilityLabel={wantedLine}
         onPress={() => router.push('/(tabs)/watchlist')}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
-        <Text style={styles.stockLine}>
-          {liveState === 'error'
-            ? 'Wanted-item availability unavailable'
-            : wantedLiveCount === 1
-              ? '1 wanted item is in stock'
-              : `${wantedLiveCount} wanted items are in stock`}
-        </Text>
+        <Text style={styles.stockLine}>{wantedLine}</Text>
         <Ionicons name="chevron-forward" size={16} color={FateDropColors.ivory} />
       </Pressable>
 
