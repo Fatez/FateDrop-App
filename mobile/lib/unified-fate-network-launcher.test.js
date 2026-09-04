@@ -9,7 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const tabLayout = read('app/(tabs)/_layout.tsx');
 const persistentDock = read('components/persistent-bottom-nav.tsx');
 const tools = read('app/tools.tsx');
-const market = read('screens/fate-market-screen.tsx');
+const market = read('screens/fate-market-screen-v2.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 
 function assertCompassDestinations(source) {
@@ -17,21 +17,22 @@ function assertCompassDestinations(source) {
   assert.match(source, /title="FateMatch"/);
   assert.match(source, /title="Local Radar"/);
   assert.match(source, /title="Retailers"/);
-  assert.match(source, /title="Search"/);
+  assert.match(source, /title="Fate Trader"/);
   assert.match(source, /title="Wishlist"/);
-  assert.doesNotMatch(source, /title="Fate Trader"/);
+  assert.doesNotMatch(source, /<CompassNode[^>]*title="Search"/);
 }
 
-test('main centre compass keeps the approved hunting and discovery destinations', () => {
+test('main centre compass keeps the approved hunting and action destinations', () => {
   assertCompassDestinations(tabLayout);
 });
 
-test('Fate Market owns Trader Pulse and Collectors in the former Live Network slot', () => {
+test('Fate Market owns Pulse Price and Collectors in the former Live Network slot', () => {
   assert.match(tabLayout, /name="market"/);
   assert.match(tabLayout, /name="network" options=\{\{ href: null \}\}/);
-  assert.match(market, /title: 'Fate Trader'/);
   assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Fate Collectors'/);
+  assert.doesNotMatch(market, /title: 'Fate Trader'/);
   assert.match(persistentDock, /label="Fate Market"/);
   assert.doesNotMatch(persistentDock, /label="Live Network"/);
 });
