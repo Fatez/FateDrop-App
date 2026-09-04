@@ -18,6 +18,7 @@ import type { WishlistItem } from '@/types/domain';
 const HOME_VISIT_PREFIX = 'fatedrop:home:last-visit:v1';
 const POKEMON_CENTER_UK_ID = 'pokemon-center-uk';
 const POKEMON_CENTER_ACTIVITY_WINDOW_MS = 30 * 60 * 1000;
+const HOME_ECHO_ACTIVITY_ENABLED = false;
 
 type LoadState = 'idle' | 'ready' | 'error';
 
@@ -229,23 +230,25 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         </Text>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${echoesSinceLastVisit} Echoes since your last visit`}
-        onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'ECHO' } })}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <View style={[styles.signalGlyph, styles.echoGlyph]}>
-          <Ionicons name="radio-outline" size={15} color={FateDropColors.echo} />
-        </View>
-        <Text style={styles.echoLine}>
-          {alertState === 'idle'
-            ? 'Echo activity loading'
-            : alertState === 'error'
-              ? 'Echo activity unavailable'
-            : <><Text style={styles.echoCount}>{echoesSinceLastVisit}</Text> {echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit</>}
-        </Text>
-      </Pressable>
+      {HOME_ECHO_ACTIVITY_ENABLED ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${echoesSinceLastVisit} Echoes since your last visit`}
+          onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'ECHO' } })}
+          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+        >
+          <View style={[styles.signalGlyph, styles.echoGlyph]}>
+            <Ionicons name="radio-outline" size={15} color={FateDropColors.echo} />
+          </View>
+          <Text style={styles.echoLine}>
+            {alertState === 'idle'
+              ? 'Echo activity loading'
+              : alertState === 'error'
+                ? 'Echo activity unavailable'
+              : <><Text style={styles.echoCount}>{echoesSinceLastVisit}</Text> {echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit</>}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"
