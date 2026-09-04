@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -61,11 +61,13 @@ export function HomePersonalBriefing({
   embedded = false,
   liveOpportunities,
   liveState,
+  onPokemonCenterStatusChange,
   onSignalStateChange,
 }: {
   embedded?: boolean;
   liveOpportunities: CanonicalMobileAlert[];
   liveState: 'loading' | 'ready' | 'error';
+  onPokemonCenterStatusChange?: (status: { active: boolean; label: string }) => void;
   onSignalStateChange?: (state: HomeSignalKind) => void;
 }) {
   const { signedIn, snapshot } = useFateDropId();
@@ -77,8 +79,6 @@ export function HomePersonalBriefing({
   const [wishlistState, setWishlistState] = useState<LoadState>('idle');
   const [personalUnread, setPersonalUnread] = useState<Record<CanonicalAlertStage, number>>(EMPTY_PERSONAL_UNREAD);
   const [observedNow, setObservedNow] = useState(0);
-  const [glow] = useState(() => new Animated.Value(1));
-  const [reduceMotion, setReduceMotion] = useState(false);
   const selectedTcgCodes = useMemo(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
   const alertFilterKey = useMemo(() => JSON.stringify({
     notificationUpdatedAt: snapshot?.notificationPreferences?.updatedAt ?? 0,
@@ -146,18 +146,6 @@ export function HomePersonalBriefing({
     void load();
   }, [load]));
 
-  useEffect(() => {
-    let active = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (active) setReduceMotion(enabled);
-    });
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
-
   const wantedLiveCount = useMemo(() => {
     if (liveState !== 'ready' || wishlistState !== 'ready') return 0;
     return wishlistItems.filter((item) => liveOpportunities.some((alert) => wishlistItemMatchesLiveOpportunity(item, alert))).length;
@@ -196,22 +184,6 @@ export function HomePersonalBriefing({
     onSignalStateChange?.(signalState);
   }, [onSignalStateChange, signalState]);
 
-  useEffect(() => {
-    glow.stopAnimation();
-    if (!pokemonCenterActive || reduceMotion) {
-      glow.setValue(1);
-      return;
-    }
-    glow.setValue(1);
-    const pulse = Animated.loop(Animated.sequence([
-      Animated.timing(glow, { toValue: 0.36, duration: 520, useNativeDriver: true }),
-      Animated.timing(glow, { toValue: 1, duration: 620, useNativeDriver: true }),
-    ]));
-    pulse.start();
-    return () => pulse.stop();
-  }, [glow, pokemonCenterActive, reduceMotion]);
-
-  const pcukTextOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.42, 1] });
   const pcukStatus = pcukEvidenceState === 'idle'
     ? 'POKÉMON CENTER UK ACTIVITY CHECKING'
     : pcukEvidenceState === 'error'
@@ -219,6 +191,11 @@ export function HomePersonalBriefing({
     : pokemonCenterActive
       ? 'POKÉMON CENTER UK ACTIVITY DETECTED'
       : 'NO POKÉMON CENTER UK ACTIVITY DETECTED';
+
+  useEffect(() => {
+    onPokemonCenterStatusChange?.({ active: pokemonCenterActive, label: pcukStatus });
+  }, [onPokemonCenterStatusChange, pcukStatus, pokemonCenterActive]);
+
   const wantedLine = liveState === 'loading' || wishlistState === 'idle'
     ? 'Wanted-item availability loading'
     : liveState === 'error' || wishlistState === 'error'
@@ -241,7 +218,7 @@ export function HomePersonalBriefing({
   }
 
   return (
-    <View style={[styles.card, embedded && styles.cardEmbedded, pokemonCenterActive && styles.cardActive]}>
+    <View style={[styles.card, embedded && styles.cardEmbedded]}>
       <View style={styles.greeting}>
         <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome back,</Text>
         <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit>
@@ -265,19 +242,6 @@ export function HomePersonalBriefing({
         </Text>
         <View pointerEvents="none" style={styles.statusRule} />
       </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={pcukStatus}
-        onPress={() => router.push('/pokemon-center-uk')}
-        style={({ pressed }) => [styles.pcukRow, pokemonCenterActive && styles.pcukRowActive, pressed && styles.pressed]}
-      >
-        <View style={[styles.pcukGlyph, pokemonCenterActive && styles.pcukGlyphActive]}>
-          <Ionicons name="radio-outline" size={18} color={FateDropColors.cyan} />
-        </View>
-        <Animated.Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive, pokemonCenterActive && { opacity: pcukTextOpacity }]}>{pcukStatus}</Animated.Text>
-        <View pointerEvents="none" style={[styles.statusRule, styles.pcukRule, pokemonCenterActive && styles.pcukRuleActive]} />
-      </Pressable>
     </View>
   );
 }
@@ -295,9 +259,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.09)',
     backgroundColor: 'rgba(8,10,17,0.96)',
-  },
-  cardActive: {
-    borderColor: 'rgba(210,182,111,0.34)',
   },
   cardEmbedded: {
     marginHorizontal: 0,
@@ -379,50 +340,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   stockCount: { color: FateDropColors.cyan, fontSize: 17 },
-  pcukRow: {
-    marginTop: 5,
-    minHeight: 32,
-    paddingHorizontal: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'transparent',
-  },
-  pcukRowActive: {},
-  pcukRule: {
-    left: 2,
-    right: 2,
-    backgroundColor: 'rgba(99,225,255,.24)',
-  },
-  pcukRuleActive: {
-    backgroundColor: 'rgba(99,225,255,.56)',
-  },
-  pcukGlyph: {
-    width: 25,
-    height: 25,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(99,225,255,.32)',
-    backgroundColor: 'rgba(15,88,120,.16)',
-  },
-  pcukGlyphActive: {
-    borderColor: `${FateDropColors.cyan}66`,
-    backgroundColor: `${FateDropColors.cyan}12`,
-  },
-  pcukText: {
-    flex: 1,
-    color: 'rgba(99,225,255,.58)',
-    fontFamily: Fonts.sans,
-    fontWeight: '600',
-    fontSize: 9.5,
-    lineHeight: 12,
-    letterSpacing: 0.85,
-  },
-  pcukTextActive: {
-    color: FateDropColors.cyan,
-  },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
