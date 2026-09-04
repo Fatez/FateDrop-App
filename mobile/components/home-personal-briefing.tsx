@@ -275,6 +275,7 @@ export function HomePersonalBriefing({
             ? wantedLine
             : <><Text style={styles.stockCount}>{wantedLiveCount}</Text> wanted {wantedLiveCount === 1 ? 'item is' : 'items are'} in stock</>}
         </Text>
+        <View pointerEvents="none" style={styles.statusRule} />
       </Pressable>
 
       <Pressable
@@ -287,6 +288,7 @@ export function HomePersonalBriefing({
           <Ionicons name="radio-outline" size={18} color={FateDropColors.cyan} />
         </View>
         <Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive]}>{pcukStatus}</Text>
+        <View pointerEvents="none" style={[styles.statusRule, styles.pcukRule, pokemonCenterActive && styles.pcukRuleActive]} />
       </Pressable>
     </View>
   );
@@ -377,13 +379,18 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
   },
   row: {
-    minHeight: 31,
-    paddingBottom: 4,
+    minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(99,225,255,.20)',
+  },
+  statusRule: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(99,225,255,.20)',
   },
   signalGlyph: {
     width: 25,
@@ -409,18 +416,21 @@ const styles = StyleSheet.create({
   stockCount: { color: FateDropColors.cyan, fontSize: 17 },
   pcukRow: {
     marginTop: 5,
-    minHeight: 36,
+    minHeight: 32,
     paddingHorizontal: 2,
-    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(99,225,255,.24)',
     backgroundColor: 'transparent',
   },
-  pcukRowActive: {
-    borderColor: 'rgba(99,225,255,.56)',
+  pcukRowActive: {},
+  pcukRule: {
+    left: 2,
+    right: 2,
+    backgroundColor: 'rgba(99,225,255,.24)',
+  },
+  pcukRuleActive: {
+    backgroundColor: 'rgba(99,225,255,.56)',
   },
   pcukGlyph: {
     width: 25,
