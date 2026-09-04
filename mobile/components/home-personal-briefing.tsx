@@ -183,7 +183,8 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
   if (!signedIn) {
     return (
       <View style={[styles.card, embedded && styles.cardEmbedded]}>
-        <Text style={styles.welcome}>Welcome to FateDrop</Text>
+        <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome to</Text>
+        <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]}>FateDrop</Text>
         <Pressable onPress={() => router.push('/(tabs)/profile')} style={styles.signInRow}>
           <Text style={styles.mutedLine}>Sign in to see your personal briefing</Text>
           <Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} />
@@ -201,7 +202,12 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         <Animated.View style={[styles.shard, styles.shardThree, pokemonCenterActive && { opacity: glowOpacity }]} />
       </View>
 
-      <Text style={styles.welcome}>Welcome back, {fateId || 'FateDrop member'}</Text>
+      <View style={styles.greeting}>
+        <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome back,</Text>
+        <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit>
+          {fateId || 'FateDrop member'}
+        </Text>
+      </View>
 
       <Pressable
         accessibilityRole="button"
@@ -209,6 +215,9 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'ECHO' } })}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
+        <View style={[styles.signalGlyph, styles.echoGlyph]}>
+          <Ionicons name="radio-outline" size={15} color={FateDropColors.manifested} />
+        </View>
         <Text style={styles.echoLine}>
           {alertState === 'error'
             ? 'Echo activity unavailable'
@@ -223,6 +232,9 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         onPress={() => router.push('/(tabs)/watchlist')}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
+        <View style={[styles.signalGlyph, styles.stockGlyph]}>
+          <Ionicons name="sparkles-outline" size={15} color={FateDropColors.cyan} />
+        </View>
         <Text style={styles.stockLine}>{wantedLine}</Text>
         <Ionicons name="chevron-forward" size={16} color={FateDropColors.ivory} />
       </Pressable>
@@ -233,7 +245,9 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         onPress={() => router.push('/pokemon-center-uk')}
         style={({ pressed }) => [styles.pcukRow, pokemonCenterActive && styles.pcukRowActive, pressed && styles.pressed]}
       >
-        <View style={[styles.statusDot, pokemonCenterActive && styles.statusDotActive]} />
+        <View style={[styles.pcukGlyph, pokemonCenterActive && styles.pcukGlyphActive]}>
+          <Ionicons name="radio-outline" size={17} color={pokemonCenterActive ? FateDropColors.cyan : FateDropColors.muted} />
+        </View>
         <Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive]}>{pcukStatus}</Text>
         <Ionicons name="chevron-forward" size={17} color={pokemonCenterActive ? FateDropColors.goldBright : FateDropColors.muted} />
       </Pressable>
@@ -269,6 +283,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: 'transparent',
   },
+  greeting: {
+    marginBottom: 10,
+    maxWidth: '72%',
+  },
   glow: {
     position: 'absolute',
     width: 230,
@@ -292,67 +310,114 @@ const styles = StyleSheet.create({
   shardOne: { right: 24, top: 18 },
   shardTwo: { right: 64, top: 50, width: 10, height: 27, transform: [{ rotate: '62deg' }] },
   shardThree: { right: 35, bottom: 24, width: 12, height: 31, transform: [{ rotate: '18deg' }] },
-  welcome: {
+  welcomeKicker: {
     color: FateDropColors.ivory,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-    fontSize: 20,
-    letterSpacing: -0.3,
-    marginBottom: 13,
-    paddingRight: 72,
+    fontFamily: Fonts.serif,
+    fontSize: 21,
+    lineHeight: 25,
+  },
+  welcomeKickerEmbedded: {
+    color: FateDropColors.goldBright,
+    fontSize: 22,
+    lineHeight: 27,
+    textShadowColor: 'rgba(0,0,0,.95)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 9,
+  },
+  welcomeIdentity: {
+    color: FateDropColors.ivory,
+    fontFamily: Fonts.serif,
+    fontSize: 29,
+    lineHeight: 35,
+    marginTop: 1,
+  },
+  welcomeIdentityEmbedded: {
+    color: FateDropColors.goldBright,
+    fontSize: 34,
+    lineHeight: 40,
+    textShadowColor: 'rgba(0,0,0,.96)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
   row: {
-    minHeight: 36,
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 9,
+  },
+  signalGlyph: {
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  echoGlyph: {
+    borderColor: `${FateDropColors.manifested}55`,
+    backgroundColor: `${FateDropColors.manifested}15`,
+  },
+  stockGlyph: {
+    borderColor: `${FateDropColors.cyan}55`,
+    backgroundColor: `${FateDropColors.cyan}12`,
   },
   echoLine: {
     flex: 1,
     color: FateDropColors.echo,
     fontFamily: Fonts.sans,
-    fontWeight: '700',
-    fontSize: 14,
+    fontWeight: '600',
+    fontSize: 13,
+    textShadowColor: 'rgba(0,0,0,.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   stockLine: {
     flex: 1,
     color: FateDropColors.ivory,
     fontFamily: Fonts.sans,
-    fontSize: 14,
+    fontSize: 13,
+    textShadowColor: 'rgba(0,0,0,.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   pcukRow: {
-    marginTop: 10,
-    minHeight: 45,
-    paddingHorizontal: 11,
+    marginTop: 7,
+    minHeight: 42,
+    paddingHorizontal: 10,
     borderRadius: 13,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
-    backgroundColor: 'rgba(255,255,255,0.025)',
+    backgroundColor: 'rgba(5,10,18,0.48)',
   },
   pcukRowActive: {
     borderColor: 'rgba(210,182,111,0.36)',
-    backgroundColor: 'rgba(210,182,111,0.08)',
+    backgroundColor: 'rgba(22,84,111,0.18)',
   },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: FateDropColors.muted,
+  pcukGlyph: {
+    width: 27,
+    height: 27,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(128,119,106,.35)',
+    backgroundColor: 'rgba(8,14,20,.4)',
   },
-  statusDotActive: {
-    backgroundColor: FateDropColors.goldBright,
+  pcukGlyphActive: {
+    borderColor: `${FateDropColors.cyan}66`,
+    backgroundColor: `${FateDropColors.cyan}12`,
   },
   pcukText: {
     flex: 1,
     color: FateDropColors.muted,
     fontFamily: Fonts.sans,
     fontWeight: '700',
-    fontSize: 11,
-    letterSpacing: 0.55,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.5,
   },
   pcukTextActive: {
     color: FateDropColors.goldBright,
