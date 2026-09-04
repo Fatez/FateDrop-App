@@ -20,6 +20,24 @@ test('Home implements the approved Orbital Command hierarchy', () => {
   assert.match(home, /alert\.product\.imageUrl/);
 });
 
+test('Orbital Home keeps briefing and lifecycle in vertical flow', () => {
+  assert.match(home, /paddingTop: insets\.top \+ 58/);
+  assert.match(home, /heroBriefing: \{ marginLeft: 23, marginRight: 19/);
+  assert.match(home, /heroLifecycle: \{ marginTop: 10, marginLeft: 14, marginRight: 14/);
+  assert.doesNotMatch(home, /heroBriefing: \{ position: 'absolute'/);
+  assert.doesNotMatch(home, /heroLifecycle: \{ position: 'absolute'/);
+});
+
+test('Orbital Home temporarily uses the stable fallback wallpaper', () => {
+  assert.match(home, /HOME_PROFILE_WALLPAPER_ENABLED = false/);
+  assert.match(home, /!HOME_PROFILE_WALLPAPER_ENABLED \|\| homeWallpaperId === 'koruHome'/);
+});
+
+test('Home Echo activity row is disabled while the briefing is simplified', () => {
+  assert.match(briefing, /HOME_ECHO_ACTIVITY_ENABLED = false/);
+  assert.match(briefing, /HOME_ECHO_ACTIVITY_ENABLED \? \(/);
+});
+
 test('personal briefing remains evidence-backed and fail closed', () => {
   assert.match(briefing, /HOME_VISIT_PREFIX/);
   assert.match(briefing, /alert\.fateStage !== 'ECHO'/);
