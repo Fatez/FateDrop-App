@@ -27,8 +27,13 @@ test('Home cycles verified stock without creating or replaying an alert', () => 
   assert.doesNotMatch(home, /Linking\.openURL\(alert\.productUrl/);
 });
 
-test('Home uses local TCG filtering and preserves the account selection', () => {
+test('Home ranks at most five opportunities by wanted match, selected TCG, then freshness', () => {
   assert.match(home, /snapshot\?\.tcgPreferences\.selectedTcgCodes \?\? \['pokemon'\]/);
-  assert.match(home, /tcgFilter === 'all' \|\| alert\.tcgCode === tcgFilter/);
+  assert.match(home, /wantedDifference/);
+  assert.match(home, /selectedDifference/);
+  assert.match(home, /liveEvidenceTime\(right\) - liveEvidenceTime\(left\)/);
+  assert.match(home, /slice\(0, LIVE_OPPORTUNITY_LIMIT\)/);
+  assert.match(home, /const LIVE_OPPORTUNITY_LIMIT = 5/);
+  assert.match(home, /snapToInterval=\{liveCardWidth \+ LIVE_CARD_GAP\}/);
   assert.match(home, /TCG_REGISTRY\.find/);
 });

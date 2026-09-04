@@ -8,14 +8,15 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const home = read('screens/home-screen-v3.tsx');
 const market = read('screens/fate-market-screen.tsx');
-const blend = read('components/artwork-edge-blend.tsx');
+const wallpaperArt = read('components/profile-wallpaper-art.tsx');
 
-test('Home blends the selected wallpaper into the shell without another image allocation', () => {
-  assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\}/);
-  assert.match(home, /ArtworkEdgeBlend accentColor=\{wallpaperAccent\}/);
+test('Home uses one selected wallpaper as the continuous orbital theme', () => {
+  assert.match(home, /homeWallpaperId === 'koruHome'/);
+  assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} home/);
   assert.match(home, /profileWallpaperMeta\[homeWallpaperId\]\.accent/);
-  assert.doesNotMatch(blend, /Image|BlurView|LinearGradient/);
-  assert.match(blend, /lightweight colour bands/);
+  assert.match(wallpaperArt, /contentPosition=\{home \? 'top center' : 'center'\}/);
+  assert.match(home, /styles\.lowerAtmosphere/);
+  assert.doesNotMatch(home, /ArtworkEdgeBlend/);
 });
 
 test('Home previews the approved Pulse and Collectors snapshots without inventing figures', () => {
@@ -23,7 +24,8 @@ test('Home previews the approved Pulse and Collectors snapshots without inventin
   assert.match(home, /params: \{ area: 'collectors' \}/);
   assert.match(home, /FatePulse/);
   assert.match(home, /FATE COLLECTORS/);
-  assert.match(home, /pulse30d\?\.status === 'available'/);
+  assert.match(home, /period\.status !== 'available'/);
+  assert.match(home, /period\.condition === 'insufficient_evidence'/);
   assert.match(home, /collection\.pricedUnits === 0/);
   assert.doesNotMatch(home, /area="trader"/);
 });

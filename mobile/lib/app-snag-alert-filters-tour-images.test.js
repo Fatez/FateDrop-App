@@ -28,7 +28,8 @@ test('app guide uses the approved welcome and Local Radar artwork', () => {
 test('active Home promotes Fate Encounters with the supplied event artwork', () => {
   assert.match(home, /event-signup\.png\.png/);
   assert.match(home, /FATE ENCOUNTERS/);
-  assert.match(home, /Find your next encounter\./);
+  assert.match(home, /OrbitalCommandPortal/);
+  assert.match(home, /Explore upcoming shows, trade nights and tournaments/);
   assert.match(home, /router\.push\('\/encounters'\)/);
   assert.doesNotMatch(home, /<Action title="True Price"/);
 });
@@ -59,16 +60,16 @@ test('profile wallpaper picker uses the full high-quality supplied wallpaper lib
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-nyxen-hero-final\.webp/);
 });
 
-test('wallpaper artwork renders centered without per-wallpaper transform overrides', () => {
+test('wallpaper artwork remains centered outside Home and uses a top focal point on Home', () => {
   assert.match(profileWallpaperArt, /style=\{StyleSheet\.absoluteFill\}/);
-  assert.match(profileWallpaperArt, /contentPosition="center"/);
+  assert.match(profileWallpaperArt, /contentPosition=\{home \? 'top center' : 'center'\}/);
   assert.doesNotMatch(profileWallpaperArt, /profileWallpaperTransforms|translateX|translateY|scale: 1\.1/);
 });
 
 test('selected profile wallpaper also drives the active Home hero', () => {
   assert.match(home, /loadProfileCustomisation\(identity\)/);
   assert.match(home, /setHomeWallpaperId\(customisation\.wallpaperId\)/);
-  assert.match(home, /<ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} \/>/);
+  assert.match(home, /<ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} home \/>/);
   assert.doesNotMatch(home, /source=\{require\('\.\.\/assets\/images\/home-koru-hero\.webp'\)\}/);
 });
 
