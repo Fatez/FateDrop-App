@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -69,6 +69,7 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
   const [wishlistState, setWishlistState] = useState<LoadState>('idle');
   const [observedNow, setObservedNow] = useState(0);
   const [glow] = useState(() => new Animated.Value(0));
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   const load = useCallback(async () => {
     if (!signedIn || !userId) {
@@ -127,6 +128,18 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
     void load();
   }, [load]));
 
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) setReduceMotion(enabled);
+    });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
   const echoesSinceLastVisit = useMemo(() => {
     if (!visitFloorMs || alertState !== 'ready') return 0;
     return alerts.filter((alert) => {
@@ -157,25 +170,32 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
       glow.setValue(0);
       return;
     }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0.3, duration: 1100, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [glow, pokemonCenterActive]);
+    if (reduceMotion) {
+      glow.setValue(0.48);
+      return;
+    }
+    glow.setValue(0.18);
+    const pulse = Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 440, useNativeDriver: true }),
+      Animated.timing(glow, { toValue: 0.48, duration: 640, useNativeDriver: true }),
+    ]);
+    pulse.start();
+    return () => pulse.stop();
+  }, [glow, pokemonCenterActive, reduceMotion]);
 
   const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.58] });
   const glowScale = glow.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.05] });
-  const pcukStatus = alertState === 'error'
-    ? 'POKÉMON CENTER UK STATUS UNAVAILABLE'
+  const pcukStatus = alertState === 'idle'
+    ? 'POKÉMON CENTER UK ACTIVITY CHECKING'
+    : alertState === 'error'
+      ? 'POKÉMON CENTER UK STATUS UNAVAILABLE'
     : pokemonCenterActive
       ? 'POKÉMON CENTER UK ACTIVITY DETECTED'
       : 'NO POKÉMON CENTER UK ACTIVITY DETECTED';
-  const wantedLine = liveState === 'error' || wishlistState === 'error'
-    ? 'Wanted-item availability unavailable'
+  const wantedLine = liveState === 'idle' || wishlistState === 'idle'
+    ? 'Wanted-item availability loading'
+    : liveState === 'error' || wishlistState === 'error'
+      ? 'Wanted-item availability unavailable'
     : wantedLiveCount === 1
       ? '1 wanted item is in stock'
       : `${wantedLiveCount} wanted items are in stock`;
@@ -216,11 +236,13 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
         <View style={[styles.signalGlyph, styles.echoGlyph]}>
-          <Ionicons name="radio-outline" size={15} color={FateDropColors.manifested} />
+          <Ionicons name="radio-outline" size={15} color={FateDropColors.echo} />
         </View>
         <Text style={styles.echoLine}>
-          {alertState === 'error'
-            ? 'Echo activity unavailable'
+          {alertState === 'idle'
+            ? 'Echo activity loading'
+            : alertState === 'error'
+              ? 'Echo activity unavailable'
             : <><Text style={styles.echoCount}>{echoesSinceLastVisit}</Text> {echoesSinceLastVisit === 1 ? 'Echo' : 'Echoes'} since your last visit</>}
         </Text>
       </Pressable>
@@ -235,7 +257,7 @@ export function HomePersonalBriefing({ embedded = false }: { embedded?: boolean 
           <Ionicons name="sparkles-outline" size={15} color={FateDropColors.cyan} />
         </View>
         <Text style={styles.stockLine}>
-          {liveState === 'error' || wishlistState === 'error'
+          {liveState !== 'ready' || wishlistState !== 'ready'
             ? wantedLine
             : <><Text style={styles.stockCount}>{wantedLiveCount}</Text> wanted {wantedLiveCount === 1 ? 'item is' : 'items are'} in stock</>}
         </Text>
@@ -285,17 +307,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   greeting: {
-    marginBottom: 8,
-    maxWidth: '76%',
+    marginBottom: 5,
+    maxWidth: '64%',
   },
   glow: {
     position: 'absolute',
-    width: 230,
-    height: 230,
-    right: -68,
-    bottom: -122,
-    borderRadius: 115,
-    backgroundColor: FateDropColors.goldBright,
+    width: 148,
+    height: 68,
+    left: 0,
+    bottom: -5,
+    borderRadius: 74,
+    backgroundColor: FateDropColors.cyan,
   },
   shard: {
     position: 'absolute',
@@ -319,8 +341,8 @@ const styles = StyleSheet.create({
   },
   welcomeKickerEmbedded: {
     color: FateDropColors.goldBright,
-    fontSize: 20,
-    lineHeight: 25,
+    fontSize: 18,
+    lineHeight: 22,
     textShadowColor: 'rgba(0,0,0,.95)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 9,
@@ -334,14 +356,14 @@ const styles = StyleSheet.create({
   },
   welcomeIdentityEmbedded: {
     color: FateDropColors.goldBright,
-    fontSize: 30,
-    lineHeight: 35,
+    fontSize: 29,
+    lineHeight: 33,
     textShadowColor: 'rgba(0,0,0,.96)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
   row: {
-    minHeight: 32,
+    minHeight: 27,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -355,8 +377,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   echoGlyph: {
-    borderColor: `${FateDropColors.manifested}55`,
-    backgroundColor: `${FateDropColors.manifested}15`,
+    borderColor: `${FateDropColors.echo}55`,
+    backgroundColor: `${FateDropColors.echo}10`,
   },
   stockGlyph: {
     borderColor: `${FateDropColors.cyan}55`,
@@ -371,7 +393,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
-  echoCount: { color: FateDropColors.manifested, fontSize: 17 },
+  echoCount: { color: FateDropColors.echo, fontSize: 17 },
   stockLine: {
     flex: 1,
     color: FateDropColors.ivory,
@@ -383,8 +405,8 @@ const styles = StyleSheet.create({
   },
   stockCount: { color: FateDropColors.cyan, fontSize: 17 },
   pcukRow: {
-    marginTop: 9,
-    minHeight: 43,
+    marginTop: 5,
+    minHeight: 32,
     paddingHorizontal: 2,
     flexDirection: 'row',
     alignItems: 'center',
@@ -398,9 +420,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(99,225,255,.56)',
   },
   pcukGlyph: {
-    width: 33,
-    height: 33,
-    borderRadius: 17,
+    width: 25,
+    height: 25,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

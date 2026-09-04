@@ -1,232 +1,624 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ArtworkEdgeBlend } from '@/components/artwork-edge-blend';
-import { FateDropBackground } from '@/components/fatedrop-ui';
 import { HomePersonalBriefing } from '@/components/home-personal-briefing';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
+import { API_BASE_URL } from '@/constants/api';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { profileWallpaperMeta } from '@/constants/profile-customisation';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { formatEventDate } from '@/lib/encounters';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
-import { fetchFateCollectorsSummary, fetchFatePulse, type FateCollectorsSnapshot, type FatePulseSnapshot } from '@/services/fate-market';
+import { fetchFateCollectorsSummary, fetchFatePulse, type FateCollectorsSnapshot, type FatePulseDirectionPeriod, type FatePulseSnapshot } from '@/services/fate-market';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
 import { openExternalRetailerLink } from '@/services/outbound-links';
 import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
+import type { CalendarEvent } from '@/types/encounter';
 
-const stageMeta: Record<NetworkSignalState, { label: string; companion: string; color: string }> = {
-  whisper: { label: 'Whisper', companion: 'Oru', color: FateDropColors.whisper },
-  echo: { label: 'Echo', companion: 'Fenn', color: FateDropColors.echo },
-  manifested: { label: 'Manifested', companion: 'Koru', color: FateDropColors.manifested },
-  vanished: { label: 'Vanished', companion: 'Nyxen', color: FateDropColors.vanished },
+const stageMeta: Record<NetworkSignalState, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  whisper: { label: 'Whisper', color: FateDropColors.whisper, icon: 'sparkles-outline' },
+  echo: { label: 'Echo', color: FateDropColors.echo, icon: 'radio-outline' },
+  manifested: { label: 'Manifested', color: FateDropColors.manifested, icon: 'diamond-outline' },
+  vanished: { label: 'Vanished', color: FateDropColors.vanished, icon: 'moon-outline' },
 };
 const stageOrder: NetworkSignalState[] = ['whisper', 'echo', 'manifested', 'vanished'];
 const emptyPulse: NetworkPulse = { whisper: 0, echo: 0, manifested: 0, vanished: 0 };
+const HOME_EVENTS_TTL_MS = 5 * 60_000;
+const LIVE_OPPORTUNITY_LIMIT = 5;
+const LIVE_CARD_GAP = 12;
+
+type LoadState = 'loading' | 'ready' | 'error';
+type SheetState = { kind: 'live-details'; alert: CanonicalMobileAlert } | null;
+
+let eventsCache: { cachedAt: number; data: CalendarEvent[] } | null = null;
+let eventsFlight: Promise<CalendarEvent[]> | null = null;
+
+async function fetchHomeEvents() {
+  if (eventsCache && Date.now() - eventsCache.cachedAt < HOME_EVENTS_TTL_MS) return eventsCache.data;
+  if (eventsFlight) return eventsFlight;
+  const flight = fetch(`${API_BASE_URL}/api/calendar-events`)
+    .then(async (response) => {
+      const payload = await response.json().catch(() => null) as { events?: CalendarEvent[]; error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error || `Events HTTP ${response.status}`);
+      const data = Array.isArray(payload?.events) ? payload.events : [];
+      eventsCache = { cachedAt: Date.now(), data };
+      return data;
+    })
+    .finally(() => {
+      if (eventsFlight === flight) eventsFlight = null;
+    });
+  eventsFlight = flight;
+  return flight;
+}
 
 export default function HomeScreenV3() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { snapshot, signedIn, refreshIfStale } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
-  const [pulseError, setPulseError] = useState(false);
+  const [pulseState, setPulseState] = useState<LoadState>('loading');
   const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
-  const [liveError, setLiveError] = useState(false);
+  const [liveState, setLiveState] = useState<LoadState>('loading');
   const [marketPulse, setMarketPulse] = useState<FatePulseSnapshot | null>(null);
+  const [marketState, setMarketState] = useState<LoadState>('loading');
   const [collectors, setCollectors] = useState<FateCollectorsSnapshot | null>(null);
-  const [selectedTcgFilter, setTcgFilter] = useState<'all' | TcgCode>('all');
+  const [collectorsState, setCollectorsState] = useState<LoadState>('loading');
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [eventsState, setEventsState] = useState<LoadState>('loading');
   const [observedNow, setObservedNow] = useState(0);
   const [homeWallpaperId, setHomeWallpaperId] = useState<ProfileWallpaperId>('koruHome');
+  const [sheet, setSheet] = useState<SheetState>(null);
+  const [liveIndex, setLiveIndex] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const heroEntrance = useRef(new Animated.Value(0)).current;
+  const intelligenceEntrance = useRef(new Animated.Value(0)).current;
+  const lowerEntrance = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async () => {
-    const [nextPulse, nextLive, , customisation, nextMarketPulse, nextCollectors] = await Promise.all([
-      fetchNetworkPulse(7).catch(() => null),
-      signedIn ? fetchCanonicalLiveOpportunities(20).catch(() => null) : Promise.resolve([]),
+    const [nextPulse, nextLive, , customisation, nextMarketPulse, nextCollectors, nextEvents] = await Promise.all([
+      fetchNetworkPulse(7).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: null })),
+      signedIn
+        ? fetchCanonicalLiveOpportunities(20).then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CanonicalMobileAlert[] }))
+        : Promise.resolve({ ok: true as const, data: [] as CanonicalMobileAlert[] }),
       signedIn ? refreshIfStale().catch(() => null) : Promise.resolve(null),
       loadProfileCustomisation(identity).catch(() => null),
-      fetchFatePulse().catch(() => null),
-      signedIn ? fetchFateCollectorsSummary().catch(() => null) : Promise.resolve(null),
+      fetchFatePulse().then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: null })),
+      signedIn
+        ? fetchFateCollectorsSummary().then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: null }))
+        : Promise.resolve({ ok: true as const, data: null }),
+      fetchHomeEvents().then((data) => ({ ok: true as const, data })).catch(() => ({ ok: false as const, data: [] as CalendarEvent[] })),
     ]);
-    if (nextPulse) {
-      setPulse(nextPulse);
-      setPulseError(false);
+
+    if (nextPulse.ok && nextPulse.data) {
+      setPulse(nextPulse.data);
+      setPulseState('ready');
     } else {
-      setPulseError(true);
+      setPulseState('error');
     }
-    if (nextLive) {
-      setLiveOpportunities(nextLive);
-      setLiveError(false);
-    } else {
-      setLiveOpportunities([]);
-      setLiveError(signedIn);
-    }
+    setLiveOpportunities(nextLive.data);
+    setLiveState(nextLive.ok ? 'ready' : 'error');
     if (customisation) setHomeWallpaperId(customisation.wallpaperId);
-    setMarketPulse(nextMarketPulse);
-    setCollectors(nextCollectors);
+    setMarketPulse(nextMarketPulse.data);
+    setMarketState(nextMarketPulse.ok ? 'ready' : 'error');
+    setCollectors(nextCollectors.data);
+    setCollectorsState(nextCollectors.ok ? 'ready' : 'error');
+    setEvents(nextEvents.data);
+    setEventsState(nextEvents.ok ? 'ready' : 'error');
     setObservedNow(Date.now());
   }, [identity, refreshIfStale, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
-  const tcgFilter = selectedTcgFilter === 'all' || selectedTcgCodes.includes(selectedTcgFilter) ? selectedTcgFilter : 'all';
-  const matchesFilter = useCallback((value: unknown) => tcgFilter === 'all' || (isTcgCode(value) && value === tcgFilter), [tcgFilter]);
-  const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false && matchesFilter(item.tcgCode)).length ?? 0;
+  useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) setReduceMotion(enabled);
+    });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion == null) return;
+    const values = [heroEntrance, intelligenceEntrance, lowerEntrance];
+    values.forEach((value) => value.stopAnimation());
+    if (reduceMotion) {
+      values.forEach((value) => value.setValue(1));
+      return;
+    }
+    values.forEach((value) => value.setValue(0));
+    const animation = Animated.stagger(105, values.map((value) => Animated.timing(value, {
+      toValue: 1,
+      duration: 460,
+      useNativeDriver: true,
+    })));
+    animation.start();
+    return () => animation.stop();
+  }, [heroEntrance, intelligenceEntrance, lowerEntrance, reduceMotion]);
+
+  const selectedTcgCodes = useMemo<TcgCode[]>(
+    () => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'],
+    [snapshot?.tcgPreferences.selectedTcgCodes],
+  );
+  const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
   const recentMatches = useMemo(() => {
+    if (!observedNow) return null;
     const floor = Math.floor(observedNow / 1000) - 7 * 86_400;
-    return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor && matchesFilter(item.tcgCode)).length ?? 0;
-  }, [matchesFilter, observedNow, snapshot?.fateMatches]);
-  const saved = snapshot?.wishlist?.filter((item) => matchesFilter(item.tcg)).length ?? 0;
-  const visibleLiveOpportunities = useMemo(() => liveOpportunities.filter((alert) => (
-    selectedTcgCodes.includes(alert.tcgCode as TcgCode)
-    && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)
-  )), [liveOpportunities, selectedTcgCodes, tcgFilter]);
-  const tcgParam = tcgFilter === 'all' ? undefined : tcgFilter;
-  const filterLabel = tcgFilter === 'all' ? 'All selected games' : TCG_REGISTRY.find((entry) => entry.code === tcgFilter)?.shortName ?? tcgFilter;
+    return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor).length ?? 0;
+  }, [observedNow, snapshot?.fateMatches]);
+  const saved = snapshot?.wishlist?.length ?? 0;
+  const wantedProductIds = useMemo(() => new Set(
+    snapshot?.wishlist?.map((item) => item.productIdentityId).filter((id): id is string => Boolean(id)) ?? [],
+  ), [snapshot?.wishlist]);
+  const rankedLiveOpportunities = useMemo(() => rankLiveOpportunities(
+    liveOpportunities,
+    wantedProductIds,
+    selectedTcgCodes,
+  ).slice(0, LIVE_OPPORTUNITY_LIMIT), [liveOpportunities, selectedTcgCodes, wantedProductIds]);
   const wallpaperAccent = profileWallpaperMeta[homeWallpaperId].accent;
   const pulse30d = marketPulse?.pulse?.direction?.periods.d30;
-  const pulseAvailable = pulse30d?.status === 'available';
-  const collection = collectors?.summary.collection;
-  const closestSet = collectors?.summary.closestSet;
+  const marketPresentation = useMemo(
+    () => buildMarketPresentation(pulse30d, marketState),
+    [marketState, pulse30d],
+  );
+  const collectionPresentation = useMemo(
+    () => buildCollectionPresentation(collectors, collectorsState, signedIn),
+    [collectors, collectorsState, signedIn],
+  );
+  const featuredEvent = useMemo(
+    () => chooseHomeEvent(events, selectedTcgCodes, observedNow),
+    [events, observedNow, selectedTcgCodes],
+  );
+  const liveCardWidth = Math.min(344, Math.max(276, width - 72));
+  const entranceStyle = (value: Animated.Value, distance: number) => ({
+    opacity: value,
+    transform: [{ translateY: value.interpolate({ inputRange: [0, 1], outputRange: [distance, 0] }) }],
+  });
+  const backdropTranslate = reduceMotion
+    ? 0
+    : scrollY.interpolate({ inputRange: [0, 650], outputRange: [0, -14], extrapolate: 'clamp' });
 
   return (
     <View style={styles.safe}>
-      <FateDropBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.livingStage}>
-          <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} cachePolicy="disk" contentFit="cover" contentPosition="top center" enforceEarlyResizing />
-          {homeWallpaperId !== 'koruHome' ? <View pointerEvents="none" style={styles.selectedWallpaperLayer}>
-            <ProfileWallpaperArt wallpaperId={homeWallpaperId} />
-            <ArtworkEdgeBlend accentColor={wallpaperAccent} height={130} />
-          </View> : null}
-          <View pointerEvents="none" style={styles.stageVeil} />
+      <Animated.View pointerEvents="none" style={[styles.themeBackdrop, { transform: [{ translateY: backdropTranslate }] }]}>
+        {homeWallpaperId === 'koruHome'
+          ? <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} cachePolicy="disk" contentFit="cover" contentPosition="top center" enforceEarlyResizing recyclingKey="home-theme:koru" />
+          : <ProfileWallpaperArt wallpaperId={homeWallpaperId} home />}
+        <View style={[styles.themeAccent, { backgroundColor: `${wallpaperAccent}0A` }]} />
+        <View style={styles.themeContrast} />
+        <View style={styles.lowerAtmosphere} />
+      </Animated.View>
 
-          <View style={styles.hero}>
-            <Image source={{ uri: FATEDROP_WORDMARK_URI }} style={[styles.wordmark, { top: insets.top + 5 }]} contentFit="contain" contentPosition="left center" />
-            <View style={[styles.heroBriefing, { top: insets.top + 76 }]}>
-              <HomePersonalBriefing embedded />
-            </View>
-            <View style={styles.heroLifecycle}>
-              <View accessibilityLabel="Network signals · Last 7 days" style={styles.lifecycleRibbon}>
-                {stageOrder.map((state, index) => {
-                  const meta = stageMeta[state];
-                  return (
-                    <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast]}>
-                      <Ionicons name={state === 'whisper' ? 'sparkles-outline' : state === 'echo' ? 'radio-outline' : state === 'manifested' ? 'diamond-outline' : 'moon-outline'} size={12} color={meta.color} />
-                      <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
-                      <Text style={[styles.lifecycleValue, { color: meta.color }]}>{pulseError ? '—' : pulse[state]}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+      <Animated.ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
+        <Animated.View style={[styles.hero, entranceStyle(heroEntrance, 10)]}>
+          <Image
+            source={{ uri: FATEDROP_WORDMARK_URI }}
+            style={[styles.wordmark, { top: insets.top + 5 }]}
+            contentFit="contain"
+            contentPosition="left center"
+          />
+          <View style={[styles.heroBriefing, { top: insets.top + 58 }]}>
+            <HomePersonalBriefing embedded />
           </View>
-
-          <View style={styles.intelligenceGrid}>
-            <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATEPULSE" icon="pulse-outline" title="Pokémon Market"
-              value={pulseAvailable ? movementPercent(pulse30d?.headlinePercent) : '— · 30D'}
-              detail={pulseAvailable ? `${pulse30d?.breadth.risingSets ?? 0} rising · ${pulse30d?.breadth.unchangedSets ?? 0} stable · ${pulse30d?.breadth.fallingSets ?? 0} falling` : 'Building qualifying market evidence'}
-              foot={pulse30d ? `Coverage ${marketPercent(pulse30d.coverage.currentPriceCoveragePct)}` : 'Coverage unavailable'}
-              breadth={pulseAvailable ? pulse30d?.breadth : undefined}
-              onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
-            <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATE COLLECTORS" icon="people-outline"
-              title="Your collection" value={signedIn ? collectionValue(collectors) : 'Connect'}
-              detail={signedIn ? `${collectors?.summary.cardUnits ?? 0} cards · ${collectors?.summary.setsOwned ?? 0} sets` : 'Make the market personal'}
-              foot={signedIn && closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}% complete` : signedIn ? `Price coverage ${marketPercent(collection?.priceCoveragePercent)}` : 'Import once. FateDrop does the thinking.'}
-              onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} />
+          <View style={styles.heroLifecycle}>
+            <LifecycleRibbon pulse={pulse} state={pulseState} />
           </View>
+        </Animated.View>
 
-          <View style={styles.livePanel} accessible accessibilityLabel="Verified live opportunities" accessibilityHint="Seeing one here never repeats the alarm">
-            <View style={styles.liveHead}>
-              <Text style={[styles.sectionEyebrow, styles.liveEyebrow]}>✦ VERIFIED LIVE NOW</Text>
-              <Pressable onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'MANIFESTED', tcg: tcgParam } })} style={styles.viewAllLink}><Text style={styles.viewAllText}>View all</Text><Ionicons name="chevron-forward" size={13} color={FateDropColors.goldBright} /></Pressable>
-            </View>
-            {visibleLiveOpportunities.length ? <View style={styles.liveRail}>
-              <LiveOpportunityCard alert={visibleLiveOpportunities[0]} observedNow={observedNow} />
-            </View> : <View style={styles.liveEmpty}>
-              <Ionicons name={liveError ? 'cloud-offline-outline' : 'diamond-outline'} size={22} color={liveError ? FateDropColors.muted : FateDropColors.manifested} />
-              <View style={styles.flex}>
-                <Text style={styles.liveEmptyTitle}>{liveError ? 'Live verification is temporarily unavailable' : 'Nothing is freshly verified live right now'}</Text>
-                <Text style={styles.liveEmptyCopy}>{liveError ? 'FateDrop will not fall back to stale stock.' : 'This space lights up only for current, verified availability.'}</Text>
-              </View>
-            </View>}
-          </View>
-          <ArtworkEdgeBlend accentColor={wallpaperAccent} height={90} />
-        </View>
+        <Animated.View style={entranceStyle(intelligenceEntrance, 14)}>
+          <OrbitalIntelligenceHub
+            market={marketPresentation}
+            collection={collectionPresentation}
+            accent={wallpaperAccent}
+          />
+        </Animated.View>
 
-        <View style={styles.gameFilterHead}><Text style={styles.gameFilterEyebrow}>BROWSE YOUR HOME VIEW</Text><Text style={styles.sectionHint}>{filterLabel}</Text></View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gameFilters}>
-          <Pressable onPress={() => setTcgFilter('all')} style={[styles.gameFilter, tcgFilter === 'all' && styles.gameFilterActive]}><Text style={[styles.gameFilterText, tcgFilter === 'all' && styles.gameFilterTextActive]}>ALL</Text></Pressable>
-          {selectedTcgCodes.map((code) => { const entry = TCG_REGISTRY.find((item) => item.code === code); return entry ? <Pressable key={code} onPress={() => setTcgFilter(code)} style={[styles.gameFilter, tcgFilter === code && { borderColor: entry.accent, backgroundColor: `${entry.accent}15` }]}><Text style={[styles.gameFilterText, tcgFilter === code && { color: entry.accent }]}>{entry.shortName.toUpperCase()}</Text></Pressable> : null; })}
-        </ScrollView>
+        <Animated.View
+          accessible
+          accessibilityLabel="Verified live opportunities"
+          accessibilityHint="Seeing one here never repeats the alarm"
+          style={[styles.liveSection, entranceStyle(lowerEntrance, 16)]}
+        >
+          <SectionHeading
+            title="VERIFIED LIVE NOW"
+            action="View all"
+            current={rankedLiveOpportunities.length ? liveIndex + 1 : 0}
+            total={rankedLiveOpportunities.length}
+            onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'MANIFESTED' } })}
+          />
+          {rankedLiveOpportunities.length ? (
+            <>
+              <FlatList
+                data={rankedLiveOpportunities}
+                horizontal
+                keyExtractor={(alert) => alert.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.liveCarousel}
+                ItemSeparatorComponent={() => <View style={{ width: LIVE_CARD_GAP }} />}
+                renderItem={({ item }) => (
+                  <LiveOpportunityCard
+                    alert={item}
+                    observedNow={observedNow}
+                    width={liveCardWidth}
+                    onDetails={() => setSheet({ kind: 'live-details', alert: item })}
+                  />
+                )}
+                snapToInterval={liveCardWidth + LIVE_CARD_GAP}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                disableIntervalMomentum
+                onMomentumScrollEnd={(event) => {
+                  const next = Math.round(event.nativeEvent.contentOffset.x / (liveCardWidth + LIVE_CARD_GAP));
+                  setLiveIndex(Math.max(0, Math.min(rankedLiveOpportunities.length - 1, next)));
+                }}
+                initialNumToRender={2}
+                maxToRenderPerBatch={2}
+                windowSize={3}
+                removeClippedSubviews
+              />
+            </>
+          ) : (
+            <VerifiedLiveEmpty state={liveState} signedIn={signedIn} />
+          )}
+        </Animated.View>
 
-        <View style={styles.sectionHead}>
-          <View>
-            <Text style={styles.sectionEyebrow}>YOUR FATEDROP</Text>
-            <Text style={styles.sectionTitle}>{signedIn ? 'Your current picture' : 'Connect your FateDrop ID'}</Text>
-          </View>
-        </View>
-        <View style={styles.personalGrid}>
-          <MiniStat value={signedIn ? String(activeFinds) : '—'} label="ACTIVE FATEFINDS" icon="telescope-outline" onPress={() => router.push('/fate-match')} />
-          <MiniStat value={signedIn ? String(recentMatches) : '—'} label="7D FATEMATCHES" icon="sparkles-outline" onPress={() => router.push('/fate-match')} />
-          <MiniStat value={signedIn ? String(saved) : '—'} label="WISHLIST" icon="bookmark-outline" onPress={() => router.push('/(tabs)/watchlist')} />
-        </View>
+        <Animated.View style={[styles.lowerSections, entranceStyle(lowerEntrance, 18)]}>
+          <PersonalLedger signedIn={signedIn} activeFinds={activeFinds} recentMatches={recentMatches} saved={saved} />
+          <OrbitalCommandPortal event={featuredEvent} state={eventsState} />
+        </Animated.View>
+      </Animated.ScrollView>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Open the FateDrop Guide" onPress={() => router.push('/demo')} style={({ pressed }) => [styles.guideCard, pressed && styles.pressed]}>
-          <View style={styles.guideIcon}><Ionicons name="compass-outline" size={24} color={FateDropColors.goldBright} /></View>
-          <View style={styles.flex}>
-            <Text style={styles.guideEyebrow}>FATEDROP GUIDE</Text>
-            <Text style={styles.guideTitle}>How FateDrop works — whenever you need it.</Text>
-            <Text style={styles.guideCopy}>Replay the guided tour, learn every core tool and revisit Whisper → Echo → Manifested → Vanished whenever you need it.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
-        </Pressable>
-
-        <Text style={styles.sectionEyebrow}>QUICK ACTIONS</Text>
-        <View style={styles.actions}>
-          <Action title="Search" detail="See what is available" icon="search-outline" onPress={() => router.push('/(tabs)/search')} />
-          <Action title="FateFind" detail="Find it now or keep hunting" icon="telescope-outline" onPress={() => router.push({ pathname: '/fatefind', params: { tcg: tcgParam } })} />
-          <Action title="Events" detail="Card shows, tournaments and meet-ups" icon="calendar-outline" onPress={() => router.push('/encounters')} />
-        </View>
-
-        <View style={styles.eventSectionHead}>
-          <Text style={styles.eventSectionEyebrow}>FATE ENCOUNTERS</Text>
-          <Text style={styles.eventSectionTitle}>Find your next encounter.</Text>
-          <Text style={styles.eventSectionCopy}>Card shows, trade nights, tournaments and collector meet-ups — discover what is happening beyond the screen.</Text>
-        </View>
-
-        <Pressable accessibilityRole="button" accessibilityLabel="Explore FateDrop events" onPress={() => router.push('/encounters')} style={({ pressed }) => [styles.eventPromo, pressed && styles.pressed]}>
-          <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
-          <View style={styles.eventPromoShade} />
-          <View style={styles.eventPromoContent}>
-            <Text style={styles.eventPromoEyebrow}>EVENTS · CARD SHOWS · COMMUNITY</Text>
-            <Text style={styles.eventPromoTitle}>Where collectors become the community.</Text>
-            <View style={styles.eventPromoCta}>
-              <Text style={styles.eventPromoCtaText}>EXPLORE EVENTS</Text>
-              <Ionicons name="arrow-forward" size={15} color={FateDropColors.ivory} />
-            </View>
-          </View>
-        </Pressable>
-
-        <View style={styles.explainer}>
-          <Ionicons name="sparkles-outline" size={20} color={FateDropColors.goldBright} />
-          <View style={styles.flex}>
-            <Text style={styles.explainerTitle}>Search → Wishlist → FateFind → FateMatch</Text>
-            <Text style={styles.explainerCopy}>Browse it. Remember it. Ask FateFind to hunt it. Get a FateMatch when your conditions line up.</Text>
-          </View>
-        </View>
-      </ScrollView>
+      <HomeSheet sheet={sheet} observedNow={observedNow} onClose={() => setSheet(null)} />
     </View>
   );
 }
 
+function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadState }) {
+  return (
+    <View accessibilityLabel="Network signals · Last 7 days" style={styles.lifecycleRibbon}>
+      <View pointerEvents="none" style={styles.lifecycleArcOuter} />
+      <View pointerEvents="none" style={styles.lifecycleArcInner} />
+      <View pointerEvents="none" style={styles.lifecycleArcCrown}><View style={styles.lifecycleArcCrownVertical} /><View style={styles.lifecycleArcCrownHorizontal} /></View>
+      {stageOrder.map((stage, index) => {
+        const meta = stageMeta[stage];
+        return (
+          <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast, (index === 0 || index === stageOrder.length - 1) && styles.lifecycleItemOuter]}>
+            <Ionicons name={meta.icon} size={11} color={meta.color} />
+            <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
+            <Text style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+type IntelligencePresentation = { value: string; detail: string; secondary: string; foot: string };
+
+function OrbitalIntelligenceHub({ accent, collection, market }: {
+  accent: string;
+  collection: IntelligencePresentation;
+  market: IntelligencePresentation;
+}) {
+  return (
+    <View style={styles.orbitalHub}>
+      <View pointerEvents="none" style={styles.hubHorizon} />
+      <View pointerEvents="none" style={styles.hubArc} />
+      <OrbitalIntelligenceNode
+        side="left"
+        accent={FateDropColors.manifested}
+        eyebrow="FATEPULSE"
+        title="TCG MARKET"
+        icon="pulse-outline"
+        presentation={market}
+        onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open Fate Market"
+        onPress={() => router.push('/(tabs)/market')}
+        style={({ pressed }) => [styles.hubCrystal, pressed && styles.pressed]}
+      >
+        <View pointerEvents="none" style={styles.hubCrystalOrbitOuter} />
+        <View pointerEvents="none" style={styles.hubCrystalOrbitInner} />
+        <Image
+          source={require('../assets/images/home-orbital-crystal.png')}
+          style={styles.hubCrystalArtwork}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          enforceEarlyResizing
+        />
+        <View pointerEvents="none" style={[styles.hubCrystalNeedle, { borderBottomColor: FateDropColors.goldBright }]} />
+        <View pointerEvents="none" style={[styles.hubCrystalNeedle, styles.hubCrystalNeedleBottom, { borderBottomColor: FateDropColors.goldBright }]} />
+      </Pressable>
+      <OrbitalIntelligenceNode
+        side="right"
+        accent={accent}
+        eyebrow="FATE COLLECTORS"
+        title="YOUR COLLECTION"
+        icon="people-outline"
+        presentation={collection}
+        onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })}
+      />
+    </View>
+  );
+}
+
+function OrbitalIntelligenceNode({ accent, eyebrow, icon, onPress, presentation, side, title }: {
+  accent: string;
+  eyebrow: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  presentation: IntelligencePresentation;
+  side: 'left' | 'right';
+  title: string;
+}) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.hubNode, side === 'left' ? styles.hubNodeLeft : styles.hubNodeRight, pressed && styles.pressed]}>
+      <View pointerEvents="none" style={[styles.hubNodeRing, { borderColor: `${accent}60` }]} />
+      <View pointerEvents="none" style={[styles.hubNodeRingInner, { borderColor: `${accent}25` }]} />
+      <View style={[styles.hubNodeIcon, { borderColor: `${accent}70` }]}><Ionicons name={icon} size={18} color={accent} /></View>
+      <Text style={styles.hubNodeEyebrow}>{eyebrow}</Text>
+      <Text style={styles.hubNodeTitle}>{title}</Text>
+      <Text style={[styles.hubNodeValue, { color: presentation.value === '—' ? FateDropColors.ivory : accent }]} numberOfLines={1} adjustsFontSizeToFit>{presentation.value}</Text>
+      <Text style={styles.hubNodeDetail} numberOfLines={2}>{presentation.detail}</Text>
+      {presentation.secondary ? <Text style={styles.hubNodeSecondary} numberOfLines={1}>{presentation.secondary}</Text> : null}
+      <Text style={styles.hubNodeFoot} numberOfLines={1}>{presentation.foot}</Text>
+    </Pressable>
+  );
+}
+
+function SectionHeading({ action, current, onPress, title, total }: { action: string; current: number; onPress: () => void; title: string; total: number }) {
+  return (
+    <View style={styles.sectionHeading}>
+      <View style={styles.sectionStar}><View style={styles.sectionStarVertical} /><View style={styles.sectionStarHorizontal} /></View>
+      <Text style={styles.sectionHeadingText}>{title}</Text>
+      <View style={styles.sectionHeadingLine} />
+      <Pressable accessibilityRole="button" accessibilityLabel={action} onPress={onPress} style={styles.sectionCounter}>
+        <Text style={styles.sectionCounterText}>{current} / {total}</Text>
+        <View style={styles.sectionCounterDots}>
+          {Array.from({ length: total }).map((_, index) => <View key={index} style={[styles.carouselDot, index === Math.max(0, current - 1) && styles.carouselDotActive]} />)}
+        </View>
+        <Ionicons name="chevron-forward" size={11} color={FateDropColors.goldBright} />
+      </Pressable>
+    </View>
+  );
+}
+
+function LiveOpportunityCard({ alert, observedNow, onDetails, width }: { alert: CanonicalMobileAlert; observedNow: number; onDetails: () => void; width: number }) {
+  const price = alert.product.deliveredPricePence ?? alert.product.pricePence;
+  const verifiedLabel = freshnessLabel(alert, observedNow);
+  const priceContext = pricingContext(alert);
+  const tcg = TCG_REGISTRY.find((entry) => entry.code === alert.tcgCode)?.shortName ?? alert.tcgCode;
+  const openRetailer = () => {
+    if (!alert.productUrl) return;
+    void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live' }).catch(() => undefined);
+  };
+  return (
+    <View style={[styles.liveCard, { width }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`View details for ${alert.product.title || alert.title}`} onPress={onDetails} style={({ pressed }) => [styles.liveCardBody, pressed && styles.pressed]}>
+        <View style={styles.liveIdentity}>
+          <Text style={styles.liveGame} numberOfLines={1}>{tcg}{alert.facets.setName ? ` · ${alert.facets.setName}` : ''}</Text>
+          <Text style={styles.liveTitle} numberOfLines={3}>{alert.product.title || alert.title}</Text>
+          <Text style={styles.liveRetailer} numberOfLines={1}>{alert.retailer}</Text>
+          <Text style={styles.liveVerified} numberOfLines={1}>{verifiedLabel}</Text>
+        </View>
+        <View style={styles.liveArtwork}>
+          <View pointerEvents="none" style={styles.liveArtworkOrbit} />
+          <View pointerEvents="none" style={styles.liveArtworkOrbitInner} />
+          {alert.product.imageUrl
+            ? <Image source={{ uri: alert.product.imageUrl }} style={styles.liveProductImage} cachePolicy="disk" contentFit="contain" enforceEarlyResizing recyclingKey={`live:${alert.productId}`} />
+            : <Ionicons name="diamond-outline" size={48} color={FateDropColors.manifested} />}
+        </View>
+        <View style={styles.livePriceColumn}>
+          <Text style={styles.livePrice}>{price == null ? 'Price unknown' : `£${(price / 100).toFixed(2)}`}</Text>
+          <Text style={styles.livePriceContext} numberOfLines={2}>{priceContext || 'No fair price comparison'}</Text>
+        </View>
+      </Pressable>
+      {alert.productUrl ? <Pressable accessibilityRole="link" accessibilityLabel={`Open ${alert.retailer} in your browser`} onPress={openRetailer} hitSlop={8} style={styles.liveExternal}><Ionicons name="open-outline" size={12} color={FateDropColors.goldBright} /><Text style={styles.liveExternalText}>RETAILER</Text></Pressable> : null}
+    </View>
+  );
+}
+
+function VerifiedLiveEmpty({ signedIn, state }: { signedIn: boolean; state: LoadState }) {
+  const title = !signedIn ? 'Connect your FateDrop ID' : state === 'loading' ? 'Checking current verification' : state === 'error' ? 'Live verification is temporarily unavailable' : 'Nothing is freshly verified live right now';
+  const detail = !signedIn ? 'Sign in to see verified opportunities selected for you.' : state === 'error' ? 'FateDrop will not fall back to stale stock.' : state === 'loading' ? 'Only current evidence will appear here.' : 'This space lights up only for current, verified availability.';
+  return <View style={styles.liveEmpty}><Ionicons name={state === 'error' ? 'cloud-offline-outline' : 'diamond-outline'} size={20} color={state === 'error' ? FateDropColors.muted : FateDropColors.manifested} /><View style={styles.flex}><Text style={styles.liveEmptyTitle}>{title}</Text><Text style={styles.liveEmptyCopy}>{detail}</Text></View></View>;
+}
+
+function PersonalLedger({ activeFinds, recentMatches, saved, signedIn }: { activeFinds: number; recentMatches: number | null; saved: number; signedIn: boolean }) {
+  const values = [
+    { icon: 'telescope-outline' as const, label: 'ACTIVE FATEFINDS', value: signedIn ? String(activeFinds) : '—', onPress: () => router.push('/fate-match') },
+    { icon: 'sparkles-outline' as const, label: '7D FATEMATCHES', value: signedIn && recentMatches != null ? String(recentMatches) : '—', onPress: () => router.push({ pathname: '/(tabs)/alerts', params: { view: 'matches' } }) },
+    { icon: 'bookmark-outline' as const, label: 'WISHLIST', value: signedIn ? String(saved) : '—', onPress: () => router.push('/(tabs)/watchlist') },
+  ];
+  return (
+    <View style={styles.ledgerSection}>
+      <OrnamentTitle title="YOUR FATEDROP" />
+      <View style={styles.ledger}>
+        {values.map((item) => <Pressable key={item.label} onPress={item.onPress} style={styles.ledgerItem}><View pointerEvents="none" style={styles.ledgerOrbit} /><Ionicons name={item.icon} size={19} color={FateDropColors.goldBright} /><Text style={styles.ledgerValue}>{item.value}</Text><Text style={styles.ledgerLabel}>{item.label}</Text></Pressable>)}
+      </View>
+    </View>
+  );
+}
+
+function OrnamentTitle({ title }: { title: string }) {
+  return <View style={styles.ornamentTitle}><View style={styles.ornamentLine} /><View style={styles.ornamentDiamond} /><Text style={styles.ornamentText}>{title}</Text><View style={styles.ornamentDiamond} /><View style={styles.ornamentLine} /></View>;
+}
+
+function OrbitalCommandPortal({ event, state }: { event: CalendarEvent | null; state: LoadState }) {
+  const open = () => {
+    if (event) {
+      router.push({ pathname: '/encounters/detail', params: { id: event.id, eventData: JSON.stringify(event) } });
+      return;
+    }
+    router.push('/encounters');
+  };
+  const eventLine = event ? formatEventDate(event.startDateTime, event.endDateTime) : state === 'error' ? 'Upcoming encounters are temporarily unavailable' : state === 'loading' ? 'Finding the next relevant encounter' : 'Explore upcoming shows, trade nights and tournaments';
+  return (
+    <View style={styles.commandPortal}>
+      <View pointerEvents="none" style={styles.commandArcOuter} />
+      <View pointerEvents="none" style={styles.commandArcInner} />
+      <View style={styles.orbitalActions}>
+        <OrbitalAction icon="search-outline" title="Search" onPress={() => router.push('/(tabs)/search')} />
+        <OrbitalAction icon="sparkles-outline" title="FateFind" onPress={() => router.push('/fatefind')} featured />
+        <OrbitalAction icon="calendar-outline" title="Events" onPress={open} />
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={event ? `Open ${event.name}` : 'Explore Fate Encounters'} onPress={open} style={({ pressed }) => [styles.encounterPortal, pressed && styles.pressed]}>
+        <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" cachePolicy="disk" enforceEarlyResizing />
+        <View style={styles.encounterShade} />
+        <View style={styles.encounterPortalCopy}>
+          <Text style={styles.encounterPortalTitle}>FATE ENCOUNTERS</Text>
+          <View style={styles.encounterPortalDiamond} />
+          <Text style={styles.encounterPortalEvent} numberOfLines={1}>{event?.name || eventLine}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+function OrbitalAction({ featured = false, icon, onPress, title }: { featured?: boolean; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; title: string }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.orbitalAction, featured && styles.orbitalActionFeatured, pressed && styles.pressed]}>
+      <View style={[styles.orbitalActionCircle, featured && styles.orbitalActionCircleFeatured]}>
+        <View pointerEvents="none" style={styles.orbitalActionRing} />
+        <Ionicons name={icon} size={featured ? 22 : 21} color={featured ? FateDropColors.goldBright : FateDropColors.manifested} />
+      </View>
+      <Text style={styles.orbitalActionText}>{title}</Text>
+    </Pressable>
+  );
+}
+
+function HomeSheet({ observedNow, onClose, sheet }: { observedNow: number; onClose: () => void; sheet: SheetState }) {
+  const alert = sheet?.kind === 'live-details' ? sheet.alert : null;
+  const price = alert ? alert.product.deliveredPricePence ?? alert.product.pricePence : null;
+  const openRetailer = () => {
+    if (!alert?.productUrl) return;
+    void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live-details' }).catch(() => undefined);
+  };
+  return (
+    <Modal visible={sheet !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.sheetBackdrop}>
+        <Pressable onPress={(event) => event.stopPropagation()} style={styles.sheetPanel}>
+          <View style={styles.sheetHandle} />
+          {alert ? <><Text style={styles.sheetEyebrow}>VERIFIED LIVE NOW</Text><Text style={styles.sheetTitle}>{alert.product.title || alert.title}</Text><Text style={styles.sheetDetail}>{alert.facets.setName || TCG_REGISTRY.find((entry) => entry.code === alert.tcgCode)?.name || alert.tcgCode}</Text><View style={styles.detailLedger}><DetailFact label="RETAILER" value={alert.retailer || 'Unknown'} /><DetailFact label="PRICE" value={price == null ? 'Unknown' : `£${(price / 100).toFixed(2)}`} /><DetailFact label="EVIDENCE" value={freshnessLabel(alert, observedNow)} /><DetailFact label="CONTEXT" value={pricingContext(alert) || 'No fair price comparison'} /></View>{alert.productUrl ? <Pressable accessibilityRole="link" onPress={openRetailer} style={styles.sheetPrimary}><Text style={styles.sheetPrimaryText}>OPEN RETAILER</Text><Ionicons name="open-outline" size={16} color={FateDropColors.ink} /></Pressable> : null}</> : null}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function DetailFact({ label, value }: { label: string; value: string }) {
+  return <View style={styles.detailFact}><Text style={styles.detailFactLabel}>{label}</Text><Text style={styles.detailFactValue}>{value}</Text></View>;
+}
+
+function rankLiveOpportunities(alerts: CanonicalMobileAlert[], wantedProductIds: Set<string>, selectedTcgCodes: TcgCode[]) {
+  return [...alerts].sort((left, right) => {
+    const wantedDifference = Number(wantedProductIds.has(right.productId)) - Number(wantedProductIds.has(left.productId));
+    if (wantedDifference) return wantedDifference;
+    const selectedDifference = Number(isTcgCode(right.tcgCode) && selectedTcgCodes.includes(right.tcgCode)) - Number(isTcgCode(left.tcgCode) && selectedTcgCodes.includes(left.tcgCode));
+    if (selectedDifference) return selectedDifference;
+    return liveEvidenceTime(right) - liveEvidenceTime(left);
+  });
+}
+
+function liveEvidenceTime(alert: CanonicalMobileAlert) {
+  const value = alert.liveWindow?.lastConfirmedLiveAt || alert.opportunity?.lastVerifiedAt || alert.detectedAt;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function freshnessLabel(alert: CanonicalMobileAlert, observedNow: number) {
+  const verifiedAt = liveEvidenceTime(alert);
+  if (!verifiedAt || !observedNow) return 'Fresh confirmation';
+  const ageMinutes = Math.max(0, Math.floor((observedNow - verifiedAt) / 60_000));
+  if (ageMinutes < 1) return 'Verified just now';
+  if (ageMinutes < 60) return `Verified ${ageMinutes}m ago`;
+  const hours = Math.floor(ageMinutes / 60);
+  return hours < 24 ? `Verified ${hours}h ago` : `Verified ${Math.floor(hours / 24)}d ago`;
+}
+
+function pricingContext(alert: CanonicalMobileAlert) {
+  const delta = alert.priceIntelligence.rrpDeltaPercent;
+  if (delta == null || !Number.isFinite(delta)) return null;
+  if (delta < 0) return `${Math.abs(delta).toFixed(1)}% below RRP`;
+  if (delta === 0) return 'At verified RRP';
+  return `${delta.toFixed(1)}% over RRP`;
+}
+
+function buildMarketPresentation(period: FatePulseDirectionPeriod | undefined, state: LoadState) {
+  if (state === 'loading') return { value: '—', detail: 'Loading market evidence', secondary: '', foot: '30D evidence window' };
+  if (state === 'error') return { value: '—', detail: 'Market evidence unavailable', secondary: '', foot: 'No direction inferred' };
+  if (!period || period.status !== 'available' || period.condition === 'insufficient_evidence') {
+    const coverage = period?.coverage.currentPriceCoveragePct;
+    return { value: '30D', detail: 'Building qualifying market evidence', secondary: '', foot: coverage == null ? 'Coverage unavailable' : `Coverage ${marketPercent(coverage)}` };
+  }
+  const value = period.condition === 'broadly_rising' ? 'Rising' : period.condition === 'broadly_falling' ? 'Falling' : period.condition === 'unchanged' ? 'Stable' : 'Mixed';
+  return { value, detail: movementPercent(period.headlinePercent), secondary: `${period.breadth.risingSets} rising · ${period.breadth.unchangedSets} stable · ${period.breadth.fallingSets} falling`, foot: `Coverage ${marketPercent(period.coverage.currentPriceCoveragePct)}` };
+}
+
+function buildCollectionPresentation(data: FateCollectorsSnapshot | null, state: LoadState, signedIn: boolean) {
+  if (!signedIn) return { value: 'Connect', detail: 'Make the market personal', secondary: '', foot: 'Import once. FateDrop does the thinking.' };
+  if (state === 'loading') return { value: '—', detail: 'Loading collection evidence', secondary: '', foot: 'Value remains unknown until priced' };
+  if (state === 'error' || !data) return { value: '—', detail: 'Collection evidence unavailable', secondary: '', foot: 'No value inferred' };
+  const collection = data.summary.collection;
+  const closestSet = data.summary.closestSet;
+  const value = collection.status === 'unavailable' || collection.pricedUnits === 0 ? '—' : collectionValue(data);
+  const detail = `${data.summary.cardUnits} ${data.summary.cardUnits === 1 ? 'card' : 'cards'} · ${data.summary.setsOwned} ${data.summary.setsOwned === 1 ? 'set' : 'sets'}`;
+  return { value, detail, secondary: `Price coverage ${marketPercent(collection.priceCoveragePercent)}`, foot: closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}%` : 'Closest set unavailable' };
+}
+
+function chooseHomeEvent(events: CalendarEvent[], selectedTcgCodes: TcgCode[], observedNow: number) {
+  if (!observedNow) return null;
+  const eligible = events.filter((event) => {
+    const end = Date.parse(event.endDateTime || event.startDateTime);
+    return Number.isFinite(end) && end >= observedNow;
+  });
+  return eligible.sort((left, right) => {
+    const relevantDifference = Number(eventMatchesSelectedTcg(right, selectedTcgCodes)) - Number(eventMatchesSelectedTcg(left, selectedTcgCodes));
+    if (relevantDifference) return relevantDifference;
+    const featuredDifference = Number(Boolean(right.featured)) - Number(Boolean(left.featured));
+    if (featuredDifference) return featuredDifference;
+    return Date.parse(left.startDateTime) - Date.parse(right.startDateTime);
+  })[0] || null;
+}
+
+function eventMatchesSelectedTcg(event: CalendarEvent, selectedTcgCodes: TcgCode[]) {
+  const supported = (event.supportedTcgs || []).map((value) => value.toLowerCase());
+  return selectedTcgCodes.some((code) => {
+    const registry = TCG_REGISTRY.find((entry) => entry.code === code);
+    return supported.some((value) => value === code || value.includes(registry?.shortName.toLowerCase() || code));
+  });
+}
+
 function movementPercent(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(value)) return '—';
+  if (value == null || !Number.isFinite(value)) return '30D direction unavailable';
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}% · 30D`;
 }
 
@@ -234,9 +626,8 @@ function marketPercent(value: number | null | undefined) {
   return value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
 }
 
-function collectionValue(data: FateCollectorsSnapshot | null) {
-  const collection = data?.summary.collection;
-  if (!collection || collection.status === 'unavailable' || collection.pricedUnits === 0) return '—';
+function collectionValue(data: FateCollectorsSnapshot) {
+  const collection = data.summary.collection;
   try {
     return new Intl.NumberFormat('en-GB', { style: 'currency', currency: data.summary.currencyCode, maximumFractionDigits: 0 }).format(collection.knownValue);
   } catch {
@@ -244,174 +635,122 @@ function collectionValue(data: FateCollectorsSnapshot | null) {
   }
 }
 
-function IntelligenceCard({ accent, breadth, detail, eyebrow, foot, icon, onPress, title, value }: {
-  accent: string;
-  breadth?: { risingSets: number; unchangedSets: number; fallingSets: number };
-  detail: string;
-  eyebrow: string;
-  foot: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  title: string;
-  value: string;
-}) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.intelligenceCard, pressed && styles.pressed]}>
-    <View pointerEvents="none" style={styles.intelligenceOrbit} />
-    <View pointerEvents="none" style={[styles.intelligenceStar, { borderColor: `${accent}66` }]} />
-    <View style={styles.intelligenceHeading}>
-      <View style={[styles.intelligenceIcon, { borderColor: `${accent}66`, backgroundColor: `${accent}0D` }]}><Ionicons name={icon} size={19} color={accent} /></View>
-      <Text style={styles.intelligenceEyebrow}>{eyebrow}</Text>
-    </View>
-    <Text style={styles.intelligenceTitle}>{title}</Text>
-    <Text style={[styles.intelligenceValue, { color: value === 'Connect' ? FateDropColors.ivory : accent }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-    <Text style={styles.intelligenceDetail}>{detail}</Text>
-    {breadth ? <MarketBreadth breadth={breadth} /> : null}
-    <View style={styles.intelligenceRule} />
-    <Text style={styles.intelligenceFoot} numberOfLines={2}>{foot}</Text>
-  </Pressable>;
-}
-
-function MarketBreadth({ breadth }: { breadth: { risingSets: number; unchangedSets: number; fallingSets: number } }) {
-  const total = breadth.risingSets + breadth.unchangedSets + breadth.fallingSets;
-  if (total <= 0) return null;
-  return <View accessibilityLabel={`${breadth.risingSets} rising, ${breadth.unchangedSets} stable, ${breadth.fallingSets} falling`} style={styles.breadthBar}>
-    {breadth.risingSets > 0 ? <View style={[styles.breadthSegment, { flex: breadth.risingSets, backgroundColor: FateDropColors.manifested }]} /> : null}
-    {breadth.unchangedSets > 0 ? <View style={[styles.breadthSegment, { flex: breadth.unchangedSets, backgroundColor: FateDropColors.muted }]} /> : null}
-    {breadth.fallingSets > 0 ? <View style={[styles.breadthSegment, { flex: breadth.fallingSets, backgroundColor: FateDropColors.vanished }]} /> : null}
-  </View>;
-}
-
-function MiniStat({ value, label, icon, onPress }: { value: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={styles.miniStat}><Ionicons name={icon} size={17} color={FateDropColors.goldBright} /><Text style={styles.miniValue}>{value}</Text><Text style={styles.miniLabel}>{label}</Text></Pressable>;
-}
-function Action({ title, detail, icon, onPress }: { title: string; detail: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]}><View style={styles.actionIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} /></Pressable>;
-}
-
-function LiveOpportunityCard({ alert, observedNow }: { alert: CanonicalMobileAlert; observedNow: number }) {
-  const price = alert.product.deliveredPricePence ?? alert.product.pricePence;
-  const verifiedAt = alert.liveWindow?.lastConfirmedLiveAt ? Date.parse(alert.liveWindow.lastConfirmedLiveAt) : Number.NaN;
-  const ageMinutes = observedNow > 0 && Number.isFinite(verifiedAt) ? Math.max(0, Math.floor((observedNow - verifiedAt) / 60_000)) : null;
-  const verifiedLabel = ageMinutes == null ? 'Fresh confirmation' : ageMinutes < 1 ? 'Verified just now' : `Verified ${ageMinutes}m ago`;
-  const delta = alert.priceIntelligence.rrpDeltaPercent;
-  const priceContext = delta == null || !Number.isFinite(delta)
-    ? null
-    : delta < 0
-      ? `${Math.abs(delta).toFixed(1)}% below RRP`
-      : `${delta.toFixed(1)}% over RRP`;
-  return <Pressable onPress={() => alert.productUrl ? void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live' }).catch(() => undefined) : undefined} style={({ pressed }) => [styles.liveCard, pressed && styles.pressed]}>
-    <View style={styles.liveArtwork}>
-      <View pointerEvents="none" style={styles.liveArtworkOrbit} />
-      {alert.product.imageUrl
-        ? <Image source={{ uri: alert.product.imageUrl }} style={styles.liveProductImage} cachePolicy="disk" contentFit="contain" enforceEarlyResizing />
-        : <Ionicons name="diamond-outline" size={52} color={FateDropColors.manifested} />}
-    </View>
-    <View style={styles.liveCopy}>
-      <Text style={styles.liveTitle} numberOfLines={2}>{alert.product.title || alert.title}</Text>
-      <Text style={styles.liveSet} numberOfLines={1}>{alert.facets.setName || alert.retailer}</Text>
-      <Text style={styles.liveRetailer} numberOfLines={1}>{alert.facets.setName ? alert.retailer : verifiedLabel}</Text>
-      <View style={styles.liveCardBottom}>
-        <View>
-          {priceContext ? <Text style={styles.livePriceContext}>{priceContext}</Text> : null}
-          <Text style={styles.livePrice}>{price == null ? 'Price unknown' : `£${(price / 100).toFixed(2)}`}</Text>
-        </View>
-        {alert.facets.setName ? <Text style={styles.liveVerified}>{verifiedLabel}</Text> : null}
-      </View>
-    </View>
-  </Pressable>;
-}
-
-const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } as const;
+const heroShadow = { textShadowColor: 'rgba(0,0,0,.94)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: FateDropColors.background },
-  content: { paddingBottom: 118 },
-  livingStage: { overflow: 'hidden', backgroundColor: '#050A17' },
-  selectedWallpaperLayer: { position: 'absolute', left: 0, right: 0, top: 0, height: 405, overflow: 'hidden' },
-  stageVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,6,15,.10)' },
-  hero: { height: 405, overflow: 'hidden' },
-  wordmark: { position: 'absolute', left: 24, width: 140, height: 48, zIndex: 2, opacity: .94 },
-  heroBriefing: { position: 'absolute', left: 24, right: 22, zIndex: 2 },
-  heroLifecycle: { position: 'absolute', left: 18, right: 18, bottom: 12, zIndex: 3 },
-  guideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 18, marginBottom: 20, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.goldBright}45`, backgroundColor: 'rgba(19,17,12,.94)' },
-  guideIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}3D`, backgroundColor: `${FateDropColors.goldBright}12` },
-  guideEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
-  guideTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
-  guideCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 4 },
-  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 18, marginTop: 6, marginBottom: 10 },
-  sectionEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.25, paddingHorizontal: 18, marginBottom: 7 },
-  sectionTitle: { color: FateDropColors.ivory, fontSize: 20, fontWeight: '900', marginTop: 2 },
-  sectionHint: { color: FateDropColors.muted, fontSize: 10, paddingBottom: 2 },
-  gameFilterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 0, marginBottom: 7 },
-  gameFilterEyebrow: { color: FateDropColors.gold, fontSize: 8, fontWeight: '900', letterSpacing: 1.05 },
-  gameFilters: { gap: 7, paddingHorizontal: 18, paddingBottom: 20 },
-  gameFilter: { paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: FateDropColors.border, borderRadius: 999, backgroundColor: 'rgba(8,13,23,.72)' },
-  gameFilterActive: { borderColor: FateDropColors.goldBright, backgroundColor: `${FateDropColors.goldBright}14` },
-  gameFilterText: { color: FateDropColors.secondary, fontSize: 8, fontWeight: '900' },
-  gameFilterTextActive: { color: FateDropColors.goldBright },
-  intelligenceGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 18, marginTop: 0, marginBottom: 14, zIndex: 2 },
-  intelligenceCard: { flex: 1, minHeight: 194, padding: 13, borderRadius: 3, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', backgroundColor: 'rgba(3,8,20,.58)' },
-  intelligenceOrbit: { position: 'absolute', width: 156, height: 156, borderRadius: 78, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(199,166,106,.13)', right: -54, top: 22 },
-  intelligenceStar: { position: 'absolute', width: 9, height: 9, right: 18, bottom: 24, borderWidth: StyleSheet.hairlineWidth, transform: [{ rotate: '45deg' }] },
-  intelligenceHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  intelligenceIcon: { width: 35, height: 35, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  intelligenceEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '800', letterSpacing: 1.12 },
-  intelligenceTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, lineHeight: 19, marginTop: 10 },
-  intelligenceValue: { fontFamily: Fonts?.serif, fontSize: 23, lineHeight: 28, marginTop: 5 },
-  intelligenceDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 4 },
-  breadthBar: { height: 3, flexDirection: 'row', gap: 2, marginTop: 8, overflow: 'hidden', borderRadius: 2 },
-  breadthSegment: { minWidth: 2, borderRadius: 2 },
-  intelligenceRule: { height: StyleSheet.hairlineWidth, marginTop: 'auto', marginBottom: 7, backgroundColor: 'rgba(226,197,141,.30)' },
-  intelligenceFoot: { color: 'rgba(242,233,218,.62)', fontSize: 8.5, lineHeight: 12 },
-  lifecycleRibbon: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 5, borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', backgroundColor: 'rgba(3,8,20,.52)' },
-  lifecycleItem: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
+  safe: { flex: 1, overflow: 'hidden', backgroundColor: '#030713' },
+  themeBackdrop: { ...StyleSheet.absoluteFill, top: -6, bottom: -18, backgroundColor: '#030713' },
+  themeAccent: { ...StyleSheet.absoluteFill },
+  themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
+  lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
+  content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
+  hero: { height: 270, overflow: 'hidden' },
+  wordmark: { position: 'absolute', left: 22, width: 138, height: 38, zIndex: 2, opacity: .96 },
+  heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
+  heroLifecycle: { position: 'absolute', left: 14, right: 14, bottom: 2, zIndex: 3 },
+  lifecycleRibbon: { height: 44, flexDirection: 'row', alignItems: 'center', overflow: 'visible', backgroundColor: 'rgba(2,7,18,.12)' },
+  lifecycleArcOuter: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: -41, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.60)' },
+  lifecycleArcInner: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: -31, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)' },
+  lifecycleArcCrown: { position: 'absolute', left: '50%', top: -8, width: 14, height: 14, marginLeft: -7, alignItems: 'center', justifyContent: 'center' },
+  lifecycleArcCrownVertical: { position: 'absolute', width: 1, height: 14, backgroundColor: FateDropColors.goldBright },
+  lifecycleArcCrownHorizontal: { position: 'absolute', width: 14, height: 1, backgroundColor: FateDropColors.goldBright },
+  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 37, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
+  lifecycleItemOuter: { transform: [{ translateY: 4 }] },
   lifecycleItemLast: { borderRightWidth: 0 },
-  lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.1, fontWeight: '700', letterSpacing: .22 },
-  lifecycleValue: { fontFamily: Fonts?.serif, fontSize: 15, lineHeight: 18 },
-  livePanel: { marginHorizontal: 18, marginBottom: 30, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.52)', backgroundColor: 'rgba(3,8,20,.57)', zIndex: 2 },
-  liveHead: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.30)' },
-  liveEyebrow: { paddingHorizontal: 0, marginBottom: 0, color: FateDropColors.goldBright },
-  viewAllLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 3 },
-  viewAllText: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 10, letterSpacing: .15 },
-  liveRail: { paddingHorizontal: 0 },
-  liveCard: { width: '100%', minHeight: 150, padding: 12, flexDirection: 'row', gap: 14, backgroundColor: 'transparent' },
-  liveArtwork: { width: 106, minHeight: 122, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  liveArtworkOrbit: { position: 'absolute', width: 90, height: 90, borderRadius: 45, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.46)', transform: [{ rotate: '25deg' }] },
-  liveProductImage: { width: 92, height: 112 },
-  liveCopy: { flex: 1, minWidth: 0, paddingVertical: 4 },
-  liveTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 16, lineHeight: 19 },
-  liveSet: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 14, marginTop: 5 },
-  liveRetailer: { color: FateDropColors.goldBright, fontSize: 9, lineHeight: 13, marginTop: 3 },
-  liveCardBottom: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 'auto', paddingTop: 8 },
-  livePriceContext: { color: FateDropColors.manifested, fontSize: 8.5, marginBottom: 2 },
-  livePrice: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 17 },
-  liveVerified: { flex: 1, color: FateDropColors.secondary, fontSize: 7.5, textAlign: 'right', paddingBottom: 2 },
-  liveEmpty: { minHeight: 100, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 15 },
-  liveEmptyTitle: { color: FateDropColors.ivory, fontSize: 12, fontWeight: '900' },
-  liveEmptyCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, marginTop: 3 },
-  personalGrid: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, marginBottom: 25 },
-  miniStat: { flex: 1, padding: 12, minHeight: 108, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
-  miniValue: { color: FateDropColors.ivory, fontSize: 22, fontWeight: '900', marginTop: 9 },
-  miniLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', lineHeight: 12, marginTop: 3 },
-  actions: { paddingHorizontal: 18, gap: 8, marginBottom: 24 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
-  actionIcon: { width: 39, height: 39, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}10` },
-  actionTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900' },
-  actionDetail: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
-  eventSectionHead: { paddingHorizontal: 18, marginBottom: 11 },
-  eventSectionEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35 },
-  eventSectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 28, fontWeight: '700', marginTop: 4 },
-  eventSectionCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 5, maxWidth: 340 },
-  eventPromo: { height: 232, marginHorizontal: 18, marginBottom: 24, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: `${FateDropColors.goldBright}55`, backgroundColor: FateDropColors.surface },
-  eventPromoShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,6,11,.28)' },
-  eventPromoContent: { position: 'absolute', left: 16, right: 16, bottom: 15 },
-  eventPromoEyebrow: { color: FateDropColors.goldBright, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.05, ...heroShadow },
-  eventPromoTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 21, lineHeight: 25, fontWeight: '700', maxWidth: 280, marginTop: 4, ...heroShadow },
-  eventPromoCta: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 11, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: `${FateDropColors.goldBright}77`, backgroundColor: 'rgba(6,9,15,.72)' },
-  eventPromoCtaText: { color: FateDropColors.ivory, fontSize: 9, fontWeight: '900', letterSpacing: .8 },
-  explainer: { flexDirection: 'row', gap: 11, marginHorizontal: 18, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface },
-  explainerTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900' },
-  explainerCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 4 },
-  pressed: { opacity: .78, transform: [{ scale: .99 }] },
+  lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.3, fontWeight: '700', letterSpacing: .46 },
+  lifecycleValue: { fontFamily: Fonts.serif, fontSize: 16, lineHeight: 19 },
+  orbitalHub: { height: 175, marginTop: -1, overflow: 'visible' },
+  hubHorizon: { position: 'absolute', left: 7, right: 7, top: 86, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.35)' },
+  hubArc: { position: 'absolute', width: '88%', height: 170, left: '6%', top: -2, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
+  hubNode: { position: 'absolute', width: 132, height: 132, top: 21, borderRadius: 66, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, zIndex: 2 },
+  hubNodeLeft: { left: -2 },
+  hubNodeRight: { right: -2 },
+  hubNodeRing: { ...StyleSheet.absoluteFill, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
+  hubNodeRingInner: { position: 'absolute', width: 112, height: 112, borderRadius: 56, borderWidth: StyleSheet.hairlineWidth },
+  hubNodeIcon: { width: 25, height: 25, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(3,7,18,.32)' },
+  hubNodeEyebrow: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 8.2, letterSpacing: 1.1, marginTop: 4 },
+  hubNodeTitle: { color: 'rgba(242,233,218,.64)', fontSize: 6.2, fontWeight: '700', letterSpacing: .72, marginTop: 1 },
+  hubNodeValue: { fontFamily: Fonts.serif, fontSize: 20, lineHeight: 22, marginTop: 2, ...heroShadow },
+  hubNodeDetail: { color: FateDropColors.secondary, fontSize: 7.1, lineHeight: 9, textAlign: 'center', maxWidth: 102 },
+  hubNodeSecondary: { color: 'rgba(242,233,218,.57)', fontSize: 5.8, lineHeight: 8, textAlign: 'center', marginTop: 2 },
+  hubNodeFoot: { color: 'rgba(242,233,218,.44)', fontSize: 5.8, lineHeight: 8, textAlign: 'center', marginTop: 1 },
+  hubCrystal: { position: 'absolute', left: '50%', top: -3, width: 176, height: 178, marginLeft: -88, alignItems: 'center', justifyContent: 'center', zIndex: 4 },
+  hubCrystalOrbitOuter: { position: 'absolute', width: 164, height: 164, borderRadius: 82, borderWidth: 1, borderColor: 'rgba(226,197,141,.62)' },
+  hubCrystalOrbitInner: { position: 'absolute', width: 148, height: 148, borderRadius: 74, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.60)' },
+  hubCrystalArtwork: { width: 160, height: 160 },
+  hubCrystalNeedle: { position: 'absolute', top: -2, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 17, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
+  hubCrystalNeedleBottom: { top: undefined, bottom: -2, transform: [{ rotate: '180deg' }] },
+  liveSection: { minHeight: 182, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },
+  sectionHeading: { height: 36, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.28)' },
+  sectionStar: { width: 13, height: 13, alignItems: 'center', justifyContent: 'center' },
+  sectionStarVertical: { position: 'absolute', width: 1, height: 13, backgroundColor: FateDropColors.goldBright },
+  sectionStarHorizontal: { position: 'absolute', width: 13, height: 1, backgroundColor: FateDropColors.goldBright },
+  sectionHeadingText: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 10.5, letterSpacing: 1.5 },
+  sectionHeadingLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.28)' },
+  sectionCounter: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 5 },
+  sectionCounterText: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 11 },
+  sectionCounterDots: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 42, overflow: 'hidden' },
+  liveCarousel: { paddingRight: 22 },
+  liveCard: { height: 145, overflow: 'hidden', backgroundColor: 'transparent', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
+  liveCardBody: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
+  liveIdentity: { width: 102, minWidth: 92, alignSelf: 'stretch', justifyContent: 'center', paddingLeft: 4, zIndex: 2 },
+  liveArtwork: { flex: 1, minWidth: 116, height: 142, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  liveArtworkOrbit: { position: 'absolute', width: 150, height: 54, borderRadius: 75, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.64)', bottom: 12, transform: [{ rotate: '-4deg' }] },
+  liveArtworkOrbitInner: { position: 'absolute', width: 116, height: 35, borderRadius: 58, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.44)', bottom: 20 },
+  liveProductImage: { width: 126, height: 117 },
+  livePriceColumn: { width: 79, minWidth: 70, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 5, zIndex: 2 },
+  liveGame: { color: FateDropColors.goldBright, fontSize: 6.4, lineHeight: 9, letterSpacing: .2 },
+  liveTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13.2, lineHeight: 16, marginTop: 4, ...heroShadow },
+  liveRetailer: { color: FateDropColors.secondary, fontSize: 7.8, lineHeight: 11, marginTop: 4 },
+  livePrice: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 20, lineHeight: 25, textAlign: 'right', ...heroShadow },
+  livePriceContext: { color: FateDropColors.manifested, fontSize: 6.5, lineHeight: 9, textAlign: 'right', marginTop: 4 },
+  liveVerified: { color: FateDropColors.secondary, fontSize: 6.4, lineHeight: 9, marginTop: 3 },
+  liveExternal: { position: 'absolute', left: 10, bottom: 7, minHeight: 19, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  liveExternalText: { color: FateDropColors.goldBright, fontSize: 5.7, fontWeight: '800', letterSpacing: .55 },
+  carouselDot: { width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: 'rgba(226,197,141,.66)', backgroundColor: 'transparent' },
+  carouselDotActive: { borderColor: FateDropColors.manifested, backgroundColor: FateDropColors.manifested },
+  liveEmpty: { minHeight: 144, marginHorizontal: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  liveEmptyTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13 },
+  liveEmptyCopy: { color: FateDropColors.secondary, fontSize: 8.5, lineHeight: 13, marginTop: 2 },
+  lowerSections: { paddingTop: 1 },
+  ledgerSection: { marginHorizontal: 14, marginBottom: 2 },
+  ornamentTitle: { height: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.43)' },
+  ornamentDiamond: { width: 5, height: 5, borderWidth: StyleSheet.hairlineWidth, borderColor: FateDropColors.goldBright, transform: [{ rotate: '45deg' }] },
+  ornamentText: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 11, letterSpacing: 1.55 },
+  ledger: { minHeight: 61, flexDirection: 'row', alignItems: 'stretch', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)', backgroundColor: 'rgba(3,8,20,.08)' },
+  ledgerItem: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, overflow: 'hidden' },
+  ledgerOrbit: { position: 'absolute', width: '112%', height: 47, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.22)' },
+  ledgerValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 21, lineHeight: 23 },
+  ledgerLabel: { maxWidth: 54, color: FateDropColors.secondary, fontSize: 5.7, lineHeight: 8, fontWeight: '700', letterSpacing: .45 },
+  commandPortal: { height: 185, marginTop: 0, overflow: 'hidden' },
+  commandArcOuter: { position: 'absolute', width: '110%', height: 215, left: '-5%', top: 16, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)' },
+  commandArcInner: { position: 'absolute', width: '91%', height: 180, left: '4.5%', top: 29, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.32)' },
+  orbitalActions: { height: 66, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-around', paddingHorizontal: 42, zIndex: 3 },
+  orbitalAction: { width: 72, alignItems: 'center' },
+  orbitalActionFeatured: { transform: [{ translateY: -5 }] },
+  orbitalActionCircle: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.55)', backgroundColor: 'rgba(5,9,22,.74)' },
+  orbitalActionCircleFeatured: { width: 48, height: 48, borderRadius: 24, borderColor: 'rgba(226,197,141,.72)' },
+  orbitalActionRing: { position: 'absolute', width: '82%', height: '82%', borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.40)' },
+  orbitalActionText: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 10, lineHeight: 12, marginTop: 4 },
+  encounterPortal: { position: 'absolute', left: 22, right: 22, bottom: 0, height: 130, overflow: 'hidden', borderTopLeftRadius: 180, borderTopRightRadius: 180, backgroundColor: '#07101E' },
+  encounterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,13,.31)' },
+  encounterPortalCopy: { position: 'absolute', left: 22, right: 22, bottom: 11, alignItems: 'center', ...heroShadow },
+  encounterPortalTitle: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 10.5, letterSpacing: 1.15 },
+  encounterPortalDiamond: { width: 7, height: 7, marginTop: 5, borderWidth: StyleSheet.hairlineWidth, borderColor: FateDropColors.goldBright, transform: [{ rotate: '45deg' }] },
+  encounterPortalEvent: { maxWidth: 280, color: 'rgba(242,233,218,.76)', fontSize: 6.5, lineHeight: 9, marginTop: 4 },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(1,3,9,.72)' },
+  sheetPanel: { paddingHorizontal: 21, paddingTop: 11, paddingBottom: 34, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.56)', backgroundColor: '#080E19' },
+  sheetHandle: { width: 35, height: 3, borderRadius: 2, alignSelf: 'center', marginBottom: 15, backgroundColor: 'rgba(226,197,141,.42)' },
+  sheetEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '800', letterSpacing: 1.25 },
+  sheetTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 23, lineHeight: 28, marginTop: 5, marginBottom: 5 },
+  sheetDetail: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginBottom: 15 },
+  detailLedger: { marginTop: 6, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
+  detailFact: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.18)' },
+  detailFactLabel: { color: FateDropColors.gold, fontSize: 7.5, fontWeight: '800', letterSpacing: .8 },
+  detailFactValue: { flex: 1, color: FateDropColors.ivory, fontSize: 10.5, textAlign: 'right' },
+  sheetPrimary: { minHeight: 48, marginTop: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: FateDropColors.goldBright },
+  sheetPrimaryText: { color: FateDropColors.ink, fontSize: 9, fontWeight: '900', letterSpacing: 1.05 },
+  pressed: { opacity: .72 },
   flex: { flex: 1 },
 });
