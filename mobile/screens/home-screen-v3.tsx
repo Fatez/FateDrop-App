@@ -281,7 +281,7 @@ export default function HomeScreenV3() {
                 disableIntervalMomentum
                 onMomentumScrollEnd={(event) => {
                   const next = Math.round(event.nativeEvent.contentOffset.x / (liveCardWidth + LIVE_CARD_GAP));
-                  setLiveIndex(Math.max(0, Math.min(rankedLiveOpportunities.length - 1, next)));
+                  setLiveIndex(Math.max(0, Math.min(rankedLiveOpportunities.length - 1, next));
                 }}
                 initialNumToRender={2}
                 maxToRenderPerBatch={2}
@@ -308,15 +308,12 @@ export default function HomeScreenV3() {
 function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadState }) {
   return (
     <View accessibilityLabel="Network signals · Last 7 days" style={styles.lifecycleRibbon}>
-      <View pointerEvents="none" style={styles.lifecycleArcOuter} />
-      <View pointerEvents="none" style={styles.lifecycleArcInner} />
-      <View pointerEvents="none" style={styles.lifecycleArcCrown}><View style={styles.lifecycleArcCrownVertical} /><View style={styles.lifecycleArcCrownHorizontal} /></View>
       {stageOrder.map((stage, index) => {
         const meta = stageMeta[stage];
         return (
           <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast]}>
             <View style={styles.lifecycleItemHeading}>
-              <Ionicons name={meta.icon} size={12} color={meta.color} />
+              <Ionicons name={meta.icon} size={10} color={meta.color} />
               <Text numberOfLines={1} style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
             </View>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
@@ -735,18 +732,13 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
   hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
-  lifecycleBelowHub: { height: 54, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
-  lifecycleRibbon: { height: 54, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 15, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.26)', backgroundColor: 'rgba(3,7,18,.30)' },
-  lifecycleArcOuter: { position: 'absolute', width: '112%', height: 64, left: '-6%', top: 39, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.46)' },
-  lifecycleArcInner: { position: 'absolute', width: '104%', height: 54, left: '-2%', top: 46, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
-  lifecycleArcCrown: { position: 'absolute', left: '50%', top: 39, width: 10, height: 10, marginLeft: -5, alignItems: 'center', justifyContent: 'center', zIndex: 0 },
-  lifecycleArcCrownVertical: { position: 'absolute', width: 1, height: 10, backgroundColor: FateDropColors.goldBright },
-  lifecycleArcCrownHorizontal: { position: 'absolute', width: 10, height: 1, backgroundColor: FateDropColors.goldBright },
-  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 54, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 5, paddingBottom: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.14)', zIndex: 2 },
-  lifecycleItemHeading: { width: '100%', minHeight: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  lifecycleBelowHub: { height: 48, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
+  lifecycleRibbon: { height: 48, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', backgroundColor: 'rgba(3,7,18,.24)' },
+  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 4, paddingBottom: 3, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.20)' },
+  lifecycleItemHeading: { width: '100%', minHeight: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   lifecycleItemLast: { borderRightWidth: 0 },
-  lifecycleLabel: { color: 'rgba(242,233,218,.91)', fontSize: 6.6, lineHeight: 8, fontWeight: '800', letterSpacing: .28, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  lifecycleValue: { maxWidth: '90%', fontFamily: Fonts.serif, fontSize: 17, lineHeight: 20, marginTop: 1, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
+  lifecycleLabel: { color: 'rgba(242,233,218,.88)', fontSize: 5.6, lineHeight: 7, fontWeight: '800', letterSpacing: .18, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  lifecycleValue: { maxWidth: '90%', fontFamily: Fonts.serif, fontSize: 15, lineHeight: 17, marginTop: 1, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   orbitalHub: { height: 194, marginTop: -1, overflow: 'visible' },
   hubHorizon: { position: 'absolute', left: 7, right: 7, top: 86, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.35)' },
   hubArc: { position: 'absolute', width: '88%', height: 170, left: '6%', top: -2, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
