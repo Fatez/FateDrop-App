@@ -45,6 +45,7 @@ const LIVE_CARD_GAP = 12;
 
 type LoadState = 'loading' | 'ready' | 'error';
 type SheetState = { kind: 'live-details'; alert: CanonicalMobileAlert } | null;
+type PokemonCenterStatus = { active: boolean; label: string };
 
 let eventsCache: { cachedAt: number; data: CalendarEvent[] } | null = null;
 let eventsFlight: Promise<CalendarEvent[]> | null = null;
@@ -88,6 +89,7 @@ export default function HomeScreenV3() {
   const [liveIndex, setLiveIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
   const [homeSignalState, setHomeSignalState] = useState<HomeSignalKind>('loading');
+  const [pokemonCenterStatus, setPokemonCenterStatus] = useState<PokemonCenterStatus>({ active: false, label: 'POKÉMON CENTER UK ACTIVITY CHECKING' });
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroEntrance = useRef(new Animated.Value(0)).current;
   const intelligenceEntrance = useRef(new Animated.Value(0)).current;
@@ -219,7 +221,13 @@ export default function HomeScreenV3() {
       >
         <Animated.View style={[styles.hero, entranceStyle(heroEntrance, 10)]}>
           <View style={[styles.heroBriefing, { top: insets.top + 8 }]}>
-            <HomePersonalBriefing embedded liveOpportunities={liveOpportunities} liveState={liveState} onSignalStateChange={setHomeSignalState} />
+            <HomePersonalBriefing
+              embedded
+              liveOpportunities={liveOpportunities}
+              liveState={liveState}
+              onPokemonCenterStatusChange={setPokemonCenterStatus}
+              onSignalStateChange={setHomeSignalState}
+            />
           </View>
           <View style={styles.heroLifecycle}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
@@ -231,6 +239,7 @@ export default function HomeScreenV3() {
             market={marketPresentation}
             collection={collectionPresentation}
             accent={wallpaperAccent}
+            pokemonCenter={pokemonCenterStatus}
             signalState={homeSignalState}
             reduceMotion={Boolean(reduceMotion)}
           />
@@ -305,7 +314,7 @@ function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadSta
       {stageOrder.map((stage, index) => {
         const meta = stageMeta[stage];
         return (
-          <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast, (index === 0 || index === stageOrder.length - 1) && styles.lifecycleItemOuter]}>
+          <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast, (index === 0 || index === stageOrder.length - 1) && styles.lifecycleItemOuter, stage === 'manifested' && styles.lifecycleItemManifested]}>
             <Ionicons name={meta.icon} size={11} color={meta.color} />
             <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
             <Text style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
@@ -334,14 +343,16 @@ const crystalSignalMeta: Record<HomeSignalKind, {
   vanished: { accent: FateDropColors.vanished, artworkOpacity: 0.62, glowOpacity: 0.13, label: 'A wanted-item Vanished update is unread' },
 };
 
-function OrbitalIntelligenceHub({ accent, collection, market, reduceMotion, signalState }: {
+function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, reduceMotion, signalState }: {
   accent: string;
   collection: IntelligencePresentation;
   market: IntelligencePresentation;
+  pokemonCenter: PokemonCenterStatus;
   reduceMotion: boolean;
   signalState: HomeSignalKind;
 }) {
   const signalEnergy = useRef(new Animated.Value(0)).current;
+  const pokemonCenterPulse = useRef(new Animated.Value(1)).current;
   const signal = crystalSignalMeta[signalState];
   const active = signalState !== 'idle' && signalState !== 'loading' && signalState !== 'error';
 
@@ -364,11 +375,24 @@ function OrbitalIntelligenceHub({ accent, collection, market, reduceMotion, sign
     return () => pulse.stop();
   }, [active, reduceMotion, signalEnergy, signalState]);
 
+  useEffect(() => {
+    pokemonCenterPulse.stopAnimation();
+    pokemonCenterPulse.setValue(1);
+    if (!pokemonCenter.active || reduceMotion) return;
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(pokemonCenterPulse, { toValue: 0.34, duration: 520, useNativeDriver: true }),
+      Animated.timing(pokemonCenterPulse, { toValue: 1, duration: 620, useNativeDriver: true }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [pokemonCenter.active, pokemonCenterPulse, reduceMotion]);
+
   const glowOpacity = signalEnergy.interpolate({
     inputRange: [0, 1],
     outputRange: [signal.glowOpacity, Math.min(0.68, signal.glowOpacity + 0.3)],
   });
   const crystalScale = signalEnergy.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
+  const pokemonCenterOpacity = pokemonCenterPulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 1] });
 
   return (
     <View style={styles.orbitalHub}>
@@ -414,6 +438,21 @@ function OrbitalIntelligenceHub({ accent, collection, market, reduceMotion, sign
         presentation={collection}
         onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })}
       />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={pokemonCenter.label}
+        onPress={() => router.push('/pokemon-center-uk')}
+        style={({ pressed }) => [styles.pcukHubStatus, pressed && styles.pressed]}
+      >
+        <Ionicons name="radio-outline" size={12} color={FateDropColors.cyan} />
+        <Animated.Text
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.pcukHubStatusText, pokemonCenter.active && styles.pcukHubStatusTextActive, pokemonCenter.active && { opacity: pokemonCenterOpacity }]}
+        >
+          {pokemonCenter.label}
+        </Animated.Text>
+      </Pressable>
     </View>
   );
 }
@@ -696,17 +735,18 @@ const styles = StyleSheet.create({
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
   heroLifecycle: { position: 'absolute', left: 14, right: 14, bottom: 2, zIndex: 3 },
   lifecycleRibbon: { height: 44, flexDirection: 'row', alignItems: 'center', overflow: 'visible', backgroundColor: 'transparent' },
-  lifecycleArcOuter: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 0, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.60)' },
-  lifecycleArcInner: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)' },
-  lifecycleArcCrown: { position: 'absolute', left: '50%', top: 5, width: 14, height: 14, marginLeft: -7, alignItems: 'center', justifyContent: 'center' },
+  lifecycleArcOuter: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 7, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.60)' },
+  lifecycleArcInner: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 17, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)' },
+  lifecycleArcCrown: { position: 'absolute', left: '50%', top: 11, width: 14, height: 14, marginLeft: -7, alignItems: 'center', justifyContent: 'center' },
   lifecycleArcCrownVertical: { position: 'absolute', width: 1, height: 14, backgroundColor: FateDropColors.goldBright },
   lifecycleArcCrownHorizontal: { position: 'absolute', width: 14, height: 1, backgroundColor: FateDropColors.goldBright },
   lifecycleItem: { flex: 1, minWidth: 0, minHeight: 37, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
   lifecycleItemOuter: { transform: [{ translateY: 4 }] },
+  lifecycleItemManifested: { transform: [{ translateX: 6 }] },
   lifecycleItemLast: { borderRightWidth: 0 },
   lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.3, fontWeight: '700', letterSpacing: .46 },
   lifecycleValue: { fontFamily: Fonts.serif, fontSize: 16, lineHeight: 19 },
-  orbitalHub: { height: 175, marginTop: -1, overflow: 'visible' },
+  orbitalHub: { height: 194, marginTop: -1, overflow: 'visible' },
   hubHorizon: { position: 'absolute', left: 7, right: 7, top: 86, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.35)' },
   hubArc: { position: 'absolute', width: '88%', height: 170, left: '6%', top: -2, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
   hubNode: { position: 'absolute', width: 132, height: 132, top: 21, borderRadius: 66, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, zIndex: 2 },
@@ -730,6 +770,9 @@ const styles = StyleSheet.create({
   hubCrystalCore: { position: 'absolute', width: 19, height: 34, borderRadius: 10 },
   hubCrystalNeedle: { position: 'absolute', top: -2, width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 17, borderLeftColor: 'transparent', borderRightColor: 'transparent' },
   hubCrystalNeedleBottom: { top: undefined, bottom: -2, transform: [{ rotate: '180deg' }] },
+  pcukHubStatus: { position: 'absolute', left: 80, right: 80, bottom: 0, minHeight: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, zIndex: 7 },
+  pcukHubStatusText: { flexShrink: 1, color: 'rgba(99,225,255,.58)', fontFamily: Fonts.sans, fontSize: 7.3, lineHeight: 10, fontWeight: '700', letterSpacing: .58, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
+  pcukHubStatusTextActive: { color: FateDropColors.cyan },
   liveSection: { minHeight: 182, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },
   sectionHeading: { height: 36, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.28)' },
   sectionStar: { width: 13, height: 13, alignItems: 'center', justifyContent: 'center' },
