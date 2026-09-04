@@ -196,14 +196,6 @@ export function HomePersonalBriefing({
     onPokemonCenterStatusChange?.({ active: pokemonCenterActive, label: pcukStatus });
   }, [onPokemonCenterStatusChange, pcukStatus, pokemonCenterActive]);
 
-  const wantedLine = liveState === 'loading' || wishlistState === 'idle'
-    ? 'Wanted-item availability loading'
-    : liveState === 'error' || wishlistState === 'error'
-      ? 'Wanted-item availability unavailable'
-    : wantedLiveCount === 1
-      ? '1 wanted item is in stock'
-      : `${wantedLiveCount} wanted items are in stock`;
-
   if (!signedIn) {
     return (
       <View style={[styles.card, embedded && styles.cardEmbedded]}>
@@ -225,23 +217,6 @@ export function HomePersonalBriefing({
           {fateId || 'FateDrop member'}
         </Text>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={wantedLine}
-        onPress={() => router.push('/(tabs)/watchlist')}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <View style={[styles.signalGlyph, styles.stockGlyph]}>
-          <Ionicons name="sparkles-outline" size={15} color={FateDropColors.cyan} />
-        </View>
-        <Text style={styles.stockLine}>
-          {liveState !== 'ready' || wishlistState !== 'ready'
-            ? wantedLine
-            : <><Text style={styles.stockCount}>{wantedLiveCount}</Text> wanted {wantedLiveCount === 1 ? 'item is' : 'items are'} in stock</>}
-        </Text>
-        <View pointerEvents="none" style={styles.statusRule} />
-      </Pressable>
     </View>
   );
 }
@@ -272,7 +247,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   greeting: {
-    marginBottom: 5,
     maxWidth: '64%',
   },
   welcomeKicker: {
@@ -304,42 +278,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
-  row: {
-    minHeight: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusRule: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(99,225,255,.20)',
-  },
-  signalGlyph: {
-    width: 25,
-    height: 25,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  stockGlyph: {
-    borderColor: `${FateDropColors.cyan}55`,
-    backgroundColor: `${FateDropColors.cyan}12`,
-  },
-  stockLine: {
-    flex: 1,
-    color: FateDropColors.ivory,
-    fontFamily: Fonts?.serif,
-    fontSize: 14,
-    textShadowColor: 'rgba(0,0,0,.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-  },
-  stockCount: { color: FateDropColors.cyan, fontSize: 17 },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -350,5 +288,4 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 14,
   },
-  pressed: { opacity: 0.72 },
 });
