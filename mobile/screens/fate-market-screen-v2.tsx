@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,6 +11,8 @@ import {
   fetchFateCollectorsSummary,
   fetchFatePulse,
   type FateCollectorsSnapshot,
+  type FatePulseRankedCard,
+  type FatePulseRankedSet,
   type FatePulseSnapshot,
 } from '@/services/fate-market';
 
@@ -67,14 +69,15 @@ export default function FateMarketScreenV2() {
   const [collectors, setCollectors] = useState<FateCollectorsSnapshot | null>(null);
   const [collectorsError, setCollectorsError] = useState('');
 
-  useEffect(() => {
-    setActiveArea(marketArea(params.area));
-  }, [params.area]);
+  useFocusEffect(useCallback(() => {
+    const frame = requestAnimationFrame(() => setActiveArea(marketArea(params.area)));
+    return () => cancelAnimationFrame(frame);
+  }, [params.area]));
 
-  const loadMarket = useCallback(async () => {
+  const loadMarket = useCallback(async (force = false) => {
     setLoading(true);
-    const pulseRequest = fetchFatePulse();
-    const collectorsRequest = signedIn ? fetchFateCollectorsSummary() : Promise.resolve(null);
+    const pulseRequest = fetchFatePulse(undefined, { force });
+    const collectorsRequest = signedIn ? fetchFateCollectorsSummary({ force }) : Promise.resolve(null);
     const [pulseResult, collectorsResult] = await Promise.allSettled([pulseRequest, collectorsRequest]);
 
     if (pulseResult.status === 'fulfilled') {
@@ -93,7 +96,7 @@ export default function FateMarketScreenV2() {
     setLoading(false);
   }, [signedIn]);
 
-  useFocusEffect(useCallback(() => { void loadMarket(); }, [loadMarket]));
+  useFocusEffect(useCallback(() => { void loadMarket(false); }, [loadMarket]));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -101,7 +104,7 @@ export default function FateMarketScreenV2() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void loadMarket()} tintColor={FateDropColors.goldBright} />}>
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void loadMarket(true)} tintColor={FateDropColors.goldBright} />}>
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
             <Text style={styles.eyebrow}>FATE MARKET</Text>
@@ -162,30 +165,89 @@ function movementText(value: number | null | undefined) {
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
+type PulsePeriodKey = 'd1' | 'd7' | 'd30';
+type RankingScope = 'sets' | 'cards';
+type RankingDirection = 'rising' | 'falling';
+const pulsePeriods: { key: PulsePeriodKey; label: string }[] = [
+  { key: 'd1', label: '1D' }, { key: 'd7', label: '7D' }, { key: 'd30', label: '30D' },
+];
+
+function percentText(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
+}
+
+function conditionText(value: string | undefined) {
+  if (value === 'broadly_rising') return 'Broadly rising';
+  if (value === 'broadly_falling') return 'Broadly falling';
+  if (value === 'mixed') return 'Mixed movement';
+  if (value === 'unchanged') return 'Unchanged';
+  return 'Building evidence';
+}
+
+function conditionAccent(value: string | undefined) {
+  if (value === 'broadly_falling') return FateDropColors.vanished;
+  if (value === 'mixed') return FateDropColors.goldBright;
+  return FateDropColors.manifested;
+}
+
 function PulsePanel({ data, error, loading }: { data: FatePulseSnapshot | null; error: string; loading: boolean }) {
-  const movement = data?.pulse?.movement.d7 ?? null;
-  const status = data?.status === 'available' ? 'EVIDENCE LIVE' : loading && !data ? 'LOADING' : 'HISTORY BUILDING';
+  const [periodKey, setPeriodKey] = useState<PulsePeriodKey>('d7');
+  const [scope, setScope] = useState<RankingScope>('sets');
+  const [rankingDirection, setRankingDirection] = useState<RankingDirection>('rising');
+  const direction = data?.pulse?.direction;
+  const period = direction?.periods[periodKey];
+  const available = period?.status === 'available';
+  const accent = conditionAccent(period?.condition);
+  const status = error ? 'EVIDENCE UNAVAILABLE' : available ? 'SET EVIDENCE LIVE' : loading && !data ? 'LOADING' : 'COVERAGE BUILDING';
   const historyDetail = data
     ? `${data.readiness.history.distinctMarketDays} verified market days · ${data.readiness.canonical.mappedCards} exact card mappings.`
     : 'Waiting for the Cloud evidence boundary.';
+  const rankingItems = scope === 'sets'
+    ? rankingDirection === 'rising' ? period?.setRisers ?? [] : period?.setDecliners ?? []
+    : rankingDirection === 'rising' ? period?.cardRisers ?? [] : period?.cardDecliners ?? [];
 
   return (
-    <View style={[styles.panel, { borderColor: `${FateDropColors.manifested}55` }]}>
-      <PanelHeading eyebrow="FATEPULSE" title="What is happening in the market?" accent={FateDropColors.manifested} status={status} />
-      <View style={styles.metricGrid}>
-        <MarketMetric label="MARKET HEAT" value="—" detail="Activity" />
-        <MarketMetric label="PRICE INDEX" value={movementText(movement?.medianPercent)} detail={`7D · ${movement?.contributors ?? 0}/${movement?.eligible ?? 0} lanes`} />
-        <MarketMetric label="VOLATILITY" value="—" detail="Amplitude" />
+    <View style={[styles.panel, { borderColor: `${accent}55` }]}>
+      <PanelHeading eyebrow="FATEPULSE" title="What is happening across tracked sets?" accent={accent} status={status} />
+      <View style={styles.periodRail}>
+        {pulsePeriods.map((option) => <Pressable key={option.key} onPress={() => setPeriodKey(option.key)} style={[styles.periodButton, periodKey === option.key && styles.periodButtonActive]}><Text style={[styles.periodButtonText, periodKey === option.key && styles.periodButtonTextActive]}>{option.label}</Text></Pressable>)}
+      </View>
+      <View style={styles.pulseInstrument}>
+        <View pointerEvents="none" style={[styles.pulseOrbit, { borderColor: `${accent}38` }]} />
+        <View pointerEvents="none" style={[styles.pulseOrbitInner, { borderColor: `${accent}66` }]} />
+        <View style={[styles.pulseCore, { borderColor: `${accent}88`, backgroundColor: `${accent}0E` }]}>
+          <Text style={styles.pulseCoreLabel}>TRACKED SET DIRECTION</Text>
+          <Text style={[styles.pulseCoreValue, { color: available ? accent : FateDropColors.muted }]}>{movementText(period?.headlinePercent)}</Text>
+          <Text style={styles.pulseCoreCondition}>{conditionText(period?.condition)} · {periodKey.slice(1)}D</Text>
+        </View>
+      </View>
+      <View style={styles.breadthGrid}>
+        <BreadthMetric label="RISING" value={period?.breadth.risingSets ?? 0} accent={FateDropColors.manifested} />
+        <BreadthMetric label="STABLE" value={period?.breadth.unchangedSets ?? 0} accent={FateDropColors.echo} />
+        <BreadthMetric label="FALLING" value={period?.breadth.fallingSets ?? 0} accent={FateDropColors.vanished} />
+      </View>
+      <View style={styles.coverageCard}>
+        <View style={styles.coverageTop}><Text style={styles.coverageTitle}>{period?.coverage.qualifyingSets ?? 0} of {period?.coverage.trackedSets ?? 0} tracked sets qualify</Text><Text style={styles.coverageThreshold}>≥{direction?.minimumSetCoveragePct ?? 95}%</Text></View>
+        <View style={styles.coverageTrack}><View style={[styles.coverageFill, { width: `${Math.min(100, Math.max(0, period?.coverage.exactBaselineCoveragePct ?? 0))}%`, backgroundColor:accent }]} /></View>
+        <Text style={styles.coverageCopy}>{percentText(period?.coverage.currentPriceCoveragePct)} current price coverage · {percentText(period?.coverage.exactBaselineCoveragePct)} exact baseline</Text>
       </View>
       <View style={styles.readinessRow}>
         <Ionicons name={error ? 'cloud-offline-outline' : 'time-outline'} size={17} color={FateDropColors.manifested} />
-        <Text style={styles.readinessCopy}>{error || `${historyDetail} Heat, volatility and rankings stay blank until their calibration gates pass.`}</Text>
+        <Text style={styles.readinessCopy}>{error || `${historyDetail} Each headline is the median return of qualifying set baskets; incomplete sets cannot steer it.`}</Text>
       </View>
-      <View style={styles.list}>
-        <SignalRow label="Heating up" />
-        <SignalRow label="Cooling down" />
-        <SignalRow label="Market movers" />
+      <View style={styles.calibrationRow}>
+        <CalibrationMetric label="MARKET HEAT" />
+        <CalibrationMetric label="VOLATILITY" />
       </View>
+      <View style={styles.moversHead}><View><Text style={styles.moversEyebrow}>MARKET MOVERS</Text><Text style={styles.moversTitle}>Exact {periodKey.slice(1)}D movement</Text></View><Text style={styles.moversLimit}>TOP {direction?.rankingLimit ?? 5}</Text></View>
+      <View style={styles.segmentedRow}>
+        <SegmentButton label="SETS" selected={scope === 'sets'} onPress={() => setScope('sets')} />
+        <SegmentButton label="CARDS" selected={scope === 'cards'} onPress={() => setScope('cards')} />
+        <View style={styles.segmentDivider} />
+        <SegmentButton label="RISERS" selected={rankingDirection === 'rising'} onPress={() => setRankingDirection('rising')} />
+        <SegmentButton label="DECLINES" selected={rankingDirection === 'falling'} onPress={() => setRankingDirection('falling')} />
+      </View>
+      <View style={styles.rankingList}>{rankingItems.length ? rankingItems.map((item, index) => <RankingRow key={'cardIdentityId' in item ? `${item.cardIdentityId}:${item.sourceVariantKey}` : item.key} item={item} rank={index + 1} />) : <Text style={styles.rankingEmpty}>No qualifying movers for this evidence window.</Text>}</View>
     </View>
   );
 }
@@ -276,8 +338,25 @@ function CollectorMetric({ label, value }: { label: string; value: string }) {
   return <View style={styles.collectorMetric}><Text numberOfLines={1} adjustsFontSizeToFit style={styles.collectorMetricValue}>{value}</Text><Text style={styles.collectorMetricLabel}>{label}</Text></View>;
 }
 
-function SignalRow({ label }: { label: string }) {
-  return <View style={styles.signalRow}><Text style={styles.signalRowLabel}>{label}</Text><Text style={styles.signalRowValue}>Awaiting eligible history</Text></View>;
+function BreadthMetric({ accent, label, value }: { accent: string; label: string; value: number }) {
+  return <View style={styles.breadthMetric}><View style={[styles.breadthDot, { backgroundColor:accent }]} /><Text style={styles.breadthValue}>{value}</Text><Text style={styles.breadthLabel}>{label}</Text></View>;
+}
+
+function CalibrationMetric({ label }: { label: string }) {
+  return <View style={styles.calibrationMetric}><Text style={styles.calibrationLabel}>{label}</Text><Text style={styles.calibrationValue}>NOT SCORED</Text><Text style={styles.calibrationDetail}>Calibration building</Text></View>;
+}
+
+function SegmentButton({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
+  return <Pressable onPress={onPress} style={[styles.segmentButton, selected && styles.segmentButtonActive]}><Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextActive]}>{label}</Text></Pressable>;
+}
+
+function RankingRow({ item, rank }: { item: FatePulseRankedSet | FatePulseRankedCard; rank: number }) {
+  const isCard = 'cardIdentityId' in item;
+  const title = isCard ? item.name || 'Unknown card' : item.setName || item.setCode || 'Unknown set';
+  const detail = isCard
+    ? [item.setName || item.setCode, item.collectorNumber ? `#${item.collectorNumber}` : null].filter(Boolean).join(' · ')
+    : `${item.pricedCardCount}/${item.expectedCardCount ?? '—'} cards priced`;
+  return <View style={styles.rankingRow}><Text style={styles.rankingRank}>{rank}</Text><View style={styles.flex}><Text style={styles.rankingTitle} numberOfLines={1}>{title}</Text><Text style={styles.rankingDetail} numberOfLines={1}>{detail || 'Canonical evidence'}</Text></View><Text style={[styles.rankingMove, { color:(item.movementPercent ?? 0) < 0 ? FateDropColors.vanished : FateDropColors.manifested }]}>{movementText(item.movementPercent)}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -310,12 +389,54 @@ const styles = StyleSheet.create({
   metricLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.7 },
   metricValue: { color: FateDropColors.ivory, fontSize: 17, fontWeight: '900', marginTop: 5 },
   metricDetail: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 3 },
+  periodRail: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  periodButton: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.64)' },
+  periodButtonActive: { borderColor: FateDropColors.manifested, backgroundColor: `${FateDropColors.manifested}14` },
+  periodButtonText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900' },
+  periodButtonTextActive: { color: FateDropColors.ivory },
+  pulseInstrument: { height: 215, alignItems: 'center', justifyContent: 'center' },
+  pulseOrbit: { position: 'absolute', width: 190, height: 190, borderRadius: 95, borderWidth: 1 },
+  pulseOrbitInner: { position: 'absolute', width: 158, height: 158, borderRadius: 79, borderWidth: 1 },
+  pulseCore: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pulseCoreLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .7 },
+  pulseCoreValue: { fontFamily: Fonts?.serif, fontSize: 30, marginTop: 5 },
+  pulseCoreCondition: { color: FateDropColors.secondary, fontSize: 8, marginTop: 3 },
+  breadthGrid: { flexDirection: 'row', gap: 8 },
+  breadthMetric: { flex: 1, alignItems: 'center', minWidth: 0, paddingVertical: 11, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.7)' },
+  breadthDot: { width: 6, height: 6, borderRadius: 3 },
+  breadthValue: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 19, marginTop: 4 },
+  breadthLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', marginTop: 2 },
+  coverageCard: { marginTop: 10, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.7)' },
+  coverageTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  coverageTitle: { flex: 1, color: FateDropColors.ivory, fontSize: 10, fontWeight: '800' },
+  coverageThreshold: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900' },
+  coverageTrack: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,.08)', marginTop: 10, overflow: 'hidden' },
+  coverageFill: { height: 3, borderRadius: 2 },
+  coverageCopy: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 8 },
   readinessRow: { flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: 'rgba(18,24,32,.72)' },
   readinessCopy: { flex: 1, color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 15 },
-  list: { marginTop: 10 },
-  signalRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: FateDropColors.borderSoft },
-  signalRowLabel: { color: FateDropColors.ivory, fontSize: 10, fontWeight: '800' },
-  signalRowValue: { color: FateDropColors.muted, fontSize: 8.5 },
+  calibrationRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  calibrationMetric: { flex: 1, padding: 11, borderRadius: 14, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.6)' },
+  calibrationLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' },
+  calibrationValue: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '900', marginTop: 5 },
+  calibrationDetail: { color: FateDropColors.secondary, fontSize: 7.5, marginTop: 3 },
+  moversHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 20, marginBottom: 10 },
+  moversEyebrow: { color: FateDropColors.manifested, fontSize: 8, fontWeight: '900', letterSpacing: .85 },
+  moversTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900', marginTop: 3 },
+  moversLimit: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900' },
+  segmentedRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  segmentDivider: { width: 1, height: 25, backgroundColor: FateDropColors.borderSoft, marginHorizontal: 2 },
+  segmentButton: { flex: 1, minWidth: 0, alignItems: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: FateDropColors.borderSoft },
+  segmentButtonActive: { borderColor: `${FateDropColors.manifested}88`, backgroundColor: `${FateDropColors.manifested}10` },
+  segmentButtonText: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' },
+  segmentButtonTextActive: { color: FateDropColors.ivory },
+  rankingList: { marginTop: 8 },
+  rankingRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: FateDropColors.borderSoft },
+  rankingRank: { width: 20, color: FateDropColors.goldBright, fontFamily: Fonts?.serif, fontSize: 16 },
+  rankingTitle: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800' },
+  rankingDetail: { color: FateDropColors.muted, fontSize: 8, marginTop: 3 },
+  rankingMove: { fontSize: 11, fontWeight: '900' },
+  rankingEmpty: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center', paddingVertical: 18 },
   priceHero: { alignItems: 'center', paddingVertical: 23, marginTop: 14, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.goldBright}33`, backgroundColor: `${FateDropColors.goldBright}08` },
   collectorHero: { alignItems: 'center', paddingVertical: 23, marginTop: 14, borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.echo}33`, backgroundColor: `${FateDropColors.echo}08` },
   priceLabel: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8 },

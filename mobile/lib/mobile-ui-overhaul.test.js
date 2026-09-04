@@ -27,7 +27,8 @@ test('Home combines seven-day lifecycle pulse, personal FateDrop summary and dis
   assert.match(home, /ACTIVE FATEFINDS/);
   assert.match(home, /7D FATEMATCHES/);
   assert.doesNotMatch(home, /Action title="Local Radar"/);
-  assert.match(home, /How FateDrop works/);
+  assert.match(home, /OrbitalCommandPortal/);
+  assert.match(home, /FATE ENCOUNTERS/);
 });
 
 test('Home network pulse consumes public Cloud signal truth, never private diagnostics or a Web proxy', () => {

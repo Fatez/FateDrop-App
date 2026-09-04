@@ -8,23 +8,27 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const home = read('screens/home-screen-v3.tsx');
 const market = read('screens/fate-market-screen.tsx');
-const blend = read('components/artwork-edge-blend.tsx');
+const wallpaperArt = read('components/profile-wallpaper-art.tsx');
 
-test('Home blends the selected wallpaper into the shell without another image allocation', () => {
-  assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\}/);
-  assert.match(home, /ArtworkEdgeBlend accentColor=\{wallpaperAccent\}/);
-  assert.match(home, /profileWallpaperMeta\[homeWallpaperId\]\.accent/);
-  assert.doesNotMatch(blend, /Image|BlurView|LinearGradient/);
-  assert.match(blend, /lightweight colour bands/);
+test('Home keeps wallpaper infrastructure but temporarily renders the stable fallback theme', () => {
+  assert.match(home, /HOME_PROFILE_WALLPAPER_ENABLED = false/);
+  assert.match(home, /homeWallpaperId === 'koruHome'/);
+  assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} home/);
+  assert.match(home, /profileWallpaperMeta\[HOME_PROFILE_WALLPAPER_ENABLED \? homeWallpaperId : 'koruHome'\]\.accent/);
+  assert.match(wallpaperArt, /contentPosition=\{home \? 'top center' : 'center'\}/);
+  assert.match(home, /styles\.lowerAtmosphere/);
+  assert.doesNotMatch(home, /ArtworkEdgeBlend/);
 });
 
-test('Home previews exactly the three Fate Market areas without inventing figures', () => {
-  assert.match(home, /area="trader"/);
-  assert.match(home, /area="pulse"/);
-  assert.match(home, /area="collectors"/);
-  assert.match(home, /Fate Trader/);
+test('Home previews the approved Pulse and Collectors snapshots without inventing figures', () => {
+  assert.match(home, /params: \{ area: 'pulse' \}/);
+  assert.match(home, /params: \{ area: 'collectors' \}/);
   assert.match(home, /FatePulse/);
-  assert.match(home, /Fate Collectors/);
+  assert.match(home, /FATE COLLECTORS/);
+  assert.match(home, /period\.status !== 'available'/);
+  assert.match(home, /period\.condition === 'insufficient_evidence'/);
+  assert.match(home, /collection\.pricedUnits === 0/);
+  assert.doesNotMatch(home, /area="trader"/);
 });
 
 test('FatePulse and Collectors fail visibly closed while evidence gates are incomplete', () => {

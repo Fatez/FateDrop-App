@@ -7,6 +7,13 @@ type ApiEnvelope<T> = {
   error?: { code?: string; message?: string; retryable?: boolean };
 };
 
+const MARKET_SNAPSHOT_TTL_MS = 30_000;
+type SnapshotCache<T> = { cachedAt: number; data: T };
+const pulseCache = new Map<string, SnapshotCache<FatePulseSnapshot>>();
+const pulseFlights = new Map<string, Promise<FatePulseSnapshot>>();
+let collectorsCache: (SnapshotCache<FateCollectorsSnapshot> & { token: string }) | null = null;
+let collectorsFlight: { token: string; promise: Promise<FateCollectorsSnapshot> } | null = null;
+
 export type MovementWindow = {
   contributors: number;
   eligible: number;
@@ -15,6 +22,66 @@ export type MovementWindow = {
   rising: number;
   falling: number;
   flat: number;
+};
+
+export type FatePulseRankedSet = {
+  key: string;
+  tcgCode: string | null;
+  setCode: string | null;
+  setName: string | null;
+  expectedCardCount: number | null;
+  pricedCardCount: number;
+  baselineCardCount: number;
+  currentPriceCoveragePct: number | null;
+  baselineCoveragePct: number | null;
+  currentBasketValue: number | null;
+  baselineBasketValue: number | null;
+  movementAmount: number | null;
+  movementPercent: number | null;
+};
+
+export type FatePulseRankedCard = {
+  cardIdentityId: string;
+  sourceVariantKey: string;
+  name: string | null;
+  tcgCode: string | null;
+  setCode: string | null;
+  setName: string | null;
+  collectorNumber: string | null;
+  currentPrice: number | null;
+  movementAmount: number | null;
+  movementPercent: number | null;
+};
+
+export type FatePulseDirectionPeriod = {
+  status: 'available' | 'building';
+  reason: string | null;
+  condition: 'broadly_rising' | 'broadly_falling' | 'mixed' | 'unchanged' | 'insufficient_evidence';
+  headlinePercent: number | null;
+  breadth: { risingSets: number; unchangedSets: number; fallingSets: number };
+  coverage: {
+    trackedSets: number;
+    qualifyingSets: number;
+    excludedSets: number;
+    setsWithDeclaredTotals: number;
+    expectedCards: number;
+    pricedCards: number;
+    baselineCards: number;
+    currentPriceCoveragePct: number | null;
+    exactBaselineCoveragePct: number | null;
+  };
+  setRisers: FatePulseRankedSet[];
+  setDecliners: FatePulseRankedSet[];
+  cardRisers: FatePulseRankedCard[];
+  cardDecliners: FatePulseRankedCard[];
+};
+
+export type FatePulseDirection = {
+  schemaVersion: 'market-pulse-direction:1';
+  method: 'median_qualifying_set_basket_return';
+  minimumSetCoveragePct: number;
+  rankingLimit: number;
+  periods: { d1: FatePulseDirectionPeriod; d7: FatePulseDirectionPeriod; d30: FatePulseDirectionPeriod };
 };
 
 export type FatePulseSnapshot = {
@@ -30,6 +97,7 @@ export type FatePulseSnapshot = {
     anchorMarketDay: string;
     evidence: { currentCardCount: number; currentLaneCount: number };
     movement: { d1: MovementWindow; d7: MovementWindow; d30: MovementWindow };
+    direction?: FatePulseDirection;
   };
   intelligence: {
     marketHeat: number | null;
@@ -87,11 +155,11 @@ export class FateMarketApiError extends Error {
   }
 }
 
-async function request<T>(path: string, { authenticated = false, ...init }: RequestInit & { authenticated?: boolean } = {}) {
+async function request<T>(path: string, { authenticated = false, authorizationToken, ...init }: RequestInit & { authenticated?: boolean; authorizationToken?: string } = {}) {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (init.body) headers['Content-Type'] = 'application/json';
   if (authenticated) {
-    const token = await getStoredSessionToken();
+    const token = authorizationToken || await getStoredSessionToken();
     if (!token) throw new FateMarketApiError('Connect your FateDrop ID to view your collection.', 401, 'AUTH_REQUIRED');
     headers.Authorization = `Bearer ${token}`;
   }
@@ -112,13 +180,39 @@ async function request<T>(path: string, { authenticated = false, ...init }: Requ
   return payload.data;
 }
 
-export function fetchFatePulse(tcgCode?: string) {
+export function fetchFatePulse(tcgCode?: string, { force = false }: { force?: boolean } = {}) {
   const query = tcgCode ? `?tcg=${encodeURIComponent(tcgCode)}` : '';
-  return request<FatePulseSnapshot>(`/v1/market/pulse${query}`);
+  const key = tcgCode || 'all';
+  const cached = pulseCache.get(key);
+  if (!force && cached && Date.now() - cached.cachedAt < MARKET_SNAPSHOT_TTL_MS) return Promise.resolve(cached.data);
+  const active = pulseFlights.get(key);
+  if (active) return active;
+  const flight = request<FatePulseSnapshot>(`/v1/market/pulse${query}`).then((data) => {
+    pulseCache.set(key, { cachedAt: Date.now(), data });
+    return data;
+  }).finally(() => {
+    if (pulseFlights.get(key) === flight) pulseFlights.delete(key);
+  });
+  pulseFlights.set(key, flight);
+  return flight;
 }
 
-export function fetchFateCollectorsSummary() {
-  return request<FateCollectorsSnapshot>('/v1/collectors/summary?currency=EUR&language=en&variant=standard', { authenticated:true });
+export async function fetchFateCollectorsSummary({ force = false }: { force?: boolean } = {}) {
+  const token = await getStoredSessionToken();
+  if (!token) throw new FateMarketApiError('Connect your FateDrop ID to view your collection.', 401, 'AUTH_REQUIRED');
+  if (!force && collectorsCache?.token === token && Date.now() - collectorsCache.cachedAt < MARKET_SNAPSHOT_TTL_MS) return collectorsCache.data;
+  if (collectorsFlight?.token === token) return collectorsFlight.promise;
+  const promise = request<FateCollectorsSnapshot>('/v1/collectors/summary?currency=EUR&language=en&variant=standard', {
+    authenticated:true,
+    authorizationToken:token,
+  }).then((data) => {
+    collectorsCache = { token, cachedAt:Date.now(), data };
+    return data;
+  }).finally(() => {
+    if (collectorsFlight?.promise === promise) collectorsFlight = null;
+  });
+  collectorsFlight = { token, promise };
+  return promise;
 }
 
 export function previewCollectrExport(csvText: string) {
@@ -137,4 +231,3 @@ export function previewCollectrExport(csvText: string) {
     body:JSON.stringify({ csvText }),
   });
 }
-
