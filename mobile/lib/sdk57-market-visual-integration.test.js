@@ -10,10 +10,11 @@ const home = read('screens/home-screen-v3.tsx');
 const market = read('screens/fate-market-screen.tsx');
 const wallpaperArt = read('components/profile-wallpaper-art.tsx');
 
-test('Home uses one selected wallpaper as the continuous orbital theme', () => {
+test('Home keeps wallpaper infrastructure but temporarily renders the stable fallback theme', () => {
+  assert.match(home, /HOME_PROFILE_WALLPAPER_ENABLED = false/);
   assert.match(home, /homeWallpaperId === 'koruHome'/);
   assert.match(home, /ProfileWallpaperArt wallpaperId=\{homeWallpaperId\} home/);
-  assert.match(home, /profileWallpaperMeta\[homeWallpaperId\]\.accent/);
+  assert.match(home, /profileWallpaperMeta\[HOME_PROFILE_WALLPAPER_ENABLED \? homeWallpaperId : 'koruHome'\]\.accent/);
   assert.match(wallpaperArt, /contentPosition=\{home \? 'top center' : 'center'\}/);
   assert.match(home, /styles\.lowerAtmosphere/);
   assert.doesNotMatch(home, /ArtworkEdgeBlend/);
