@@ -281,7 +281,8 @@ const styles = StyleSheet.create({
   shardThree: { right: 35, bottom: 24, width: 12, height: 31, transform: [{ rotate: '18deg' }] },
   welcome: {
     color: FateDropColors.ivory,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.sans,
+    fontWeight: '700',
     fontSize: 20,
     letterSpacing: -0.3,
     marginBottom: 13,
@@ -297,13 +298,14 @@ const styles = StyleSheet.create({
   echoLine: {
     flex: 1,
     color: FateDropColors.echo,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.sans,
+    fontWeight: '700',
     fontSize: 14,
   },
   stockLine: {
     flex: 1,
     color: FateDropColors.ivory,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.sans,
     fontSize: 14,
   },
   pcukRow: {
@@ -334,7 +336,8 @@ const styles = StyleSheet.create({
   pcukText: {
     flex: 1,
     color: FateDropColors.muted,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.sans,
+    fontWeight: '700',
     fontSize: 11,
     letterSpacing: 0.55,
   },
@@ -348,7 +351,7 @@ const styles = StyleSheet.create({
   },
   mutedLine: {
     color: FateDropColors.muted,
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.sans,
     fontSize: 14,
   },
   pressed: { opacity: 0.72 },
