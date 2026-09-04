@@ -12,7 +12,7 @@ const traderRoute = fs.readFileSync(path.join(__dirname, '../app/fate-trader.tsx
 const home = fs.readFileSync(path.join(__dirname, '../screens/home-screen-v3.tsx'), 'utf8');
 const alerts = fs.readFileSync(path.join(__dirname, '../screens/alerts-screen-v4.tsx'), 'utf8');
 const fateNetwork = fs.readFileSync(path.join(__dirname, '../app/tools.tsx'), 'utf8');
-const fateMarket = fs.readFileSync(path.join(__dirname, '../screens/fate-market-screen.tsx'), 'utf8');
+const fateMarket = fs.readFileSync(path.join(__dirname, '../screens/fate-market-screen-v2.tsx'), 'utf8');
 const persistentNav = fs.readFileSync(path.join(__dirname, '../components/persistent-bottom-nav.tsx'), 'utf8');
 const networkSignals = fs.readFileSync(path.join(__dirname, '../services/network-signals.ts'), 'utf8');
 
@@ -52,12 +52,13 @@ test('Fate Network keeps the complete directory while the compass stays focused'
   assert.match(tabLayout, /title="FateMatch"/);
   assert.match(tabLayout, /title="Local Radar"/);
   assert.match(tabLayout, /title="Retailers"/);
-  assert.match(tabLayout, /title="Search"/);
+  assert.match(tabLayout, /title="Fate Trader"/);
+  assert.doesNotMatch(tabLayout, /<CompassNode[^>]*title="Search"/);
   assert.match(tabLayout, /title="Wishlist"/);
-  assert.doesNotMatch(tabLayout, /title="Fate Trader"/);
-  assert.match(fateMarket, /title: 'Fate Trader'/);
   assert.match(fateMarket, /title: 'FatePulse'/);
+  assert.match(fateMarket, /title: 'FatePrice'/);
   assert.match(fateMarket, /title: 'Fate Collectors'/);
+  assert.doesNotMatch(fateMarket, /title: 'Fate Trader'/);
 });
 
 test('Fate Trader and Local Radar destinations cannot become dead Fate Network buttons', () => {
