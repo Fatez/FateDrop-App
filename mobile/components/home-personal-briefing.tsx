@@ -77,7 +77,7 @@ export function HomePersonalBriefing({
   const [wishlistState, setWishlistState] = useState<LoadState>('idle');
   const [personalUnread, setPersonalUnread] = useState<Record<CanonicalAlertStage, number>>(EMPTY_PERSONAL_UNREAD);
   const [observedNow, setObservedNow] = useState(0);
-  const [glow] = useState(() => new Animated.Value(0));
+  const [glow] = useState(() => new Animated.Value(1));
   const [reduceMotion, setReduceMotion] = useState(false);
   const selectedTcgCodes = useMemo(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
   const alertFilterKey = useMemo(() => JSON.stringify({
@@ -197,26 +197,21 @@ export function HomePersonalBriefing({
   }, [onSignalStateChange, signalState]);
 
   useEffect(() => {
-    if (!pokemonCenterActive) {
-      glow.stopAnimation();
-      glow.setValue(0);
+    glow.stopAnimation();
+    if (!pokemonCenterActive || reduceMotion) {
+      glow.setValue(1);
       return;
     }
-    if (reduceMotion) {
-      glow.setValue(0.48);
-      return;
-    }
-    glow.setValue(0.18);
-    const pulse = Animated.sequence([
-      Animated.timing(glow, { toValue: 1, duration: 440, useNativeDriver: true }),
-      Animated.timing(glow, { toValue: 0.48, duration: 640, useNativeDriver: true }),
-    ]);
+    glow.setValue(1);
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(glow, { toValue: 0.36, duration: 520, useNativeDriver: true }),
+      Animated.timing(glow, { toValue: 1, duration: 620, useNativeDriver: true }),
+    ]));
     pulse.start();
     return () => pulse.stop();
   }, [glow, pokemonCenterActive, reduceMotion]);
 
-  const glowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.58] });
-  const glowScale = glow.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.05] });
+  const pcukTextOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.42, 1] });
   const pcukStatus = pcukEvidenceState === 'idle'
     ? 'POKÉMON CENTER UK ACTIVITY CHECKING'
     : pcukEvidenceState === 'error'
@@ -247,13 +242,6 @@ export function HomePersonalBriefing({
 
   return (
     <View style={[styles.card, embedded && styles.cardEmbedded, pokemonCenterActive && styles.cardActive]}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Animated.View style={[styles.glow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]} />
-        <Animated.View style={[styles.shard, styles.shardOne, pokemonCenterActive && { opacity: glowOpacity }]} />
-        <Animated.View style={[styles.shard, styles.shardTwo, pokemonCenterActive && { opacity: glowOpacity }]} />
-        <Animated.View style={[styles.shard, styles.shardThree, pokemonCenterActive && { opacity: glowOpacity }]} />
-      </View>
-
       <View style={styles.greeting}>
         <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome back,</Text>
         <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit>
@@ -287,7 +275,7 @@ export function HomePersonalBriefing({
         <View style={[styles.pcukGlyph, pokemonCenterActive && styles.pcukGlyphActive]}>
           <Ionicons name="radio-outline" size={18} color={FateDropColors.cyan} />
         </View>
-        <Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive]}>{pcukStatus}</Text>
+        <Animated.Text style={[styles.pcukText, pokemonCenterActive && styles.pcukTextActive, pokemonCenterActive && { opacity: pcukTextOpacity }]}>{pcukStatus}</Animated.Text>
         <View pointerEvents="none" style={[styles.statusRule, styles.pcukRule, pokemonCenterActive && styles.pcukRuleActive]} />
       </Pressable>
     </View>
@@ -326,29 +314,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     maxWidth: '64%',
   },
-  glow: {
-    position: 'absolute',
-    width: 148,
-    height: 68,
-    left: 0,
-    bottom: -5,
-    borderRadius: 74,
-    backgroundColor: FateDropColors.cyan,
-  },
-  shard: {
-    position: 'absolute',
-    width: 17,
-    height: 38,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(210,182,111,0.5)',
-    backgroundColor: 'rgba(210,182,111,0.08)',
-    transform: [{ rotate: '38deg' }],
-    opacity: 0.12,
-  },
-  shardOne: { right: 24, top: 18 },
-  shardTwo: { right: 64, top: 50, width: 10, height: 27, transform: [{ rotate: '62deg' }] },
-  shardThree: { right: 35, bottom: 24, width: 12, height: 31, transform: [{ rotate: '18deg' }] },
   welcomeKicker: {
     color: FateDropColors.ivory,
     fontFamily: Fonts.serif,
