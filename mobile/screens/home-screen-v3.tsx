@@ -229,9 +229,6 @@ export default function HomeScreenV3() {
               onSignalStateChange={setHomeSignalState}
             />
           </View>
-          <View style={styles.heroLifecycle}>
-            <LifecycleRibbon pulse={pulse} state={pulseState} />
-          </View>
         </Animated.View>
 
         <Animated.View style={entranceStyle(intelligenceEntrance, 14)}>
@@ -243,6 +240,9 @@ export default function HomeScreenV3() {
             signalState={homeSignalState}
             reduceMotion={Boolean(reduceMotion)}
           />
+          <View style={styles.lifecycleBelowHub}>
+            <LifecycleRibbon pulse={pulse} state={pulseState} />
+          </View>
         </Animated.View>
 
         <Animated.View
@@ -314,10 +314,12 @@ function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadSta
       {stageOrder.map((stage, index) => {
         const meta = stageMeta[stage];
         return (
-          <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast, (index === 0 || index === stageOrder.length - 1) && styles.lifecycleItemOuter, stage === 'manifested' && styles.lifecycleItemManifested]}>
-            <Ionicons name={meta.icon} size={11} color={meta.color} />
-            <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
-            <Text style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
+          <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast]}>
+            <View style={styles.lifecycleItemHeading}>
+              <Ionicons name={meta.icon} size={12} color={meta.color} />
+              <Text numberOfLines={1} style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
+            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
           </Pressable>
         );
       })}
@@ -731,21 +733,20 @@ const styles = StyleSheet.create({
   themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
   lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
-  hero: { height: 205, overflow: 'visible' },
+  hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
-  heroLifecycle: { position: 'absolute', left: 14, right: 14, bottom: -242, zIndex: 8 },
-  lifecycleRibbon: { height: 44, flexDirection: 'row', alignItems: 'center', overflow: 'visible', backgroundColor: 'transparent' },
-  lifecycleArcOuter: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 9, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.60)' },
-  lifecycleArcInner: { position: 'absolute', width: '116%', height: 92, left: '-8%', top: 19, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)' },
-  lifecycleArcCrown: { position: 'absolute', left: '50%', top: 18, width: 14, height: 14, marginLeft: -7, alignItems: 'center', justifyContent: 'center' },
-  lifecycleArcCrownVertical: { position: 'absolute', width: 1, height: 14, backgroundColor: FateDropColors.goldBright },
-  lifecycleArcCrownHorizontal: { position: 'absolute', width: 14, height: 1, backgroundColor: FateDropColors.goldBright },
-  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 37, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 2, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
-  lifecycleItemOuter: {},
-  lifecycleItemManifested: { transform: [{ translateX: 4 }] },
+  lifecycleBelowHub: { height: 58, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
+  lifecycleRibbon: { height: 58, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 16, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.30)', backgroundColor: 'rgba(3,7,18,.34)' },
+  lifecycleArcOuter: { position: 'absolute', width: '112%', height: 64, left: '-6%', top: 18, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.56)' },
+  lifecycleArcInner: { position: 'absolute', width: '104%', height: 54, left: '-2%', top: 26, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
+  lifecycleArcCrown: { position: 'absolute', left: '50%', top: 22, width: 12, height: 12, marginLeft: -6, alignItems: 'center', justifyContent: 'center', zIndex: 0 },
+  lifecycleArcCrownVertical: { position: 'absolute', width: 1, height: 12, backgroundColor: FateDropColors.goldBright },
+  lifecycleArcCrownHorizontal: { position: 'absolute', width: 12, height: 1, backgroundColor: FateDropColors.goldBright },
+  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 58, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 6, paddingBottom: 5, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)', zIndex: 2 },
+  lifecycleItemHeading: { width: '100%', minHeight: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   lifecycleItemLast: { borderRightWidth: 0 },
-  lifecycleLabel: { flex: 1, color: 'rgba(242,233,218,.88)', fontSize: 7.1, lineHeight: 10, fontWeight: '800', letterSpacing: .35, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.96)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
-  lifecycleValue: { width: 22, color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, lineHeight: 19, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.96)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
+  lifecycleLabel: { color: 'rgba(242,233,218,.94)', fontSize: 7.2, lineHeight: 9, fontWeight: '800', letterSpacing: .34, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
+  lifecycleValue: { maxWidth: '90%', fontFamily: Fonts.serif, fontSize: 18, lineHeight: 21, marginTop: 2, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 },
   orbitalHub: { height: 194, marginTop: -1, overflow: 'visible' },
   hubHorizon: { position: 'absolute', left: 7, right: 7, top: 86, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.35)' },
   hubArc: { position: 'absolute', width: '88%', height: 170, left: '6%', top: -2, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
@@ -773,7 +774,7 @@ const styles = StyleSheet.create({
   pcukHubStatus: { position: 'absolute', left: 80, right: 80, bottom: 0, minHeight: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, zIndex: 7 },
   pcukHubStatusText: { flexShrink: 1, color: 'rgba(99,225,255,.58)', fontFamily: Fonts.sans, fontSize: 7.3, lineHeight: 10, fontWeight: '700', letterSpacing: .58, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
   pcukHubStatusTextActive: { color: FateDropColors.cyan },
-  liveSection: { minHeight: 182, marginTop: 116, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },
+  liveSection: { minHeight: 182, marginTop: 8, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },
   sectionHeading: { height: 36, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.28)' },
   sectionStar: { width: 13, height: 13, alignItems: 'center', justifyContent: 'center' },
   sectionStarVertical: { position: 'absolute', width: 1, height: 13, backgroundColor: FateDropColors.goldBright },
