@@ -18,13 +18,14 @@ test('Home blends the selected wallpaper into the shell without another image al
   assert.match(blend, /lightweight colour bands/);
 });
 
-test('Home previews exactly the three Fate Market areas without inventing figures', () => {
-  assert.match(home, /area="trader"/);
-  assert.match(home, /area="pulse"/);
-  assert.match(home, /area="collectors"/);
-  assert.match(home, /Fate Trader/);
+test('Home previews the approved Pulse and Collectors snapshots without inventing figures', () => {
+  assert.match(home, /params: \{ area: 'pulse' \}/);
+  assert.match(home, /params: \{ area: 'collectors' \}/);
   assert.match(home, /FatePulse/);
-  assert.match(home, /Fate Collectors/);
+  assert.match(home, /FATE COLLECTORS/);
+  assert.match(home, /pulse30d\?\.status === 'available'/);
+  assert.match(home, /collection\.pricedUnits === 0/);
+  assert.doesNotMatch(home, /area="trader"/);
 });
 
 test('FatePulse and Collectors fail visibly closed while evidence gates are incomplete', () => {

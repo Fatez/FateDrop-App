@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArtworkEdgeBlend } from '@/components/artwork-edge-blend';
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { HomePersonalBriefing } from '@/components/home-personal-briefing';
 import { ProfileWallpaperArt } from '@/components/profile-wallpaper-art';
 import { FATEDROP_WORDMARK_URI } from '@/constants/brand-wordmark-data';
 import { profileWallpaperMeta } from '@/constants/profile-customisation';
@@ -14,6 +15,7 @@ import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry'
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
+import { fetchFateCollectorsSummary, fetchFatePulse, type FateCollectorsSnapshot, type FatePulseSnapshot } from '@/services/fate-market';
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
 import { openExternalRetailerLink } from '@/services/outbound-links';
 import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
@@ -35,15 +37,20 @@ export default function HomeScreenV3() {
   const [pulseError, setPulseError] = useState(false);
   const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
   const [liveError, setLiveError] = useState(false);
-  const [tcgFilter, setTcgFilter] = useState<'all' | TcgCode>('all');
+  const [marketPulse, setMarketPulse] = useState<FatePulseSnapshot | null>(null);
+  const [collectors, setCollectors] = useState<FateCollectorsSnapshot | null>(null);
+  const [selectedTcgFilter, setTcgFilter] = useState<'all' | TcgCode>('all');
+  const [observedNow, setObservedNow] = useState(0);
   const [homeWallpaperId, setHomeWallpaperId] = useState<ProfileWallpaperId>('koruHome');
 
   const load = useCallback(async () => {
-    const [nextPulse, nextLive, , customisation] = await Promise.all([
+    const [nextPulse, nextLive, , customisation, nextMarketPulse, nextCollectors] = await Promise.all([
       fetchNetworkPulse(7).catch(() => null),
       signedIn ? fetchCanonicalLiveOpportunities(20).catch(() => null) : Promise.resolve([]),
       signedIn ? refreshIfStale().catch(() => null) : Promise.resolve(null),
       loadProfileCustomisation(identity).catch(() => null),
+      fetchFatePulse().catch(() => null),
+      signedIn ? fetchFateCollectorsSummary().catch(() => null) : Promise.resolve(null),
     ]);
     if (nextPulse) {
       setPulse(nextPulse);
@@ -59,18 +66,22 @@ export default function HomeScreenV3() {
       setLiveError(signedIn);
     }
     if (customisation) setHomeWallpaperId(customisation.wallpaperId);
+    setMarketPulse(nextMarketPulse);
+    setCollectors(nextCollectors);
+    setObservedNow(Date.now());
   }, [identity, refreshIfStale, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
+  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
+  const tcgFilter = selectedTcgFilter === 'all' || selectedTcgCodes.includes(selectedTcgFilter) ? selectedTcgFilter : 'all';
   const matchesFilter = useCallback((value: unknown) => tcgFilter === 'all' || (isTcgCode(value) && value === tcgFilter), [tcgFilter]);
   const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false && matchesFilter(item.tcgCode)).length ?? 0;
   const recentMatches = useMemo(() => {
-    const floor = Math.floor(Date.now() / 1000) - 7 * 86_400;
+    const floor = Math.floor(observedNow / 1000) - 7 * 86_400;
     return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor && matchesFilter(item.tcgCode)).length ?? 0;
-  }, [matchesFilter, snapshot?.fateMatches]);
+  }, [matchesFilter, observedNow, snapshot?.fateMatches]);
   const saved = snapshot?.wishlist?.filter((item) => matchesFilter(item.tcg)).length ?? 0;
-  const selectedTcgCodes = useMemo<TcgCode[]>(() => snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'], [snapshot?.tcgPreferences.selectedTcgCodes]);
   const visibleLiveOpportunities = useMemo(() => liveOpportunities.filter((alert) => (
     selectedTcgCodes.includes(alert.tcgCode as TcgCode)
     && (tcgFilter === 'all' || alert.tcgCode === tcgFilter)
@@ -78,10 +89,10 @@ export default function HomeScreenV3() {
   const tcgParam = tcgFilter === 'all' ? undefined : tcgFilter;
   const filterLabel = tcgFilter === 'all' ? 'All selected games' : TCG_REGISTRY.find((entry) => entry.code === tcgFilter)?.shortName ?? tcgFilter;
   const wallpaperAccent = profileWallpaperMeta[homeWallpaperId].accent;
-
-  useEffect(() => {
-    if (tcgFilter !== 'all' && !selectedTcgCodes.includes(tcgFilter)) setTcgFilter('all');
-  }, [selectedTcgCodes, tcgFilter]);
+  const pulse30d = marketPulse?.pulse?.direction?.periods.d30;
+  const pulseAvailable = pulse30d?.status === 'available';
+  const collection = collectors?.summary.collection;
+  const closestSet = collectors?.summary.closestSet;
 
   return (
     <View style={styles.safe}>
@@ -94,10 +105,8 @@ export default function HomeScreenV3() {
           <Pressable onPress={() => router.push('/(tabs)/profile')} style={[styles.profileButton, { top: insets.top + 13 }]}>
             <Ionicons name={signedIn ? 'person' : 'person-outline'} size={18} color={FateDropColors.ivory} />
           </Pressable>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroEyebrow}>THE FATE NETWORK IS LIVE</Text>
-            <Text style={styles.heroTitle}>Know what moved. Hunt what matters.</Text>
-            <Text style={styles.heroSubtitle}>Network intelligence, verified RRP, True Price and personal FateFinds in one place.</Text>
+          <View style={styles.heroBriefing}>
+            <HomePersonalBriefing embedded />
           </View>
         </View>
 
@@ -107,50 +116,50 @@ export default function HomeScreenV3() {
           {selectedTcgCodes.map((code) => { const entry = TCG_REGISTRY.find((item) => item.code === code); return entry ? <Pressable key={code} onPress={() => setTcgFilter(code)} style={[styles.gameFilter, tcgFilter === code && { borderColor: entry.accent, backgroundColor: `${entry.accent}15` }]}><Text style={[styles.gameFilterText, tcgFilter === code && { color: entry.accent }]}>{entry.shortName.toUpperCase()}</Text></Pressable> : null; })}
         </ScrollView>
 
-        <View style={styles.marketPreviewHead}>
-          <View>
-            <Text style={styles.marketPreviewEyebrow}>FATE MARKET</Text>
-            <Text style={styles.marketPreviewTitle}>Market intelligence, kept simple.</Text>
-          </View>
-          <Pressable onPress={() => router.push('/(tabs)/market')} style={styles.marketPreviewLink}>
-            <Text style={styles.marketPreviewLinkText}>OPEN</Text>
-            <Ionicons name="arrow-forward" size={13} color={FateDropColors.goldBright} />
-          </Pressable>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketPreviewRail}>
-          <MarketPreviewCard area="trader" icon="swap-horizontal-outline" title="Fate Trader" detail="Have · Want · Match" status="AVAILABLE" accent={FateDropColors.goldBright} />
-          <MarketPreviewCard area="pulse" icon="pulse-outline" title="FatePulse" detail="Verified market history" status="BUILDING" accent={FateDropColors.manifested} />
-          <MarketPreviewCard area="collectors" icon="albums-outline" title="Fate Collectors" detail="Your position in the market" status="PREVIEW" accent={FateDropColors.echo} />
-        </ScrollView>
-
-        <View style={styles.sectionHead}>
-          <View>
-            <Text style={styles.sectionEyebrow}>NETWORK PULSE</Text>
-            <Text style={styles.sectionTitle}>Last 7 days</Text>
-          </View>
-          <Text style={styles.sectionHint}>{pulseError ? 'Refresh pending' : 'Live network totals'}</Text>
-        </View>
-        <View style={styles.pulseGrid}>
+        <Text style={styles.lifecycleWindow}>NETWORK · Last 7 days</Text>
+        <View style={styles.lifecycleRibbon}>
           {stageOrder.map((state) => {
             const meta = stageMeta[state];
             return (
-              <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={styles.pulseCard}>
+              <Pressable key={state} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: state.toUpperCase(), tcg: tcgParam } })} style={styles.lifecycleItem}>
                 <View style={[styles.pulseDot, { backgroundColor: meta.color }]} />
-                <Text style={styles.pulseValue}>{pulse[state]}</Text>
-                <Text style={[styles.pulseLabel, { color: meta.color }]}>{meta.label.toUpperCase()}</Text>
-                <Text style={styles.pulseCompanion}>{meta.companion}</Text>
+                <Text style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
+                <Text style={[styles.lifecycleValue, { color: meta.color }]}>{pulseError ? '—' : pulse[state]}</Text>
               </Pressable>
             );
           })}
         </View>
 
+        <View style={styles.marketPreviewHead}>
+          <View>
+            <Text style={styles.marketPreviewEyebrow}>FATE MARKET</Text>
+            <Text style={styles.marketPreviewTitle}>Your market. Your position.</Text>
+          </View>
+          <Pressable onPress={() => router.push('/(tabs)/market')} style={styles.marketPreviewLink}>
+            <Text style={styles.marketPreviewLinkText}>EXPLORE</Text>
+            <Ionicons name="arrow-forward" size={13} color={FateDropColors.goldBright} />
+          </Pressable>
+        </View>
+        <View style={styles.intelligenceGrid}>
+          <IntelligenceCard accent={FateDropColors.manifested} eyebrow="FATEPULSE" icon="pulse-outline" title="Tracked set direction"
+            value={pulseAvailable ? movementPercent(pulse30d?.headlinePercent) : 'Building'}
+            detail={pulseAvailable ? `${pulse30d?.breadth.risingSets ?? 0} rising · ${pulse30d?.breadth.unchangedSets ?? 0} stable · ${pulse30d?.breadth.fallingSets ?? 0} falling` : 'Waiting for qualifying 30D evidence'}
+            foot={pulse30d ? `${marketPercent(pulse30d.coverage.currentPriceCoveragePct)} price coverage` : 'Evidence unavailable'}
+            onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
+          <IntelligenceCard accent={FateDropColors.echo} eyebrow="FATE COLLECTORS" icon="albums-outline"
+            title={signedIn ? 'Known collection value' : 'Your collection'} value={signedIn ? collectionValue(collectors) : 'Connect'}
+            detail={signedIn ? `${collectors?.summary.cardUnits ?? 0} cards · ${collectors?.summary.setsOwned ?? 0} sets` : 'Sign in to make the market personal'}
+            foot={signedIn && closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}%` : signedIn ? `Price coverage ${marketPercent(collection?.priceCoveragePercent)}` : 'Import once. FateDrop does the thinking.'}
+            onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} />
+        </View>
+
         <View style={styles.liveHead}>
           <View style={styles.flex}>
             <Text style={[styles.sectionEyebrow, styles.liveEyebrow]}>VERIFIED LIVE NOW</Text>
-            <Text style={styles.sectionTitle}>Still available. Still truthful.</Text>
-            <Text style={styles.liveIntro}>Only open Manifested offer episodes with a fresh healthy-retailer confirmation. Seeing one here never repeats the alarm.</Text>
+            <Text style={styles.sectionTitle}>Verified live now</Text>
+            <Text style={styles.liveIntro}>One fresh opportunity from canonical offer evidence. Seeing one here never repeats the alarm.</Text>
           </View>
-          <Ionicons name="shield-checkmark-outline" size={22} color={FateDropColors.manifested} />
+          <Pressable onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: 'MANIFESTED', tcg: tcgParam } })} style={styles.viewAllLink}><Text style={styles.viewAllText}>VIEW ALL</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.goldBright} /></Pressable>
         </View>
         {selectedTcgCodes.length > 1 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tcgFilters}>
           <TcgFilter label="All" active={tcgFilter === 'all'} color={FateDropColors.goldBright} onPress={() => setTcgFilter('all')} />
@@ -159,9 +168,9 @@ export default function HomeScreenV3() {
             return <TcgFilter key={code} label={definition?.shortName ?? code} active={tcgFilter === code} color={definition?.accent ?? FateDropColors.goldBright} onPress={() => setTcgFilter(code)} />;
           })}
         </ScrollView> : null}
-        {visibleLiveOpportunities.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.liveRail}>
-          {visibleLiveOpportunities.map((alert) => <LiveOpportunityCard key={alert.id} alert={alert} />)}
-        </ScrollView> : <View style={styles.liveEmpty}>
+        {visibleLiveOpportunities.length ? <View style={styles.liveRail}>
+          <LiveOpportunityCard alert={visibleLiveOpportunities[0]} observedNow={observedNow} />
+        </View> : <View style={styles.liveEmpty}>
           <Ionicons name={liveError ? 'cloud-offline-outline' : 'hourglass-outline'} size={20} color={FateDropColors.muted} />
           <View style={styles.flex}>
             <Text style={styles.liveEmptyTitle}>{liveError ? 'Live verification is temporarily unavailable' : 'No stock is freshly verified live right now'}</Text>
@@ -229,6 +238,39 @@ export default function HomeScreenV3() {
   );
 }
 
+function movementPercent(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}% · 30D`;
+}
+
+function marketPercent(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
+}
+
+function collectionValue(data: FateCollectorsSnapshot | null) {
+  const collection = data?.summary.collection;
+  if (!collection || collection.status === 'unavailable' || collection.pricedUnits === 0) return '—';
+  try {
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: data.summary.currencyCode, maximumFractionDigits: 0 }).format(collection.knownValue);
+  } catch {
+    return `${collection.knownValue.toFixed(0)} ${data.summary.currencyCode}`;
+  }
+}
+
+function IntelligenceCard({ accent, detail, eyebrow, foot, icon, onPress, title, value }: {
+  accent: string; detail: string; eyebrow: string; foot: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; title: string; value: string;
+}) {
+  return <Pressable onPress={onPress} style={({ pressed }) => [styles.intelligenceCard, { borderColor: `${accent}55` }, pressed && styles.pressed]}>
+    <View style={[styles.intelligenceIcon, { borderColor: `${accent}55`, backgroundColor: `${accent}12` }]}><Ionicons name={icon} size={19} color={accent} /></View>
+    <Text style={[styles.intelligenceEyebrow, { color: accent }]}>{eyebrow}</Text>
+    <Text style={styles.intelligenceTitle}>{title}</Text>
+    <Text style={[styles.intelligenceValue, { color: value === '—' || value === 'Building' || value === 'Connect' ? FateDropColors.ivory : accent }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    <Text style={styles.intelligenceDetail}>{detail}</Text>
+    <View style={[styles.intelligenceRule, { backgroundColor: `${accent}44` }]} />
+    <Text style={styles.intelligenceFoot} numberOfLines={2}>{foot}</Text>
+  </Pressable>;
+}
+
 function MiniStat({ value, label, icon, onPress }: { value: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
   return <Pressable onPress={onPress} style={styles.miniStat}><Ionicons name={icon} size={17} color={FateDropColors.goldBright} /><Text style={styles.miniValue}>{value}</Text><Text style={styles.miniLabel}>{label}</Text></Pressable>;
 }
@@ -236,35 +278,15 @@ function Action({ title, detail, icon, onPress }: { title: string; detail: strin
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]}><View style={styles.actionIcon}><Ionicons name={icon} size={19} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} /></Pressable>;
 }
 
-function MarketPreviewCard({ accent, area, detail, icon, status, title }: {
-  accent: string;
-  area: 'trader' | 'pulse' | 'collectors';
-  detail: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  status: string;
-  title: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push({ pathname: '/(tabs)/market', params: { area } })}
-      style={({ pressed }) => [styles.marketPreviewCard, { borderColor: `${accent}42` }, pressed && styles.pressed]}>
-      <View style={[styles.marketPreviewIcon, { backgroundColor: `${accent}10`, borderColor: `${accent}45` }]}><Ionicons name={icon} size={19} color={accent} /></View>
-      <View style={styles.flex}><Text style={[styles.marketPreviewStatus, { color: accent }]}>{status}</Text><Text style={styles.marketPreviewCardTitle}>{title}</Text><Text style={styles.marketPreviewDetail}>{detail}</Text></View>
-      <Ionicons name="chevron-forward" size={15} color={accent} />
-    </Pressable>
-  );
-}
-
 function TcgFilter({ label, active, color, onPress }: { label: string; active: boolean; color: string; onPress: () => void }) {
   return <Pressable onPress={onPress} style={[styles.tcgFilter, active && { borderColor: color, backgroundColor: `${color}16` }]}><Text style={[styles.tcgFilterText, active && { color }]}>{label.toUpperCase()}</Text></Pressable>;
 }
 
-function LiveOpportunityCard({ alert }: { alert: CanonicalMobileAlert }) {
+function LiveOpportunityCard({ alert, observedNow }: { alert: CanonicalMobileAlert; observedNow: number }) {
   const definition = TCG_REGISTRY.find((entry) => entry.code === alert.tcgCode);
   const price = alert.product.deliveredPricePence ?? alert.product.pricePence;
   const verifiedAt = alert.liveWindow?.lastConfirmedLiveAt ? Date.parse(alert.liveWindow.lastConfirmedLiveAt) : Number.NaN;
-  const ageMinutes = Number.isFinite(verifiedAt) ? Math.max(0, Math.floor((Date.now() - verifiedAt) / 60_000)) : null;
+  const ageMinutes = observedNow > 0 && Number.isFinite(verifiedAt) ? Math.max(0, Math.floor((observedNow - verifiedAt) / 60_000)) : null;
   const verifiedLabel = ageMinutes == null ? 'Fresh confirmation' : ageMinutes < 1 ? 'Verified just now' : `Verified ${ageMinutes}m ago`;
   return <Pressable onPress={() => alert.productUrl ? void openExternalRetailerLink({ destinationUrl: alert.productUrl, retailerId: alert.retailerId, placement: 'home-verified-live' }).catch(() => undefined) : undefined} style={({ pressed }) => [styles.liveCard, pressed && styles.pressed]}>
     <View style={styles.liveCardTop}><Text style={styles.liveStatus}>STILL VERIFIED LIVE</Text><Text style={[styles.liveTcg, { borderColor: definition?.accent ?? FateDropColors.gold }]}>{definition?.shortName ?? alert.tcgCode}</Text></View>
@@ -279,13 +301,10 @@ const heroShadow = { textShadowColor: 'rgba(0,0,0,.92)', textShadowOffset: { wid
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   content: { paddingBottom: 118 },
-  hero: { height: 390, overflow: 'hidden', backgroundColor: FateDropColors.background },
+  hero: { height: 560, overflow: 'hidden', backgroundColor: FateDropColors.background },
   wordmark: { position: 'absolute', left: 18, width: 168, height: 56, zIndex: 2 },
   profileButton: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,7,12,.58)', borderWidth: 1, borderColor: FateDropColors.border, zIndex: 2 },
-  heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 30, zIndex: 2 },
-  heroEyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.35, ...heroShadow },
-  heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 29, lineHeight: 33, fontWeight: '700', maxWidth: 330, marginTop: 5, ...heroShadow },
-  heroSubtitle: { color: FateDropColors.ivory, fontSize: 13, lineHeight: 19, maxWidth: 340, marginTop: 7, ...heroShadow },
+  heroBriefing: { position: 'absolute', left: 20, right: 20, bottom: 30, zIndex: 2, padding: 17, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(210,182,111,.34)', backgroundColor: 'rgba(4,7,13,.72)' },
   guideCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 18, marginBottom: 20, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.goldBright}45`, backgroundColor: 'rgba(19,17,12,.94)' },
   guideIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.goldBright}3D`, backgroundColor: `${FateDropColors.goldBright}12` },
   guideEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
@@ -306,26 +325,31 @@ const styles = StyleSheet.create({
   marketPreviewTitle: { color: FateDropColors.ivory, fontSize: 17, fontWeight: '900', marginTop: 3 },
   marketPreviewLink: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5 },
   marketPreviewLinkText: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .65 },
-  marketPreviewRail: { gap: 8, paddingHorizontal: 18, paddingBottom: 21 },
-  marketPreviewCard: { width: 220, minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 17, borderWidth: 1, backgroundColor: 'rgba(16,22,30,.95)' },
-  marketPreviewIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  marketPreviewStatus: { fontSize: 7, fontWeight: '900', letterSpacing: .6 },
-  marketPreviewCardTitle: { color: FateDropColors.ivory, fontSize: 13, fontWeight: '900', marginTop: 2 },
-  marketPreviewDetail: { color: FateDropColors.secondary, fontSize: 9, marginTop: 3 },
-  pulseGrid: { flexDirection: 'row', gap: 7, paddingHorizontal: 18, marginBottom: 22 },
-  pulseCard: { flex: 1, minHeight: 108, padding: 11, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
-  pulseDot: { width: 7, height: 7, borderRadius: 4, marginBottom: 9 },
-  pulseValue: { color: FateDropColors.ivory, fontSize: 26, fontWeight: '900' },
-  pulseLabel: { fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 3 },
-  pulseCompanion: { color: FateDropColors.muted, fontSize: 9, marginTop: 4 },
+  intelligenceGrid: { flexDirection: 'row', gap: 10, paddingHorizontal: 18, marginBottom: 26 },
+  intelligenceCard: { flex: 1, minHeight: 224, padding: 14, borderRadius: 21, borderWidth: 1, backgroundColor: 'rgba(8,13,23,.94)' },
+  intelligenceIcon: { width: 39, height: 39, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  intelligenceEyebrow: { fontSize: 8, fontWeight: '900', letterSpacing: .95 },
+  intelligenceTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 15, lineHeight: 19, marginTop: 5 },
+  intelligenceValue: { fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 30, marginTop: 10 },
+  intelligenceDetail: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 5 },
+  intelligenceRule: { height: 1, marginTop: 'auto', marginBottom: 9 },
+  intelligenceFoot: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12 },
+  lifecycleWindow: { color: FateDropColors.gold, fontSize: 8, fontWeight: '900', letterSpacing: 1.1, paddingHorizontal: 20, marginTop: 12, marginBottom: 7 },
+  lifecycleRibbon: { flexDirection: 'row', marginHorizontal: 18, marginBottom: 24, paddingVertical: 13, paddingHorizontal: 5, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(210,182,111,.25)', backgroundColor: 'rgba(8,13,23,.9)' },
+  lifecycleItem: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 4, borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,.055)' },
+  pulseDot: { width: 6, height: 6, borderRadius: 3 },
+  lifecycleLabel: { color: FateDropColors.secondary, fontSize: 6.5, fontWeight: '900', letterSpacing: .25 },
+  lifecycleValue: { fontFamily: Fonts?.serif, fontSize: 17, lineHeight: 20 },
   liveHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 18, marginBottom: 10 },
   liveEyebrow: { paddingHorizontal: 0, marginBottom: 0, color: FateDropColors.manifested },
   liveIntro: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 5, maxWidth: 330 },
   tcgFilters: { gap: 7, paddingHorizontal: 18, paddingBottom: 10 },
   tcgFilter: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.surface },
   tcgFilterText: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .55 },
-  liveRail: { gap: 9, paddingHorizontal: 18, paddingBottom: 24 },
-  liveCard: { width: 238, minHeight: 154, padding: 14, borderRadius: 19, borderWidth: 1, borderColor: `${FateDropColors.manifested}48`, backgroundColor: FateDropColors.surface },
+  viewAllLink: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 3 },
+  viewAllText: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .65 },
+  liveRail: { paddingHorizontal: 18, paddingBottom: 24 },
+  liveCard: { width: '100%', minHeight: 154, padding: 16, borderRadius: 21, borderWidth: 1, borderColor: `${FateDropColors.manifested}55`, backgroundColor: 'rgba(8,13,23,.95)' },
   liveCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
   liveStatus: { color: FateDropColors.manifested, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
   liveTcg: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 999, borderWidth: 1, color: FateDropColors.ivory, fontSize: 7, fontWeight: '900' },

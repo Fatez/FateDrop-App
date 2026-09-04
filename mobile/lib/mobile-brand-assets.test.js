@@ -52,8 +52,8 @@ test('active Home keeps one Koru wallpaper as the approved default hero while al
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
   assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);
-  assert.match(home, /THE FATE NETWORK IS LIVE/);
-  assert.match(home, /Know what moved\. Hunt what matters\./);
+  assert.match(home, /HomePersonalBriefing embedded/);
+  assert.match(home, /heroBriefing/);
 });
 
 test('Home keeps monitor health out of the welcome experience', () => {
