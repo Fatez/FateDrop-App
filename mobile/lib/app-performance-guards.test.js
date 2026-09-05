@@ -34,11 +34,8 @@ test('wallpaper picker uses virtualised small WebP previews while preserving ful
   assert.match(wallpaperArt, /enforceEarlyResizing/);
   assert.match(wallpaperConstants, /export const profileWallpaperSources/);
 
-  const start = wallpaperConstants.indexOf('export const profileWallpaperThumbnailSources');
-  const end = wallpaperConstants.indexOf('export const profileWallpaperMeta');
-  const thumbnailBlock = wallpaperConstants.slice(start, end);
-  const relativeAssets = [...thumbnailBlock.matchAll(/require\('([^']+\.webp)'\)/g)].map((match) => match[1]);
-  assert.equal(relativeAssets.length, 19);
+  const relativeAssets = [...wallpaperConstants.matchAll(/const (?:koruHome|wallpaper[1-7])Thumbnail = require\('([^']+\.webp)'\)/g)].map((match) => match[1]);
+  assert.equal(relativeAssets.length, 8);
   for (const relativeAsset of relativeAssets) {
     const absoluteAsset = path.resolve(__dirname, '..', 'constants', relativeAsset);
     assert.ok(fs.existsSync(absoluteAsset), `missing wallpaper thumbnail: ${relativeAsset}`);

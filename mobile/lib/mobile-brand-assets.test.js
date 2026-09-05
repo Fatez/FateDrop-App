@@ -48,7 +48,7 @@ test('active Home keeps one Koru wallpaper as the approved default hero while al
   assert.match(home, /useState<ProfileWallpaperId>\('koruHome'\)/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
   assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
-  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /const koruHome = require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
   assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);

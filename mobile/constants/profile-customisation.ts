@@ -23,6 +23,13 @@ const wallpaper4 = require('../assets/images/wallpapers/wallpaper-4.png');
 const wallpaper5 = require('../assets/images/wallpapers/wallpaper-5.png');
 const wallpaper6 = require('../assets/images/wallpapers/wallpaper-6.png');
 const wallpaper7 = require('../assets/images/wallpapers/wallpaper-7.png');
+const wallpaper1Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-1.webp');
+const wallpaper2Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-2.webp');
+const wallpaper3Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-3.webp');
+const wallpaper4Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-4.webp');
+const wallpaper5Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-5.webp');
+const wallpaper6Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-6.webp');
+const wallpaper7Thumbnail = require('../assets/images/wallpaper-thumbnails/wallpaper-7.webp');
 
 // Koru plus fatedrop1..7 are selectable. Legacy IDs are retained as safe aliases so a
 // stale in-memory value can never reference a removed asset while storage migrates.
@@ -48,17 +55,17 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   fatedrop14: koruHome,
 };
 
-// Full-resolution canonical assets are intentionally reused in the picker for the seven
-// new wallpapers. Koru keeps its existing lightweight thumbnail.
+// The picker uses decode-light previews. Full-resolution canonical artwork is mounted
+// only for the selected wallpaper so scrolling the selector stays within its memory budget.
 export const profileWallpaperThumbnailSources: Record<ProfileWallpaperId, number> = {
   koruHome: koruHomeThumbnail,
-  fatedrop1: wallpaper1,
-  fatedrop2: wallpaper2,
-  fatedrop3: wallpaper3,
-  fatedrop4: wallpaper4,
-  fatedrop5: wallpaper5,
-  fatedrop6: wallpaper6,
-  fatedrop7: wallpaper7,
+  fatedrop1: wallpaper1Thumbnail,
+  fatedrop2: wallpaper2Thumbnail,
+  fatedrop3: wallpaper3Thumbnail,
+  fatedrop4: wallpaper4Thumbnail,
+  fatedrop5: wallpaper5Thumbnail,
+  fatedrop6: wallpaper6Thumbnail,
+  fatedrop7: wallpaper7Thumbnail,
   default: koruHomeThumbnail,
   oru: koruHomeThumbnail,
   fenn: koruHomeThumbnail,
