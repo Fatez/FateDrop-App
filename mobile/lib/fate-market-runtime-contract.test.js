@@ -11,11 +11,12 @@ const fatePrice = fs.readFileSync(path.join(root, 'screens/fate-price-screen.tsx
 test('Fate Market consumes Cloud-owned Pulse and owner-authenticated Collectors contracts', () => {
   assert.match(service, /SIGNAL_ENGINE_URL/);
   assert.match(service, /\/v1\/market\/pulse/);
-  assert.match(service, /\/v1\/collectors\/summary\?currency=EUR&language=en&variant=standard/);
+  assert.match(service, /\/v1\/collectors\/summary\?currency=GBP&language=en&variant=standard/);
   assert.match(service, /headers\.Authorization = `Bearer \$\{token\}`/);
 });
 
-test('FatePrice consumes exact Cloud valuation and never calculates market movement in the App', () => {
+test('FatePrice consumes exact Cloud valuation in GBP presentation and never calculates market movement in the App', () => {
+  assert.match(service, /displayCurrency=GBP/);
   assert.match(service, /\/v1\/fate-price\/\$\{encodeURIComponent\(id\)\}/);
   assert.match(service, /\/v1\/fate-price\/cards\?/);
   assert.match(service, /\/v1\/fate-price\/cards\/\$\{encodeURIComponent\(cardIdentityId\.trim\(\)\)\}/);
