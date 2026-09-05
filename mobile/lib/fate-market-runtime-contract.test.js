@@ -7,7 +7,7 @@ const root = path.join(__dirname, '..');
 const service = fs.readFileSync(path.join(root, 'services/fate-market.ts'), 'utf8');
 const collectorService = fs.readFileSync(path.join(root, 'services/fate-collector.ts'), 'utf8');
 const screen = fs.readFileSync(path.join(root, 'screens/fate-market-screen-v2.tsx'), 'utf8');
-const collector = fs.readFileSync(path.join(root, 'components/fate-collector-enhancements.tsx'), 'utf8');
+const personalCollection = fs.readFileSync(path.join(root, 'screens/fate-collection-browser-screen.tsx'), 'utf8');
 const fatePrice = fs.readFileSync(path.join(root, 'screens/fate-price-screen.tsx'), 'utf8');
 
 test('Fate Market consumes Cloud-owned Pulse and owner-authenticated Collectors contracts', () => {
@@ -38,8 +38,10 @@ test('third-party collection import stays user-exported, preview-first and expli
   assert.match(collectorService, /mode: 'preview_only'/);
   assert.match(collectorService, /writesPerformed: false/);
   assert.match(collectorService, /confirmed: true/);
-  assert.match(collector, /Choose a CSV exported from another collection tracker/);
-  assert.match(collector, /NO THIRD-PARTY LOGIN AUTOMATION/i);
+  assert.match(personalCollection, /File\.pickFileAsync/);
+  assert.match(personalCollection, /previewCollectrCsv\(text\)/);
+  assert.match(personalCollection, /CONFIRM EXACT IMPORT/);
+  assert.match(personalCollection, /confirmCollectrCsv\(csvText/);
 });
 
 test('FatePulse and collection value remain blank when Cloud evidence is unavailable', () => {
