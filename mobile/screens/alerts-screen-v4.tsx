@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -277,7 +276,6 @@ export default function AlertsScreenV4() {
 
   const header = <>
     <View style={styles.hero}>
-      <Image source={active.hero} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" />
       <Pressable onPress={() => router.push('/notification-preferences')} style={[styles.settings, { top: insets.top + 13 }]}><Ionicons name="options-outline" size={18} color={FateDropColors.ivory} /></Pressable>
       <View style={styles.heroCopy}><Text style={[styles.heroEyebrow, { color: active.color }]}>{active.companion.toUpperCase()} · {active.label.toUpperCase()}</Text><Text style={styles.heroTitle}>Signals without the noise.</Text><Text style={styles.heroSub}>Lifecycle intelligence stays separate from your personal FateFinds and FateMatches.</Text></View>
     </View>
@@ -305,7 +303,10 @@ export default function AlertsScreenV4() {
 
   return (
     <View style={styles.safe}>
-      <FateDropBackground />
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Image source={active.hero} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" />
+        <View style={styles.wallpaperShade} />
+      </View>
       <FlatList
         data={signalsData}
         keyExtractor={(alert) => alert.id}
@@ -447,7 +448,8 @@ const heroShadow = { textShadowColor: 'rgba(0,0,0,.94)', textShadowOffset: { wid
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingBottom: 120 },
-  hero: { height: 350, overflow: 'hidden', backgroundColor: FateDropColors.background },
+  wallpaperShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,7,12,.18)' },
+  hero: { height: 350, overflow: 'hidden', backgroundColor: 'transparent' },
   settings: { position: 'absolute', right: 18, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(4,7,12,.58)' },
   heroCopy: { position: 'absolute', left: 20, right: 20, bottom: 24 }, heroEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3, ...heroShadow }, heroTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 28, fontWeight: '700', marginTop: 4, ...heroShadow }, heroSub: { color: FateDropColors.ivory, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 340, ...heroShadow },
   switch: { flexDirection: 'row', marginHorizontal: 18, marginTop: 12, padding: 4, borderRadius: 14, backgroundColor: FateDropColors.surface, borderWidth: 1, borderColor: FateDropColors.borderSoft }, switchItem: { flex: 1, alignItems: 'center', padding: 10, borderRadius: 10 }, switchActive: { backgroundColor: FateDropColors.card }, switchText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' }, switchTextActive: { color: FateDropColors.goldBright },
