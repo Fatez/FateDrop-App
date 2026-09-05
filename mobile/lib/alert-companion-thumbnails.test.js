@@ -9,11 +9,11 @@ const route = fs.readFileSync(path.join(root, 'app', '(tabs)', 'alerts.tsx'), 'u
 
 test('mobile Alerts maps each canonical lifecycle to the correct companion hero artwork', () => {
   assert.match(route, /alerts-screen-v4/);
-  assert.match(screen, /WHISPER:[\s\S]*companion: 'Oru'[\s\S]*alert-oru-hero-final\.webp/);
-  assert.match(screen, /ECHO:[\s\S]*companion: 'Fenn'[\s\S]*alert-fenn-hero-final\.webp/);
-  assert.match(screen, /MANIFESTED:[\s\S]*companion: 'Koru'[\s\S]*alert-koru-hero-final\.webp/);
-  assert.match(screen, /VANISHED:[\s\S]*companion: 'Nyxen'[\s\S]*alert-nyxen-hero-final\.webp/);
-  assert.doesNotMatch(screen, /alert-(?:oru|fenn|koru|nyxen)\.webp/);
+  assert.match(screen, /WHISPER:[\s\S]*companion: 'Oru'[\s\S]*orualertscreen-whisper\.png/);
+  assert.match(screen, /ECHO:[\s\S]*companion: 'Fenn'[\s\S]*Fennalertscreen-echo\.png/);
+  assert.match(screen, /MANIFESTED:[\s\S]*companion: 'Koru'[\s\S]*korumanifestalertscreen\.png/);
+  assert.match(screen, /VANISHED:[\s\S]*companion: 'Nyxen'[\s\S]*nyxenalertscreen-vanish\.png/);
+  assert.doesNotMatch(screen, /alert-(?:oru|fenn|koru|nyxen)(?:-hero-final)?\.webp/);
 });
 
 test('companion artwork remains presentation over canonical lifecycle alerts', () => {
