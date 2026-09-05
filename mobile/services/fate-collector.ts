@@ -174,7 +174,7 @@ export async function fetchFateCollectorDashboard({ force = false }: { force?: b
   if (!token) throw new FateCollectorApiError('Connect your FateDrop ID to view your collection.', 401, 'AUTH_REQUIRED');
   if (!force && dashboardCache?.token === token && Date.now() - dashboardCache.cachedAt < CACHE_TTL_MS) return dashboardCache.data;
   if (dashboardFlight?.token === token) return dashboardFlight.promise;
-  const promise = authenticatedRequest<FateCollectorsDashboardSnapshot>('/v1/collectors/summary?currency=EUR&language=en&variant=standard')
+  const promise = authenticatedRequest<FateCollectorsDashboardSnapshot>('/v1/collectors/summary?currency=GBP&language=en&variant=standard')
     .then(({ data }) => {
       dashboardCache = { token, cachedAt: Date.now(), data };
       return data;
