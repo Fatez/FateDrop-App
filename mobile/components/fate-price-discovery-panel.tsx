@@ -44,6 +44,8 @@ export function FatePriceDiscoveryPanel({
   initialSetName = '',
   onSelectCard,
 }: Props) {
+  const initialHasScope = Boolean(initialTcgCode || initialSeriesId || initialSetId);
+  const initialCanSearch = initialQuery.trim().length >= 2 || initialHasScope;
   const [query, setQuery] = useState(initialQuery);
   const [scope, setScope] = useState<DiscoveryScope>({
     tcgCode: initialTcgCode,
@@ -53,8 +55,7 @@ export function FatePriceDiscoveryPanel({
   const [series, setSeries] = useState<FatePriceSeries[]>([]);
   const [sets, setSets] = useState<FatePriceSet[]>([]);
   const [results, setResults] = useState<FatePriceCard[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [searching, setSearching] = useState(initialCanSearch);
   const [notice, setNotice] = useState('');
   const requestSequence = useRef(0);
 
@@ -99,45 +100,62 @@ export function FatePriceDiscoveryPanel({
   }, [query]);
 
   const applyScope = useCallback((nextScope: DiscoveryScope) => {
+    if (nextScope.tcgCode !== scope.tcgCode) {
+      setSeries([]);
+      setSets([]);
+    } else if (nextScope.seriesId !== scope.seriesId) {
+      setSets([]);
+    }
+    setResults([]);
+    setNotice('');
     setScope(nextScope);
     void searchCards(nextScope);
-  }, [searchCards]);
+  }, [scope.seriesId, scope.tcgCode, searchCards]);
 
   useEffect(() => {
+    if (!scope.tcgCode) return;
     let active = true;
-    if (!scope.tcgCode) {
-      setSeries([]);
-      return () => { active = false; };
-    }
-    setMetadataLoading(true);
     void fetchFatePriceSeries(scope.tcgCode)
       .then((response) => { if (active) setSeries(response.series); })
-      .catch(() => { if (active) setSeries([]); })
-      .finally(() => { if (active) setMetadataLoading(false); });
+      .catch(() => { if (active) setSeries([]); });
     return () => { active = false; };
   }, [scope.tcgCode]);
 
   useEffect(() => {
+    if (!scope.tcgCode || !scope.seriesId) return;
     let active = true;
-    if (!scope.tcgCode || !scope.seriesId) {
-      setSets([]);
-      return () => { active = false; };
-    }
-    setMetadataLoading(true);
     void fetchFatePriceSets(scope.tcgCode, scope.seriesId)
       .then((response) => { if (active) setSets(response.sets); })
-      .catch(() => { if (active) setSets([]); })
-      .finally(() => { if (active) setMetadataLoading(false); });
+      .catch(() => { if (active) setSets([]); });
     return () => { active = false; };
   }, [scope.seriesId, scope.tcgCode]);
 
   useEffect(() => {
-    if (initialQuery.trim() || initialTcgCode || initialSeriesId || initialSetId) {
-      void searchCards({ tcgCode: initialTcgCode, seriesId: initialSeriesId, setId: initialSetId }, initialQuery);
-    }
-  // Route-derived discovery should run once. Later changes are owned by the controls below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const cleanQuery = initialQuery.trim();
+    if (cleanQuery.length < 2 && !initialTcgCode && !initialSeriesId && !initialSetId) return;
+    let active = true;
+    const sequence = ++requestSequence.current;
+    void searchScopedFatePriceCards({
+      query: cleanQuery,
+      tcgCode: initialTcgCode,
+      seriesId: initialSeriesId,
+      setId: initialSetId,
+      limit: 60,
+    }).then((response) => {
+      if (!active || sequence !== requestSequence.current) return;
+      setResults(response.cards);
+      setNotice(response.cards.length
+        ? `${response.count} exact canonical card${response.count === 1 ? '' : 's'} in this scope.`
+        : 'No exact canonical cards match this scope.');
+    }).catch((error) => {
+      if (!active || sequence !== requestSequence.current) return;
+      setResults([]);
+      setNotice(error instanceof FateMarketApiError ? error.message : 'Canonical card search is temporarily unavailable.');
+    }).finally(() => {
+      if (active && sequence === requestSequence.current) setSearching(false);
+    });
+    return () => { active = false; };
+  }, [initialQuery, initialSeriesId, initialSetId, initialTcgCode]);
 
   return (
     <>
@@ -146,7 +164,6 @@ export function FatePriceDiscoveryPanel({
           <Text style={styles.eyebrow}>EXACT CARD IDENTITY</Text>
           <Text style={styles.title}>{scope.setId ? `Choose a card from ${setLabel}` : scope.seriesId ? `Browse ${seriesLabel}` : selectedTcg ? `Browse ${selectedTcg.shortName}` : 'Find a card by name or number'}</Text>
         </View>
-        {metadataLoading ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : null}
       </View>
 
       <Text style={styles.stepLabel}>1 · TCG</Text>
