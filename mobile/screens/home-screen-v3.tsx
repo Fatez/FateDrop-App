@@ -572,7 +572,7 @@ function OrbitalCommandPortal({ event, state }: { event: CalendarEvent | null; s
       <View style={styles.orbitalActions}>
         <OrbitalAction icon="search-outline" title="Search" onPress={() => router.push('/(tabs)/search')} />
         <OrbitalAction icon="sparkles-outline" title="FateFind" onPress={() => router.push('/fatefind')} featured />
-        <OrbitalAction icon="calendar-outline" title="Events" onPress={open} />
+        <OrbitalAction icon="calendar-outline" title="Events" onPress={() => router.push('/encounters')} />
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={event ? `Open ${event.name}` : 'Explore Fate Encounters'} onPress={open} style={({ pressed }) => [styles.encounterPortal, pressed && styles.pressed]}>
         <Image source={require('../assets/images/event-signup.png.png')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" cachePolicy="disk" enforceEarlyResizing />
