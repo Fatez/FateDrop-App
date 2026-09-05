@@ -21,7 +21,7 @@ test('FatePulse keeps full-market top three rankings independent of ownership', 
   assert.doesNotMatch(market, /personalPulse.*PulsePanel/s);
 });
 
-test('FateCollector owns the personal riser/faller and set-binder UI', () => {
+test('Fate Collections owns the personal riser/faller and set-binder UI', () => {
   assert.match(market, /FateCollectorEnhancements data=\{data\} onCollectionChanged=\{onRefresh\} signedIn=\{signedIn\}/);
   assert.match(collector, /PERSONAL COLLECTION PULSE/);
   assert.match(collector, /What moved among your cards\?/);
@@ -37,11 +37,12 @@ test('FateCollector owns the personal riser/faller and set-binder UI', () => {
 
 test('Collector valuation labels known coverage without presenting a partial sum as a total', () => {
   assert.match(market, /fullyValued = Boolean\(collection && collection\.totalUnits > 0 && collection\.totalValue != null\)/);
-  assert.match(market, /fullyValued \? 'COLLECTION VALUE' : 'KNOWN PRICED VALUE'/);
+  assert.match(market, /summary\?\.rawCollection \|\| summary\?\.collection/);
+  assert.match(market, /fullyValued \? 'RAW COLLECTION VALUE' : 'KNOWN RAW-CARD VALUE'/);
   assert.match(market, /collection\.pricedUnits} of \$\{collection\.totalUnits/);
   assert.match(market, /excluded—not estimated/);
-  assert.match(market, /PRICE COVERAGE/);
-  assert.match(market, /collection && collection\.totalUnits > 0 \? concisePercent/);
+  assert.match(market, /\$\{collection\.pricedUnits\}\/\$\{collection\.totalUnits\} priced/);
+  assert.match(market, /collectorCoverageTrack/);
   assert.match(market, /sourceMarketCurrencyCode/);
 });
 
@@ -53,7 +54,7 @@ test('exact FatePrice cards can be manually added to the canonical collection', 
   assert.match(service, /fateCardId: id, quantity, copyState: 'raw', conditionCode/);
 });
 
-test('Collectr import is user-picked, previewed and explicitly confirmed', () => {
+test('third-party collection import is user-picked, previewed and explicitly confirmed', () => {
   assert.match(collector, /File\.pickFileAsync/);
   assert.match(collector, /previewCollectrCsv\(text\)/);
   assert.match(collector, /CONFIRM EXACT IMPORT/);
@@ -64,4 +65,18 @@ test('Collectr import is user-picked, previewed and explicitly confirmed', () =>
   assert.match(collector, /ambiguous.*unresolved.*rejected CSV rows/s);
   assert.match(collector, /await onCollectionChanged\(\)/);
   assert.match(service, /invalidateFateCollectorsSummaryCache\(\)/);
+});
+
+test('raw binders and graded pride cards have separate dedicated routes', () => {
+  const binder = read('screens/fate-binder-screen.tsx');
+  const graded = read('screens/fate-graded-collection-screen.tsx');
+  const browser = read('screens/fate-collection-browser-screen.tsx');
+  assert.match(market, /router\.push\('\/graded-collection'\)/);
+  assert.match(market, /pathname: '\/binder\/\[setId\]'/);
+  assert.match(binder, /Mark \$\{card\.name \|\| 'card'\} as owned/);
+  assert.match(binder, /addExactCardToCollector\(card\.fateCardId\)/);
+  assert.match(binder, /Graded slabs never fill binder slots/);
+  assert.match(graded, /Exact grade evidence only/);
+  assert.match(graded, /Raw-card FatePrice is never reused for a slab/);
+  assert.match(browser, /item\.copyState === 'raw'/);
 });

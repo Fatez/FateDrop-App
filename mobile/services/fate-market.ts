@@ -113,6 +113,15 @@ export type FatePulseSnapshot = {
   };
 };
 
+export type FateCollectionValueSummary = {
+  status: 'available' | 'partial' | 'unavailable';
+  knownValue: number;
+  totalValue: number | null;
+  totalUnits: number;
+  pricedUnits: number;
+  priceCoveragePercent: number;
+};
+
 export type FateCollectorsSnapshot = {
   contractVersion: number;
   status: 'empty' | 'partial' | 'available';
@@ -120,6 +129,8 @@ export type FateCollectorsSnapshot = {
   summary: {
     currencyCode: string;
     cardUnits: number;
+    rawCardUnits?: number;
+    gradedCardUnits?: number;
     setsOwned: number;
     unavailableSetCount: number;
     closestSet: null | {
@@ -129,14 +140,9 @@ export type FateCollectorsSnapshot = {
       completionPercent: number;
       missingCount: number;
     };
-    collection: {
-      status: 'available' | 'partial' | 'unavailable';
-      knownValue: number;
-      totalValue: number | null;
-      totalUnits: number;
-      pricedUnits: number;
-      priceCoveragePercent: number;
-    };
+    collection: FateCollectionValueSummary;
+    rawCollection?: FateCollectionValueSummary;
+    gradedCollection?: FateCollectionValueSummary;
   };
   evidence: {
     collectionItemsRead: number;
@@ -147,6 +153,9 @@ export type FateCollectorsSnapshot = {
     valuationCurrencyCode?: string;
     sourceMarketCurrencyCode?: string;
     personalPulseConnected?: boolean;
+    gradedCollectionValuesConnected?: boolean;
+    binderOwnershipPolicy?: 'raw_only';
+    personalMovementPolicy?: 'raw_only';
   };
 };
 

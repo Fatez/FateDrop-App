@@ -58,7 +58,7 @@ test('Fate Network keeps the complete directory while the compass stays focused'
   assert.match(tabLayout, /title="Wishlist"/);
   assert.match(fateMarket, /title: 'FatePulse'/);
   assert.match(fateMarket, /title: 'FatePrice'/);
-  assert.match(fateMarket, /title: 'Fate Collectors'/);
+  assert.match(fateMarket, /title: 'Collections'/);
   assert.doesNotMatch(fateMarket, /title: 'Fate Trader'/);
 });
 

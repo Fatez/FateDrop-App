@@ -34,7 +34,7 @@ export default function FateCollectionBrowserScreen() {
     setError('');
     try {
       const snapshot = await fetchFateCollectorCollection();
-      setItems(snapshot.items.slice().sort(collectorSort));
+      setItems(snapshot.items.filter((item) => item.copyState === 'raw').sort(collectorSort));
     } catch {
       setError('Your collection could not be loaded safely right now.');
     } finally {
@@ -72,9 +72,9 @@ export default function FateCollectionBrowserScreen() {
             <Ionicons name="chevron-back" size={18} color={FateDropColors.ivory} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>{requestedSetId ? 'SET BINDER' : 'FATE COLLECTOR'}</Text>
+            <Text style={styles.eyebrow}>{requestedSetId ? 'SET BINDER · RAW CARDS' : 'FATE COLLECTIONS · RAW CARDS'}</Text>
             <Text style={styles.title}>{title}</Text>
-            <Text style={styles.copy}>{requestedSetId ? 'Every exact card you own in this set.' : 'Every exact card currently attached to your FateDrop ID.'}</Text>
+            <Text style={styles.copy}>{requestedSetId ? 'Every raw exact card you own in this set. Graded cards remain in their own collection.' : 'Your raw cards, organised by exact identity. Graded cards have their own dedicated gallery and valuation boundary.'}</Text>
           </View>
         </View>
 
@@ -105,7 +105,7 @@ export default function FateCollectionBrowserScreen() {
               <Text style={styles.cardMeta} numberOfLines={1}>{item.card?.setName || 'Verified set'}</Text>
               <Text style={styles.cardMeta}>#{item.card?.collectorNumber || '—'} · {item.card?.variantCode || 'standard'}</Text>
               <View style={styles.cardFooter}>
-                <Text style={styles.condition}>{item.copyState === 'graded' ? 'GRADED' : (item.conditionCode || 'RAW').toUpperCase()}</Text>
+              <Text style={styles.condition}>{(item.conditionCode || 'RAW').toUpperCase()}</Text>
                 <Ionicons name="chevron-forward" size={13} color={FateDropColors.muted} />
               </View>
             </Pressable>

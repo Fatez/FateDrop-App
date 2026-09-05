@@ -429,7 +429,7 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
       <OrbitalIntelligenceNode
         side="right"
         accent={accent}
-        eyebrow="FATE COLLECTORS"
+        eyebrow="FATE COLLECTIONS"
         title="YOUR COLLECTION"
         icon="people-outline"
         presentation={collection}
@@ -669,13 +669,14 @@ function buildMarketPresentation(period: FatePulseDirectionPeriod | undefined, s
 
 function buildCollectionPresentation(data: FateCollectorsSnapshot | null, state: LoadState, signedIn: boolean) {
   if (!signedIn) return { value: 'Connect', detail: 'Make the market personal', secondary: '', foot: 'Import once. FateDrop does the thinking.' };
-  if (state === 'loading') return { value: '—', detail: 'Loading collection evidence', secondary: '', foot: 'Value remains unknown until priced' };
-  if (state === 'error' || !data) return { value: '—', detail: 'Collection evidence unavailable', secondary: '', foot: 'No value inferred' };
+  if (state === 'loading') return { value: '—', detail: 'Opening your collection', secondary: '', foot: 'Cards and binders stay private' };
+  if (state === 'error' || !data) return { value: '—', detail: 'Collection unavailable', secondary: '', foot: 'No ownership inferred' };
   const collection = data.summary.collection;
   const closestSet = data.summary.closestSet;
-  const value = collection.status === 'unavailable' || collection.pricedUnits === 0 ? '—' : collectionValue(data);
-  const detail = `${data.summary.cardUnits} ${data.summary.cardUnits === 1 ? 'card' : 'cards'} · ${data.summary.setsOwned} ${data.summary.setsOwned === 1 ? 'set' : 'sets'}`;
-  return { value, detail, secondary: `Price coverage ${marketPercent(collection.priceCoveragePercent)}`, foot: closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}%` : 'Closest set unavailable' };
+  const value = `${data.summary.cardUnits}`;
+  const detail = `${data.summary.cardUnits === 1 ? 'owned card' : 'owned cards'} · ${data.summary.setsOwned} ${data.summary.setsOwned === 1 ? 'set' : 'sets'}`;
+  const secondary = collection.pricedUnits > 0 ? `${collection.pricedUnits}/${collection.totalUnits} copies priced` : 'Values still building';
+  return { value, detail, secondary, foot: closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}% complete` : 'Start a set binder' };
 }
 
 function chooseHomeEvent(events: CalendarEvent[], selectedTcgCodes: TcgCode[], observedNow: number) {
@@ -708,15 +709,6 @@ function movementPercent(value: number | null | undefined) {
 
 function marketPercent(value: number | null | undefined) {
   return value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
-}
-
-function collectionValue(data: FateCollectorsSnapshot) {
-  const collection = data.summary.collection;
-  try {
-    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: data.summary.currencyCode, maximumFractionDigits: 0 }).format(collection.knownValue);
-  } catch {
-    return `${collection.knownValue.toFixed(0)} ${data.summary.currencyCode}`;
-  }
 }
 
 const heroShadow = { textShadowColor: 'rgba(0,0,0,.94)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } as const;

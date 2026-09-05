@@ -25,7 +25,7 @@ export function AddToFateCollectorAction({ cardIdentityId, setName }: { cardIden
     try {
       await addExactCardToCollector(cardIdentityId);
       setAdded(true);
-      setMessage(`Added one copy${setName ? ` to your ${setName} binder` : ' to FateCollector'}.`);
+      setMessage(`Added one raw copy${setName ? ` to your ${setName} binder` : ' to Fate Collections'}.`);
     } catch (error) {
       if (error instanceof FateCollectorApiError && error.status === 401) {
         router.push('/account');
@@ -38,7 +38,7 @@ export function AddToFateCollectorAction({ cardIdentityId, setName }: { cardIden
   };
 
   return <View style={styles.wrap}>
-    <Pressable accessibilityRole="button" accessibilityLabel={signedIn ? `Add this exact card to ${setName || 'FateCollector'}` : 'Connect FateDrop ID to add this card'} disabled={working} onPress={() => void add()} style={({ pressed }) => [styles.button, added && styles.buttonAdded, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={signedIn ? `Add this exact card to ${setName || 'Fate Collections'}` : 'Connect FateDrop ID to add this card'} disabled={working} onPress={() => void add()} style={({ pressed }) => [styles.button, added && styles.buttonAdded, pressed && styles.pressed]}>
       {working ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <Ionicons name={added ? 'checkmark-circle' : 'albums-outline'} size={17} color={FateDropColors.background} />}
       <View style={styles.copyWrap}>
         <Text style={styles.title}>{added ? 'ADDED TO COLLECTOR' : signedIn ? 'ADD TO COLLECTOR' : 'CONNECT TO ADD'}</Text>

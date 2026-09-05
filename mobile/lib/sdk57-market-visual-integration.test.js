@@ -19,14 +19,14 @@ test('Home uses one selected wallpaper as the continuous orbital theme', () => {
   assert.doesNotMatch(home, /ArtworkEdgeBlend/);
 });
 
-test('Home previews the approved Pulse and Collectors snapshots without inventing figures', () => {
+test('Home previews the approved Pulse and Collections snapshots without inventing figures', () => {
   assert.match(home, /params: \{ area: 'pulse' \}/);
   assert.match(home, /params: \{ area: 'collectors' \}/);
   assert.match(home, /FatePulse/);
-  assert.match(home, /FATE COLLECTORS/);
+  assert.match(home, /FATE COLLECTIONS/);
   assert.match(home, /period\.status !== 'available'/);
   assert.match(home, /period\.condition === 'insufficient_evidence'/);
-  assert.match(home, /collection\.pricedUnits === 0/);
+  assert.match(home, /collection\.pricedUnits > 0/);
   assert.doesNotMatch(home, /area="trader"/);
 });
 

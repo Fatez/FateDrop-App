@@ -39,9 +39,9 @@ function money(value: number | null | undefined, currencyCode: string | null | u
 
 function errorMessage(error: unknown) {
   if (error instanceof FateCollectorApiError && error.status === 404 && error.code === 'NOT_FOUND') {
-    return 'Preview is ready, but confirmed Collectr writes are not enabled on this Cloud deployment yet.';
+    return 'Preview is ready, but confirmed collection imports are not enabled on this Cloud deployment yet.';
   }
-  return error instanceof Error ? error.message : 'FateCollector could not complete that action.';
+  return error instanceof Error ? error.message : 'Fate Collections could not complete that action.';
 }
 
 export function FateCollectorEnhancements({
@@ -68,7 +68,7 @@ export function FateCollectorEnhancements({
   const valuationCurrency = collectorData?.evidence.valuationCurrencyCode || collectorData?.summary.currencyCode || 'GBP';
   const sourceCurrency = collectorData?.evidence.sourceMarketCurrencyCode || 'EUR';
 
-  const pickCollectrCsv = async () => {
+  const pickCollectionCsv = async () => {
     setWorking('pick');
     setMessage('');
     setPreview(null);
@@ -85,7 +85,7 @@ export function FateCollectorEnhancements({
       }
       const text = await file.text();
       setCsvText(text);
-      setFileName(file.name || 'Collectr export.csv');
+      setFileName(file.name || 'collection export.csv');
       setWorking('preview');
       const next = await previewCollectrCsv(text);
       setPreview(next);
@@ -107,7 +107,7 @@ export function FateCollectorEnhancements({
       setCsvText('');
       setFileName('');
       setMessage(result.duplicate
-        ? 'This exact Collectr export was already applied. Nothing was duplicated.'
+        ? 'This exact collection export was already applied. Nothing was duplicated.'
         : `Import complete · ${result.summary.created} added · ${result.summary.updated} updated · ${result.summary.held} held for review.`);
       await onCollectionChanged();
     } catch (error) {
@@ -164,20 +164,20 @@ export function FateCollectorEnhancements({
 
     <View style={styles.section}>
       <View style={styles.headingRow}>
-        <View style={styles.flex}><Text style={styles.eyebrow}>SET BINDERS</Text><Text style={styles.title}>Progress, set by set</Text><Text style={styles.copy}>Binders count verified exact cards. Unknown set totals stay marked as unavailable.</Text></View>
+        <View style={styles.flex}><Text style={styles.eyebrow}>SET BINDERS</Text><Text style={styles.title}>Open the sets you are building</Text><Text style={styles.copy}>Binders count verified raw printings only. Tap one to see every owned and missing card; graded slabs stay separate.</Text></View>
         <View style={styles.countBadge}><Text style={styles.countBadgeValue}>{binders.length}</Text><Text style={styles.countBadgeLabel}>BINDERS</Text></View>
       </View>
       {binders.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.binderRail}>
         {binders.map((binder) => <BinderCard binder={binder} key={binder.setId} />)}
-      </ScrollView> : <View style={styles.emptyBinder}><Ionicons name="albums-outline" size={19} color={FateDropColors.muted} /><View style={styles.flex}><Text style={styles.emptyBinderTitle}>No binders yet</Text><Text style={styles.emptyBinderText}>Add an exact card from FatePrice or import your Collectr CSV to begin.</Text></View></View>}
+      </ScrollView> : <View style={styles.emptyBinder}><Ionicons name="albums-outline" size={19} color={FateDropColors.muted} /><View style={styles.flex}><Text style={styles.emptyBinderTitle}>No binders yet</Text><Text style={styles.emptyBinderText}>Add an exact card from FatePrice or import a collection CSV to begin.</Text></View></View>}
     </View>
 
     <View style={styles.section}>
       <View style={styles.headingRow}>
-        <View style={styles.flex}><Text style={styles.eyebrow}>IMPORT YOUR COLLECTION</Text><Text style={styles.title}>Bring in your Collectr export</Text></View>
+        <View style={styles.flex}><Text style={styles.eyebrow}>OPTIONAL COLLECTION IMPORT</Text><Text style={styles.title}>Bring in a collection CSV</Text></View>
         {working ? <ActivityIndicator size="small" color={FateDropColors.echo} /> : null}
       </View>
-      <Text style={styles.copy}>You choose a CSV exported from your own account. FateDrop imports ownership only—not Collectr prices, artwork or login data.</Text>
+      <Text style={styles.copy}>Choose a CSV exported from another collection tracker. FateDrop imports ownership only—not third-party prices, artwork or login data.</Text>
       <View style={styles.importSteps}>
         <ImportStep number="1" label="CHOOSE" />
         <View style={styles.stepLine} />
@@ -185,9 +185,9 @@ export function FateCollectorEnhancements({
         <View style={styles.stepLine} />
         <ImportStep number="3" label="CONFIRM" />
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Choose a Collectr CSV to preview" disabled={Boolean(working)} onPress={() => void pickCollectrCsv()} style={({ pressed }) => [styles.importButton, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Choose a collection CSV to preview" disabled={Boolean(working)} onPress={() => void pickCollectionCsv()} style={({ pressed }) => [styles.importButton, pressed && styles.pressed]}>
         <Ionicons name="document-attach-outline" size={19} color={FateDropColors.echo} />
-        <View style={styles.flex}><Text style={styles.importButtonTitle}>{fileName || 'CHOOSE COLLECTR CSV'}</Text><Text style={styles.importButtonCopy}>{fileName ? 'Choose a different export' : 'Preview only · no write yet · 2 MB maximum'}</Text></View>
+        <View style={styles.flex}><Text style={styles.importButtonTitle}>{fileName || 'CHOOSE COLLECTION CSV'}</Text><Text style={styles.importButtonCopy}>{fileName ? 'Choose a different export' : 'Preview only · no write yet · 2 MB maximum'}</Text></View>
         <Ionicons name="chevron-forward" size={16} color={FateDropColors.echo} />
       </Pressable>
 
@@ -201,13 +201,13 @@ export function FateCollectorEnhancements({
         </View>
         <Text style={styles.previewCopy}>{preview.preview.matched.ambiguous} ambiguous · {preview.preview.matched.unresolved} unresolved · {preview.preview.parsed.rejectedRows} rejected CSV rows. None are silently added.</Text>
         {preview.preview.scale?.mayBeTruncated ? <Text style={styles.previewWarning}>This preview may be truncated, so confirmation is disabled.</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="Confirm exact Collectr import" disabled={working === 'confirm' || preview.preview.scale?.mayBeTruncated === true} onPress={() => void confirmImport()} style={({ pressed }) => [styles.confirmButton, preview.preview.scale?.mayBeTruncated && styles.buttonDisabled, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Confirm exact collection import" disabled={working === 'confirm' || preview.preview.scale?.mayBeTruncated === true} onPress={() => void confirmImport()} style={({ pressed }) => [styles.confirmButton, preview.preview.scale?.mayBeTruncated && styles.buttonDisabled, pressed && styles.pressed]}>
           {working === 'confirm' ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <Ionicons name="checkmark-circle-outline" size={18} color={FateDropColors.background} />}
           <Text style={styles.confirmText}>CONFIRM EXACT IMPORT</Text>
         </Pressable>
       </View> : null}
       {message ? <View accessibilityLiveRegion="polite" style={styles.messageRow}><Ionicons name="information-circle-outline" size={15} color={FateDropColors.echo} /><Text style={styles.message}>{message}</Text></View> : null}
-      <Text style={styles.legalNote}>USER-SUPPLIED EXPORT · NO COLLECTR LOGIN AUTOMATION · NO SCRAPING · NO COLLECTR PRICE CLAIMS</Text>
+      <Text style={styles.legalNote}>USER-SUPPLIED EXPORT · NO THIRD-PARTY LOGIN AUTOMATION · NO SCRAPING · NO IMPORTED PRICE CLAIMS</Text>
     </View>
   </>;
 }
@@ -234,7 +234,7 @@ function PersonalMoverList({ accent, items, label, period }: { accent: string; i
 function BinderCard({ binder }: { binder: FateCollectorSetBinder }) {
   const available = binder.status === 'available' && binder.completionPercent != null;
   const missing = binder.missingCount == null ? 'Checklist unavailable' : binder.missingCount === 0 ? 'Set complete' : `${binder.missingCount} ${binder.missingCount === 1 ? 'card' : 'cards'} missing`;
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${binder.setName || 'set'} collection, ${available ? percentText(binder.completionPercent) : 'completion unavailable'}`} onPress={() => router.push({ pathname: '/collection', params: { setId: binder.setId, setName: binder.setName || undefined } })} style={({ pressed }) => [styles.binderCard, pressed && styles.pressed]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${binder.setName || 'set'} binder, ${available ? percentText(binder.completionPercent) : 'completion unavailable'}`} onPress={() => router.push({ pathname: '/binder/[setId]', params: { setId: binder.setId, setName: binder.setName || undefined } })} style={({ pressed }) => [styles.binderCard, pressed && styles.pressed]}>
     <View style={styles.binderTop}><View style={styles.binderIcon}><Ionicons name="albums-outline" size={18} color={FateDropColors.echo} /></View><Text style={styles.binderPercent}>{available ? percentText(binder.completionPercent) : '—'}</Text></View>
     <Text style={styles.binderName} numberOfLines={2}>{binder.setName || 'Verified set'}</Text>
     <Text style={styles.binderMeta}>{binder.ownedCount == null ? 'Owned count building' : `${binder.ownedCount} of ${binder.totalCount ?? '—'} exact cards`}</Text>
