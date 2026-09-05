@@ -28,11 +28,11 @@ test('card search carries every active scope plus the free-text query', () => {
 });
 
 test('scope clearing is deliberately cascading rather than resetting everything', () => {
-  assert.match(panel, /label="ALL" selected=!\{scope\.tcgCode\}/);
+  assert.match(panel, /label="ALL" selected=\{!scope\.tcgCode\}/);
   assert.match(panel, /applyScope\(\{ tcgCode: '', seriesId: '', setId: '' \}\)/);
-  assert.match(panel, /label="ALL SERIES" selected=!\{scope\.seriesId\}/);
+  assert.match(panel, /label="ALL SERIES" selected=\{!scope\.seriesId\}/);
   assert.match(panel, /applyScope\(\{ tcgCode: scope\.tcgCode, seriesId: '', setId: '' \}\)/);
-  assert.match(panel, /label="ALL SETS" selected=!\{scope\.setId\}/);
+  assert.match(panel, /label="ALL SETS" selected=\{!scope\.setId\}/);
   assert.match(panel, /applyScope\(\{ tcgCode: scope\.tcgCode, seriesId: scope\.seriesId, setId: '' \}\)/);
 });
 
