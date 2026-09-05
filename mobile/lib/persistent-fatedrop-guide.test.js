@@ -26,7 +26,7 @@ test('persistent guide can replay the full guided tour', () => {
 });
 
 test('persistent guide explains and links the core collector features', () => {
-  for (const label of ['Search', 'Wishlist', 'FateFind', 'FateMatch', 'True Price', 'Alerts', 'Local Radar', 'Fate Network']) {
+  for (const label of ['Search', 'Wishlist', 'FateFind', 'FateMatch', 'FatePrice', 'Alerts', 'Local Radar', 'Fate Network']) {
     assert.match(guide, new RegExp(`title: '${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`));
   }
   assert.match(guide, /Whisper/);

@@ -41,8 +41,12 @@ test('FatePulse and Collectors fail visibly closed while evidence gates are inco
   assert.doesNotMatch(market, /useMemo\([^)]*(?:heat|volatility|value)/i);
 });
 
-test('True Price remains owned by FateFind rather than becoming a fourth market engine', () => {
+test('FatePrice has a dedicated page while Cloud remains the calculation authority', () => {
   const truePrice = read('app/true-price.tsx');
-  assert.match(truePrice, /pathname: '\/fatefind'/);
+  const fatePrice = read('screens/fate-price-screen.tsx');
+  assert.match(truePrice, /pathname: '\/fate-price'/);
+  assert.match(fatePrice, /fetchFatePrice/);
+  assert.match(fatePrice, /lowest listing is shown only as context/i);
+  assert.doesNotMatch(fatePrice, /function\s+(?:calculate|score).*(?:price|value|heat)/i);
   assert.doesNotMatch(market, /function\s+(?:calculate|score).*(?:price|value|heat)/i);
 });

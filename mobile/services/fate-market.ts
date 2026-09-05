@@ -11,6 +11,8 @@ const MARKET_SNAPSHOT_TTL_MS = 30_000;
 type SnapshotCache<T> = { cachedAt: number; data: T };
 const pulseCache = new Map<string, SnapshotCache<FatePulseSnapshot>>();
 const pulseFlights = new Map<string, Promise<FatePulseSnapshot>>();
+const fatePriceCache = new Map<string, SnapshotCache<FatePriceSnapshot>>();
+const fatePriceFlights = new Map<string, Promise<FatePriceSnapshot>>();
 let collectorsCache: (SnapshotCache<FateCollectorsSnapshot> & { token: string }) | null = null;
 let collectorsFlight: { token: string; promise: Promise<FateCollectorsSnapshot> } | null = null;
 
@@ -143,6 +145,91 @@ export type FateCollectorsSnapshot = {
   };
 };
 
+export type FatePriceCard = {
+  id: string;
+  fateCardId: string;
+  tcgCode: string | null;
+  seriesId: string;
+  seriesName: string | null;
+  setId: string;
+  setName: string | null;
+  printingId: string;
+  name: string | null;
+  collectorNumber: string;
+  rarity: string | null;
+  supertype: string | null;
+  variantCode: string;
+  languageCode: string;
+  verificationStatus: string;
+  verifiedAt: number | null;
+};
+
+export type FatePriceScope = {
+  currencyCode: string | null;
+  marketSegmentKey: string;
+  conditionCode: string;
+};
+
+export type FatePriceMovement = {
+  available: boolean;
+  reason?: string;
+  targetAsOf?: number;
+  days?: number;
+  fromAmount?: number;
+  toAmount?: number;
+  absolute?: number;
+  percent?: number;
+  fromAsOf?: number;
+  toAsOf?: number;
+};
+
+export type FatePriceSnapshot = {
+  contractVersion: number;
+  policyVersion: string;
+  cardIdentityId: string;
+  available: boolean;
+  reason: string | null;
+  marketScope: FatePriceScope | null;
+  price: null | {
+    amount: number;
+    currencyCode: string;
+    fairLow: number;
+    fairHigh: number;
+    guideLow: number | null;
+    asOf: number;
+  };
+  movement: { d7: FatePriceMovement; d30: FatePriceMovement };
+  confidence: null | {
+    level: 'low' | 'medium' | 'high';
+    reasons: string[];
+    sourceCount: number;
+    spreadPercent: number | null;
+    ageHours: number;
+  };
+  evidence: {
+    availableScopes: FatePriceScope[];
+    requestedScope: null | {
+      currencyCode: string | null;
+      marketSegmentKey: string | null;
+      conditionCode: string | null;
+    };
+    sourceCount: number;
+    sources: string[];
+    centralSignals?: string[];
+    centralPolicy?: string;
+    lowestListingUsedInCentralPrice?: false;
+    sourceEstimates?: Array<{
+      sourceName: string;
+      asOf: number;
+      estimate: number;
+      rangeLow: number;
+      rangeHigh: number;
+      guideLow: number | null;
+      signals: Array<{ field: string; value: number }>;
+    }>;
+  };
+};
+
 export class FateMarketApiError extends Error {
   status: number;
   code: string;
@@ -195,6 +282,51 @@ export function fetchFatePulse(tcgCode?: string, { force = false }: { force?: bo
   });
   pulseFlights.set(key, flight);
   return flight;
+}
+
+function fatePriceScopeQuery(scope?: Partial<FatePriceScope> | null) {
+  const params: string[] = [];
+  if (scope?.currencyCode) params.push(`currency=${encodeURIComponent(scope.currencyCode)}`);
+  if (scope?.marketSegmentKey) params.push(`marketSegment=${encodeURIComponent(scope.marketSegmentKey)}`);
+  if (scope?.conditionCode) params.push(`condition=${encodeURIComponent(scope.conditionCode)}`);
+  return params.length ? `?${params.join('&')}` : '';
+}
+
+export function fetchFatePrice(cardIdentityId: string, {
+  force = false,
+  scope = null,
+}: { force?: boolean; scope?: Partial<FatePriceScope> | null } = {}) {
+  const id = cardIdentityId.trim();
+  if (!id) return Promise.reject(new FateMarketApiError('Choose an exact card first.', 400, 'CARD_IDENTITY_REQUIRED'));
+  const query = fatePriceScopeQuery(scope);
+  const key = `${id}${query}`;
+  const cached = fatePriceCache.get(key);
+  if (!force && cached && Date.now() - cached.cachedAt < MARKET_SNAPSHOT_TTL_MS) return Promise.resolve(cached.data);
+  const active = fatePriceFlights.get(key);
+  if (active) return active;
+  const flight = request<{ fatePrice: FatePriceSnapshot }>(`/v1/fate-price/${encodeURIComponent(id)}${query}`).then(({ fatePrice }) => {
+    fatePriceCache.set(key, { cachedAt: Date.now(), data: fatePrice });
+    return fatePrice;
+  }).finally(() => {
+    if (fatePriceFlights.get(key) === flight) fatePriceFlights.delete(key);
+  });
+  fatePriceFlights.set(key, flight);
+  return flight;
+}
+
+export function searchFatePriceCards({
+  query = '',
+  setId = '',
+  limit = 60,
+}: { query?: string; setId?: string; limit?: number } = {}) {
+  const params = [`limit=${Math.max(1, Math.min(100, Math.trunc(limit)))}`];
+  if (query.trim()) params.push(`q=${encodeURIComponent(query.trim())}`);
+  if (setId.trim()) params.push(`setId=${encodeURIComponent(setId.trim())}`);
+  return request<{ cards: FatePriceCard[]; count: number }>(`/v1/cards?${params.join('&')}`);
+}
+
+export function fetchFatePriceCard(cardIdentityId: string) {
+  return request<{ card: FatePriceCard }>(`/v1/cards/${encodeURIComponent(cardIdentityId.trim())}`);
 }
 
 export async function fetchFateCollectorsSummary({ force = false }: { force?: boolean } = {}) {

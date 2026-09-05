@@ -30,6 +30,15 @@ test('FatePulse supports evidence-backed period and mover exploration', () => {
   assert.match(screen, /risers\.slice\(0, TOP_MOVER_LIMIT\)/);
   assert.match(screen, /decliners\.slice\(0, TOP_MOVER_LIMIT\)/);
   assert.match(screen, /SELECTED EVIDENCE/);
+  assert.match(screen, /READ EXACT FATEPRICE/);
+  assert.match(screen, /cardId: item\.cardIdentityId/);
+});
+
+test('FatePrice and Collectors are explicitly interlinked without routing through FateFind', () => {
+  assert.match(screen, /OPEN FATEPRICE/);
+  assert.match(screen, /Explore closest set in FatePrice/);
+  assert.match(screen, /pathname: '\/fate-price'/);
+  assert.doesNotMatch(screen, /CHOOSE AN EXACT CARD IN FATEFIND/);
 });
 
 test('Fate Market uses one decode-light orbital theme and selectable TCG scope', () => {

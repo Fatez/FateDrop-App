@@ -9,6 +9,8 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const tabs = read('app/(tabs)/_layout.tsx');
 const marketRoute = read('app/(tabs)/market.tsx');
 const market = read('screens/fate-market-screen-v2.tsx');
+const fatePrice = read('screens/fate-price-screen.tsx');
+const fatePriceService = read('services/fate-market.ts');
 
 test('FateFind remains the centre of the Fate Network compass', () => {
   assert.match(tabs, /accessibilityLabel="Open FateFind"/);
@@ -34,9 +36,13 @@ test('Fate Market is Pulse Price Collectors and does not own Fate Trader', () =>
   assert.doesNotMatch(market, /title: 'Fate Trader'/);
 });
 
-test('FatePrice fails closed until exact canonical price evidence is available', () => {
+test('FatePrice owns a dedicated exact-card evidence page and fails closed', () => {
   assert.match(market, /CANONICAL EXACT-CARD VALUE/);
-  assert.match(market, /label="CANONICAL EXACT-CARD VALUE" value="—"/);
-  assert.match(market, /No synthetic price · no silent FX conversion/);
-  assert.match(market, /FatePrice stays blank until an exact canonical card/);
+  assert.match(market, /OPEN FATEPRICE/);
+  assert.match(fatePrice, /EXACT-CARD VALUE/);
+  assert.match(fatePrice, /7D MOVE/);
+  assert.match(fatePrice, /30D MOVE/);
+  assert.match(fatePrice, /CHOOSE EXACT MARKET SCOPE/);
+  assert.match(fatePriceService, /\/v1\/fate-price\//);
+  assert.doesNotMatch(fatePrice, /Math\.random|mock|demo/i);
 });

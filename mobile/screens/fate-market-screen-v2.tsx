@@ -244,7 +244,7 @@ export default function FateMarketScreenV2() {
                 key={key}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
-                onPress={() => setActiveArea(key)}
+                onPress={() => key === 'price' ? router.push('/fate-price') : setActiveArea(key)}
                 style={({ pressed }) => [styles.areaTab, selected && styles.areaTabActive, pressed && styles.pressed]}
               >
                 <Ionicons name={area.icon} size={16} color={selected ? area.accent : FateDropColors.muted} />
@@ -385,16 +385,11 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
 function PricePanel() {
   return (
     <View style={styles.panel}>
-      <PanelHeading eyebrow="FATEPRICE" title="What is this card actually worth?" accent={FateDropColors.goldBright} status="EVIDENCE GATED" />
-      <ValueInstrument accent={FateDropColors.goldBright} icon="pricetag-outline" label="CANONICAL EXACT-CARD VALUE" value="—" detail="No synthetic price · no silent FX conversion" />
-      <View style={styles.threeFactLedger}>
-        <MarketMetric label="7D" value="—" detail="Movement" /><View style={styles.ledgerDivider} />
-        <MarketMetric label="30D" value="—" detail="Movement" /><View style={styles.ledgerDivider} />
-        <MarketMetric label="COVERAGE" value="—" detail="Evidence" />
-      </View>
-      <View style={styles.readinessLine}><Ionicons name="lock-closed-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.readinessCopy}>FatePrice stays blank until an exact canonical card, market scope and fresh price evidence can be read safely. Asking prices are not silently treated as sold value.</Text></View>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/fatefind')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}>
-        <Ionicons name="search-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.orbitalActionText}>CHOOSE AN EXACT CARD IN FATEFIND</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.goldBright} />
+      <PanelHeading eyebrow="FATEPRICE" title="What is this exact card worth?" accent={FateDropColors.goldBright} status="DEDICATED VIEW" />
+      <ValueInstrument accent={FateDropColors.goldBright} icon="pricetag-outline" label="CANONICAL EXACT-CARD VALUE" value="FatePrice" detail="Verified price · 7D and 30D movement · explicit market scope" />
+      <View style={styles.readinessLine}><Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.readinessCopy}>FatePrice now has its own exact-card monitoring page. Cloud owns the price, movement, confidence and provenance; ambiguous scopes ask instead of guessing.</Text></View>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}>
+        <Ionicons name="pricetag-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.orbitalActionText}>OPEN FATEPRICE</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.goldBright} />
       </Pressable>
     </View>
   );
@@ -426,7 +421,7 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
       {summary?.closestSet ? (
         <View style={styles.closestSetLine}>
           <View style={styles.flex}><Text style={styles.closestSetEyebrow}>CLOSEST TO COMPLETION</Text><Text style={styles.closestSetName}>{summary.closestSet.setName || 'Verified set'}</Text><Text style={styles.closestSetDetail}>{summary.closestSet.missingCount} cards missing</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Explore closest set in FateFind" onPress={() => router.push({ pathname: '/fatefind', params: { query: summary.closestSet?.setName || undefined, tcg: summary.closestSet?.tcgCode || undefined } })} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}><Ionicons name="search-outline" size={17} color={FateDropColors.echo} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Explore closest set in FatePrice" onPress={() => router.push({ pathname: '/fate-price', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined, tcg: summary.closestSet?.tcgCode || undefined } })} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}><Ionicons name="pricetag-outline" size={17} color={FateDropColors.echo} /></Pressable>
         </View>
       ) : null}
       <Text style={styles.panelCopy}>{collectionCopy}</Text>
@@ -488,7 +483,20 @@ function MoverEvidence({ currencyCode, item, periodLabel }: { currencyCode: stri
     { label: 'BASELINE BASKET', value: formatMoney(item.baselineBasketValue, currencyCode) },
     { label: 'EXACT BASELINE', value: percentText(item.baselineCoveragePct) },
   ];
-  return <View style={styles.moverEvidence}><Text style={styles.moverEvidenceEyebrow}>SELECTED EVIDENCE · {periodLabel}D</Text><Text style={styles.moverEvidenceTitle}>{title}</Text><View style={styles.moverEvidenceFacts}>{facts.map((fact) => <View key={fact.label} style={styles.moverEvidenceFact}><Text style={styles.moverEvidenceLabel}>{fact.label}</Text><Text style={styles.moverEvidenceValue}>{fact.value}</Text></View>)}</View></View>;
+  const openFatePrice = () => {
+    if (!isCard) return;
+    router.push({
+      pathname: '/fate-price',
+      params: {
+        cardId: item.cardIdentityId,
+        collectorNumber: item.collectorNumber || undefined,
+        name: item.name || undefined,
+        setName: item.setName || undefined,
+        tcg: item.tcgCode || undefined,
+      },
+    });
+  };
+  return <View style={styles.moverEvidence}><Text style={styles.moverEvidenceEyebrow}>SELECTED EVIDENCE · {periodLabel}D</Text><Text style={styles.moverEvidenceTitle}>{title}</Text><View style={styles.moverEvidenceFacts}>{facts.map((fact) => <View key={fact.label} style={styles.moverEvidenceFact}><Text style={styles.moverEvidenceLabel}>{fact.label}</Text><Text style={styles.moverEvidenceValue}>{fact.value}</Text></View>)}</View>{isCard ? <Pressable accessibilityRole="button" accessibilityLabel={`Open FatePrice for ${title}`} onPress={openFatePrice} style={({ pressed }) => [styles.moverPriceAction, pressed && styles.pressed]}><Ionicons name="pricetag-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.moverPriceActionText}>READ EXACT FATEPRICE</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.goldBright} /></Pressable> : null}</View>;
 }
 
 function MarketMetric({ detail, label, value }: { detail: string; label: string; value: string }) {
@@ -604,6 +612,8 @@ const styles = StyleSheet.create({
   moverEvidenceFact: { flex: 1, minWidth: 0 },
   moverEvidenceLabel: { color: FateDropColors.muted, fontSize: 5.6, fontWeight: '900' },
   moverEvidenceValue: { color: FateDropColors.ivory, fontSize: 8.5, lineHeight: 11, marginTop: 2 },
+  moverPriceAction: { minHeight: 35, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(226,197,141,.24)' },
+  moverPriceActionText: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .55 },
   valueInstrument: { minHeight: 230, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   valueOrbit: { position: 'absolute', width: 208, height: 208, borderRadius: 104, borderWidth: StyleSheet.hairlineWidth },
   valueLabel: { color: FateDropColors.gold, fontSize: 6.8, fontWeight: '900', letterSpacing: .8, marginTop: 8 },

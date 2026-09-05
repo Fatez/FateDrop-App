@@ -9,6 +9,7 @@ const screen = fs.readFileSync(path.join(root, 'screens/fate-market-screen-v2.ts
 test('Fate Market snapshots are freshness bounded and single flight', () => {
   assert.match(service, /MARKET_SNAPSHOT_TTL_MS = 30_000/);
   assert.match(service, /pulseFlights\.get\(key\)/);
+  assert.match(service, /fatePriceFlights\.get\(key\)/);
   assert.match(service, /collectorsFlight\?\.token === token/);
 });
 

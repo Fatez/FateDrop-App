@@ -7,7 +7,7 @@ export default function LegacyTruePriceRoute() {
   return (
     <Redirect
       href={{
-        pathname: '/fatefind',
+        pathname: '/fate-price',
         params: query ? { query } : {},
       }}
     />
