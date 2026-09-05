@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AddToFateCollectorAction } from '@/components/add-to-fate-collector-action';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
@@ -311,6 +312,7 @@ export default function FatePriceScreen() {
             <PriceMetric accent={FateDropColors.echo} detail={price?.confidence ? `${price.confidence.sourceCount} source${price.confidence.sourceCount === 1 ? '' : 's'}` : 'Not scored'} label="CONFIDENCE" value={price?.confidence?.level.toUpperCase() || '—'} />
           </View>
 
+          {selectedCardId ? <AddToFateCollectorAction cardIdentityId={selectedCardId} setName={selectedSet} /> : null}
           {selectedCardId ? <HistoryPanel currencyCode={currency} days={historyDays} history={history} loading={historyLoading} notice={historyNotice} onChooseDays={chooseHistoryDays} /> : null}
 
           {scopeOptions.length ? (
