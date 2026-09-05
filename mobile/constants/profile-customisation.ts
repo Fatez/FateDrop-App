@@ -21,8 +21,9 @@ const wallpaper2 = require('../assets/images/wallpapers/wallpaper-2.png');
 const wallpaper3 = require('../assets/images/wallpapers/wallpaper-3.png');
 const wallpaper4 = require('../assets/images/wallpapers/wallpaper-4.png');
 const wallpaper5 = require('../assets/images/wallpapers/wallpaper-5.png');
+const wallpaper6 = require('../assets/images/wallpapers/wallpaper-6.png');
 
-// Koru plus fatedrop1..5 are selectable. Legacy IDs are retained as safe aliases so a
+// Koru plus fatedrop1..6 are selectable. Legacy IDs are retained as safe aliases so a
 // stale in-memory value can never reference a removed asset while storage migrates.
 export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   koruHome,
@@ -31,11 +32,11 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   fatedrop3: wallpaper3,
   fatedrop4: wallpaper4,
   fatedrop5: wallpaper5,
+  fatedrop6: wallpaper6,
   default: koruHome,
   oru: koruHome,
   fenn: koruHome,
   nyxen: koruHome,
-  fatedrop6: koruHome,
   fatedrop7: koruHome,
   fatedrop8: koruHome,
   fatedrop9: koruHome,
@@ -46,7 +47,7 @@ export const profileWallpaperSources: Record<ProfileWallpaperId, number> = {
   fatedrop14: koruHome,
 };
 
-// Full-resolution canonical assets are intentionally reused in the picker for the five
+// Full-resolution canonical assets are intentionally reused in the picker for the six
 // new wallpapers. Koru keeps its existing lightweight thumbnail.
 export const profileWallpaperThumbnailSources: Record<ProfileWallpaperId, number> = {
   koruHome: koruHomeThumbnail,
@@ -55,11 +56,11 @@ export const profileWallpaperThumbnailSources: Record<ProfileWallpaperId, number
   fatedrop3: wallpaper3,
   fatedrop4: wallpaper4,
   fatedrop5: wallpaper5,
+  fatedrop6: wallpaper6,
   default: koruHomeThumbnail,
   oru: koruHomeThumbnail,
   fenn: koruHomeThumbnail,
   nyxen: koruHomeThumbnail,
-  fatedrop6: koruHomeThumbnail,
   fatedrop7: koruHomeThumbnail,
   fatedrop8: koruHomeThumbnail,
   fatedrop9: koruHomeThumbnail,
@@ -77,11 +78,11 @@ export const profileWallpaperMeta: Record<ProfileWallpaperId, { name: string; ac
   fatedrop3: { name: 'FateDrop Citadel', accent: '#D6BA73' },
   fatedrop4: { name: 'Twin Horizon', accent: '#9A7CFF' },
   fatedrop5: { name: 'Solix', accent: '#D6BA73' },
+  fatedrop6: { name: 'FateDrop · 06', accent: '#7C6EFF' },
   default: { name: 'Archived', accent: '#D6BA73' },
   oru: { name: 'Archived', accent: '#7C6EFF' },
   fenn: { name: 'Archived', accent: '#D9CDBB' },
   nyxen: { name: 'Archived', accent: '#EF4D5A' },
-  fatedrop6: { name: 'Archived', accent: '#7C6EFF' },
   fatedrop7: { name: 'Archived', accent: '#7C6EFF' },
   fatedrop8: { name: 'Archived', accent: '#D6BA73' },
   fatedrop9: { name: 'Archived', accent: '#66D9E8' },
