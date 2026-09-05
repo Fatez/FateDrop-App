@@ -11,8 +11,11 @@ import {
   FateMarketApiError,
   fetchFatePrice,
   fetchFatePriceCard,
+  fetchFatePriceHistory,
   searchFatePriceCards,
   type FatePriceCard,
+  type FatePriceHistoryDays,
+  type FatePriceHistorySnapshot,
   type FatePriceMovement,
   type FatePriceScope,
   type FatePriceSnapshot,
@@ -70,6 +73,7 @@ function evidenceReason(reason: string | null | undefined) {
   if (reason === 'STALE_MARKET_EVIDENCE') return 'The latest evidence is too old to publish as a current FatePrice.';
   if (reason === 'INSUFFICIENT_MARKET_SIGNALS') return 'The source does not yet provide enough central price signals.';
   if (reason === 'NO_MARKET_EVIDENCE_AS_OF') return 'There is no verified evidence at the required point in time.';
+  if (reason === 'NO_MARKET_EVIDENCE_IN_RANGE') return 'There are no stored market-day observations in this window yet.';
   return 'Choose an exact canonical card to read its verified market evidence.';
 }
 
@@ -101,10 +105,14 @@ export default function FatePriceScreen() {
   const [selectedCard, setSelectedCard] = useState<FatePriceCard | null>(null);
   const [selectedCardId, setSelectedCardId] = useState(routeCardId);
   const [price, setPrice] = useState<FatePriceSnapshot | null>(null);
+  const [history, setHistory] = useState<FatePriceHistorySnapshot | null>(null);
+  const [historyDays, setHistoryDays] = useState<FatePriceHistoryDays>(30);
   const [searching, setSearching] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [searchNotice, setSearchNotice] = useState('');
   const [priceNotice, setPriceNotice] = useState('');
+  const [historyNotice, setHistoryNotice] = useState('');
 
   const loadPrice = useCallback(async (cardIdentityId: string, scope: FatePriceScope | null = null, force = false) => {
     setPriceLoading(true);
@@ -120,10 +128,24 @@ export default function FatePriceScreen() {
     }
   }, []);
 
+  const loadHistory = useCallback(async (cardIdentityId: string, scope: FatePriceScope | null = null, days: FatePriceHistoryDays = 30, force = false) => {
+    setHistoryLoading(true);
+    setHistoryNotice('');
+    try {
+      const next = await fetchFatePriceHistory(cardIdentityId, { days, force, scope });
+      setHistory(next);
+    } catch (error) {
+      setHistory(null);
+      setHistoryNotice(error instanceof FateMarketApiError ? error.message : 'FatePrice history is temporarily unavailable.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const searchCards = useCallback(async (nextQuery: string, nextSetId: string) => {
     const cleanQuery = nextQuery.trim();
-    if (!cleanQuery && !nextSetId) {
-      setSearchNotice('Enter a card name or collector number.');
+    if (cleanQuery.length < 2 && !nextSetId) {
+      setSearchNotice('Enter at least two letters or numbers.');
       setResults([]);
       return;
     }
@@ -147,14 +169,18 @@ export default function FatePriceScreen() {
     let active = true;
     if (routeCardId) {
       setSelectedCardId(routeCardId);
-      void Promise.allSettled([fetchFatePriceCard(routeCardId), fetchFatePrice(routeCardId)]).then(([cardResult, priceResult]) => {
+      void Promise.allSettled([fetchFatePriceCard(routeCardId), fetchFatePrice(routeCardId), fetchFatePriceHistory(routeCardId, { days: 30 })]).then(([cardResult, priceResult, historyResult]) => {
         if (!active) return;
         if (cardResult.status === 'fulfilled') setSelectedCard(cardResult.value.card);
         if (priceResult.status === 'fulfilled') setPrice(priceResult.value);
         else setPriceNotice(priceResult.reason instanceof FateMarketApiError ? priceResult.reason.message : 'FatePrice evidence is temporarily unavailable.');
+        if (historyResult.status === 'fulfilled') setHistory(historyResult.value);
+        else setHistoryNotice(historyResult.reason instanceof FateMarketApiError ? historyResult.reason.message : 'FatePrice history is temporarily unavailable.');
         setPriceLoading(false);
+        setHistoryLoading(false);
       });
       setPriceLoading(true);
+      setHistoryLoading(true);
     } else if (routeSetId) {
       void searchCards('', routeSetId);
     } else if (routeQuery || routeName) {
@@ -170,8 +196,15 @@ export default function FatePriceScreen() {
     setResults([]);
     setSearchNotice('');
     setPrice(null);
-    void loadPrice(card.id);
-  }, [loadPrice]);
+    setHistory(null);
+    setHistoryNotice('');
+    void Promise.all([loadPrice(card.id), loadHistory(card.id, null, historyDays)]);
+  }, [historyDays, loadHistory, loadPrice]);
+
+  const chooseHistoryDays = useCallback((days: FatePriceHistoryDays) => {
+    setHistoryDays(days);
+    if (selectedCardId) void loadHistory(selectedCardId, price?.marketScope ?? null, days);
+  }, [loadHistory, price?.marketScope, selectedCardId]);
 
   const selectedTitle = selectedCard?.name || (selectedCardId === routeCardId ? routeName : '') || 'Exact canonical card';
   const selectedSet = selectedCard?.setName || (selectedCardId === routeCardId ? routeSetName : '') || 'Verified identity';
@@ -198,7 +231,7 @@ export default function FatePriceScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={priceLoading} onRefresh={() => selectedCardId ? void loadPrice(selectedCardId, price?.marketScope ?? null, true) : undefined} tintColor={FateDropColors.goldBright} />}
+        refreshControl={<RefreshControl refreshing={priceLoading || historyLoading} onRefresh={() => selectedCardId ? void Promise.all([loadPrice(selectedCardId, price?.marketScope ?? null, true), loadHistory(selectedCardId, price?.marketScope ?? null, historyDays, true)]) : undefined} tintColor={FateDropColors.goldBright} />}
       >
         <Pressable accessibilityLabel="Back to Fate Market" onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
           <Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} />
@@ -278,13 +311,15 @@ export default function FatePriceScreen() {
             <PriceMetric accent={FateDropColors.echo} detail={price?.confidence ? `${price.confidence.sourceCount} source${price.confidence.sourceCount === 1 ? '' : 's'}` : 'Not scored'} label="CONFIDENCE" value={price?.confidence?.level.toUpperCase() || '—'} />
           </View>
 
+          {selectedCardId ? <HistoryPanel currencyCode={currency} days={historyDays} history={history} loading={historyLoading} notice={historyNotice} onChooseDays={chooseHistoryDays} /> : null}
+
           {scopeOptions.length ? (
             <View style={styles.scopeSection}>
               <Text style={styles.scopeTitle}>{scopeOptions.length > 1 ? 'CHOOSE EXACT MARKET SCOPE' : 'VERIFIED MARKET SCOPE'}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRail}>
                 {scopeOptions.map((scope) => {
                   const selected = currentScopeKey === scopeKey(scope);
-                  return <Pressable key={scopeKey(scope)} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => void loadPrice(selectedCardId, scope)} style={[styles.scopeButton, selected && styles.scopeButtonActive]}><View style={[styles.scopeDot, selected && styles.scopeDotActive]} /><Text style={[styles.scopeButtonText, selected && styles.scopeButtonTextActive]}>{scopeLabel(scope).toUpperCase()}</Text></Pressable>;
+                  return <Pressable key={scopeKey(scope)} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => void Promise.all([loadPrice(selectedCardId, scope), loadHistory(selectedCardId, scope, historyDays)])} style={[styles.scopeButton, selected && styles.scopeButtonActive]}><View style={[styles.scopeDot, selected && styles.scopeDotActive]} /><Text style={[styles.scopeButtonText, selected && styles.scopeButtonTextActive]}>{scopeLabel(scope).toUpperCase()}</Text></Pressable>;
                 })}
               </ScrollView>
             </View>
@@ -330,6 +365,48 @@ function MarketConstellation() {
 
 function PriceMetric({ accent, detail, label, value }: { accent: string; detail: string; label: string; value: string }) {
   return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text numberOfLines={1} adjustsFontSizeToFit style={[styles.metricValue, { color: accent }]}>{value}</Text><Text style={styles.metricDetail}>{detail}</Text></View>;
+}
+
+function HistoryPanel({
+  currencyCode,
+  days,
+  history,
+  loading,
+  notice,
+  onChooseDays,
+}: {
+  currencyCode: string;
+  days: FatePriceHistoryDays;
+  history: FatePriceHistorySnapshot | null;
+  loading: boolean;
+  notice: string;
+  onChooseDays: (days: FatePriceHistoryDays) => void;
+}) {
+  const points = history?.available ? history.points : [];
+  const amounts = points.map((point) => point.amount);
+  const low = amounts.length ? Math.min(...amounts) : null;
+  const high = amounts.length ? Math.max(...amounts) : null;
+  const spread = low != null && high != null ? high - low : 0;
+
+  return <View style={styles.historyPanel}>
+    <View style={styles.historyHeading}>
+      <View style={styles.flex}><Text style={styles.sectionEyebrow}>VERIFIED PRICE HISTORY</Text><Text style={styles.historyCopy}>Cloud-calculated FatePrice on stored market days only. Missing days are never filled.</Text></View>
+      {loading ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : null}
+    </View>
+    <View accessibilityRole="tablist" style={styles.historyWindowRail}>
+      {([7, 30, 90] as FatePriceHistoryDays[]).map((window) => <Pressable key={window} accessibilityRole="tab" accessibilityState={{ selected: days === window }} onPress={() => onChooseDays(window)} style={[styles.historyWindow, days === window && styles.historyWindowActive]}><Text style={[styles.historyWindowText, days === window && styles.historyWindowTextActive]}>{window}D</Text></Pressable>)}
+    </View>
+    {points.length ? <>
+      <View style={styles.historyRange}><Text style={styles.historyRangeText}>{formatMoney(high, currencyCode)}</Text><Text style={styles.historyPointCount}>{points.length} stored day{points.length === 1 ? '' : 's'}</Text></View>
+      <View style={styles.historyPlot}>
+        {points.map((point) => {
+          const stemHeight = spread > 0 && low != null ? 14 + (((point.amount - low) / spread) * 72) : 50;
+          return <View key={`${point.marketDay}:${point.asOf}`} accessibilityLabel={`${point.marketDay}, ${formatMoney(point.amount, point.currencyCode)}, ${point.confidence} confidence`} style={styles.historyColumn}><View style={[styles.historyStem, { height: stemHeight }]}><View style={styles.historyDot} /></View></View>;
+        })}
+      </View>
+      <View style={styles.historyAxis}><Text style={styles.historyAxisText}>{points[0]?.marketDay}</Text><Text style={styles.historyRangeText}>{formatMoney(low, currencyCode)}</Text><Text style={styles.historyAxisText}>{points.at(-1)?.marketDay}</Text></View>
+    </> : <View style={styles.historyEmpty}><Ionicons name="analytics-outline" size={18} color={FateDropColors.muted} /><Text style={styles.historyEmptyText}>{notice || evidenceReason(history?.reason)}</Text></View>}
+  </View>;
 }
 
 function EvidenceRow({ label, value }: { label: string; value: string }) {
@@ -394,6 +471,25 @@ const styles = StyleSheet.create({
   metricValue: { maxWidth: '100%', fontFamily: Fonts.serif, fontSize: 17, marginTop: 2, textAlign: 'center' },
   metricDetail: { color: FateDropColors.muted, fontSize: 5.9, marginTop: 2, textAlign: 'center' },
   ledgerDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: 'rgba(226,197,141,.20)' },
+  historyPanel: { marginTop: 14, paddingHorizontal: 8, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.34)', backgroundColor: 'rgba(3,8,20,.28)' },
+  historyHeading: { minHeight: 34, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  historyCopy: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
+  historyWindowRail: { alignSelf: 'flex-start', flexDirection: 'row', marginTop: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.26)' },
+  historyWindow: { minWidth: 44, minHeight: 29, alignItems: 'center', justifyContent: 'center', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.20)' },
+  historyWindowActive: { backgroundColor: 'rgba(226,197,141,.11)' },
+  historyWindowText: { color: FateDropColors.muted, fontSize: 6.8, fontWeight: '900', letterSpacing: .5 },
+  historyWindowTextActive: { color: FateDropColors.goldBright },
+  historyRange: { minHeight: 25, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 7 },
+  historyRangeText: { color: FateDropColors.muted, fontSize: 6.4 },
+  historyPointCount: { color: FateDropColors.gold, fontSize: 6.2, fontWeight: '800', letterSpacing: .35 },
+  historyPlot: { height: 96, flexDirection: 'row', alignItems: 'flex-end', gap: 1, paddingTop: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.28)' },
+  historyColumn: { flex: 1, minWidth: 0, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  historyStem: { width: 1, minHeight: 8, backgroundColor: 'rgba(124,110,255,.78)' },
+  historyDot: { position: 'absolute', top: -2, left: -2, width: 5, height: 5, borderRadius: 3, backgroundColor: FateDropColors.goldBright },
+  historyAxis: { minHeight: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  historyAxisText: { color: FateDropColors.muted, fontSize: 5.8 },
+  historyEmpty: { minHeight: 82, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 22 },
+  historyEmptyText: { color: FateDropColors.muted, fontSize: 7.4, lineHeight: 11, textAlign: 'center' },
   scopeSection: { paddingHorizontal: 5, paddingTop: 14 },
   scopeTitle: { color: FateDropColors.gold, fontSize: 6.4, fontWeight: '900', letterSpacing: .7 },
   scopeRail: { gap: 8, paddingVertical: 9, paddingRight: 18 },
