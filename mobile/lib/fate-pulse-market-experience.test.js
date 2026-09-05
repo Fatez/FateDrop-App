@@ -39,7 +39,7 @@ test('FatePulse supports evidence-backed period and mover exploration', () => {
 
 test('FatePrice and Collectors are explicitly interlinked without routing through FateFind', () => {
   assert.match(screen, /OPEN FATEPRICE/);
-  assert.match(screen, /Explore closest set in FatePrice/);
+  assert.match(screen, /Find missing cards from .* in FatePrice/);
   assert.match(screen, /pathname: '\/fate-price'/);
   assert.doesNotMatch(screen, /CHOOSE AN EXACT CARD IN FATEFIND/);
 });
