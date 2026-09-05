@@ -35,5 +35,8 @@ test('Orbital motion is bounded and honours Reduce Motion', () => {
   assert.match(home, /useNativeDriver: true/);
   assert.match(home, /initialNumToRender=\{2\}/);
   assert.match(home, /windowSize=\{3\}/);
-  assert.doesNotMatch(home, /Animated\.loop|autoplay|setInterval/);
+  assert.match(home, /if \(!pokemonCenter\.active \|\| reduceMotion\) return/);
+  assert.match(home, /Animated\.loop/);
+  assert.match(home, /return \(\) => pulse\.stop\(\)/);
+  assert.doesNotMatch(home, /autoplay|setInterval/);
 });

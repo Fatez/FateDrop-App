@@ -19,7 +19,7 @@ type Tool = {
 
 const collectorTools: Tool[] = [
   { title: 'FateFind', detail: 'Hosted hunts with price and stock rules.', icon: 'telescope-outline', path: '/fatefind', color: FateDropColors.violetLight },
-  { title: 'True Price', detail: 'Compare item price, RRP and known delivery.', icon: 'swap-horizontal-outline', path: '/true-price', color: FateDropColors.cyan },
+  { title: 'FatePrice', detail: 'Read exact-card value, movement and market evidence.', icon: 'pricetag-outline', path: '/fate-price', color: FateDropColors.goldBright },
   { title: 'Wishlist', detail: 'Keep products saved across the collector journey.', icon: 'bookmark-outline', path: '/(tabs)/watchlist', color: FateDropColors.violetLight },
   { title: 'Local Radar', detail: 'Nearby shops and collector events.', icon: 'navigate-outline', path: '/local-radar', color: FateDropColors.blue, feature: 'localRadar' },
   { title: 'Fate Encounters', detail: 'Shows, tournaments and trade nights.', icon: 'calendar-outline', path: '/encounters', color: FateDropColors.amber },

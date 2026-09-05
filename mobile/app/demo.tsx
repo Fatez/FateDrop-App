@@ -11,7 +11,7 @@ const features = [
   { icon: 'bookmark-outline' as const, title: 'Wishlist', copy: 'Remember products without turning monitoring on. Wishlist is memory, not an alert instruction.', path: '/(tabs)/watchlist' as Href },
   { icon: 'telescope-outline' as const, title: 'FateFind', copy: 'Find the strongest current buying opportunity using verified product identity, RRP and known True Price evidence.', path: '/fatefind' as Href },
   { icon: 'sparkles-outline' as const, title: 'FateMatch', copy: 'Ask FateDrop to keep watching your conditions. A matching live opportunity becomes a FateMatch.', path: '/fate-match' as Href },
-  { icon: 'cash-outline' as const, title: 'True Price', copy: 'See item price against verified RRP. Known mandatory delivery is added when FateDrop actually knows it; unknown stays unknown.', path: '/true-price' as Href },
+  { icon: 'pricetag-outline' as const, title: 'FatePrice', copy: 'Read an exact card’s verified value, 7D and 30D movement, market scope and supporting evidence.', path: '/fate-price' as Href },
   { icon: 'notifications-outline' as const, title: 'Alerts', copy: 'Read Whisper, Echo, Manifested and Vanished signals and see the evidence behind what changed.', path: '/(tabs)/alerts' as Href },
   { icon: 'navigate-outline' as const, title: 'Local Radar', copy: 'Physical-store intelligence stays separate from online stock. Branch truth is only shown when the evidence supports it.', path: '/local-radar' as Href },
   { icon: 'storefront-outline' as const, title: 'Fate Network', copy: 'Explore major retailers, specialists and independent stores without changing canonical stock truth.', path: '/(tabs)/indies' as Href },

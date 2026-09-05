@@ -9,7 +9,7 @@ const briefing = read('components/home-personal-briefing.tsx');
 const signal = read('lib/home-signal-state.ts');
 
 test('Home implements the approved Orbital Command hierarchy', () => {
-  assert.match(home, /HomePersonalBriefing embedded/);
+  assert.match(home, /HomePersonalBriefing[\s\S]*?embedded/);
   assert.match(home, /home-living-stage-v2\.png/);
   assert.match(home, /styles\.lifecycleRibbon/);
   assert.match(home, /OrbitalIntelligenceHub/);
@@ -26,15 +26,15 @@ test('personal briefing remains evidence-backed and fail closed', () => {
   assert.match(briefing, /wishlistItemMatchesLiveOpportunity/);
   assert.match(briefing, /POKÉMON CENTER UK STATUS UNAVAILABLE/);
   assert.match(briefing, /POKÉMON CENTER UK ACTIVITY DETECTED/);
-  assert.match(briefing, /AccessibilityInfo\.isReduceMotionEnabled/);
+  assert.match(home, /AccessibilityInfo\.isReduceMotionEnabled/);
   assert.doesNotMatch(briefing, /Animated\.loop/);
-  assert.match(briefing, /color: FateDropColors\.cyan/);
+  assert.match(briefing, /color: FateDropColors\.goldBright/);
   assert.match(briefing, /backgroundColor: 'transparent'/);
   assert.match(briefing, /countUnreadCanonicalAlertsByStage/);
   assert.match(briefing, /exactWishlistItems\.some/);
   assert.match(briefing, /queryCanonicalAlertPage/);
   assert.doesNotMatch(briefing, /fetchCanonicalAlerts|fetchCanonicalLiveOpportunities/);
-  assert.match(home, /liveOpportunities=\{liveOpportunities\} liveState=\{liveState\}/);
+  assert.match(home, /liveOpportunities=\{liveOpportunities\}[\s\S]*?liveState=\{liveState\}/);
 });
 
 test('centre crystal is a deterministic personal signal rather than a network score', () => {
