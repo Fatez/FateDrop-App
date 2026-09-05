@@ -326,7 +326,7 @@ function StepSection({ number, eyebrow, title, detail, children }: { number: str
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#030713' },
-  themeVeil: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,5,14,.48)' },
+  themeVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.48)' },
   themeLowerVeil: { position: 'absolute', left: 0, right: 0, top: '32%', bottom: 0, backgroundColor: 'rgba(3,7,18,.66)' },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 12, paddingBottom: 124 },
   flex: { flex: 1 },
