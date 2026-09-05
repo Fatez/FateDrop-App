@@ -8,7 +8,13 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const market = read('screens/fate-market-screen-v2.tsx');
 const price = read('screens/fate-price-screen.tsx');
-const collector = read('components/fate-collector-enhancements.tsx');
+const dashboard = read('screens/fate-collections-dashboard-screen.tsx');
+const personal = read('screens/fate-collection-browser-screen.tsx');
+const binders = read('screens/fate-binders-screen.tsx');
+const binder = read('screens/fate-binder-screen.tsx');
+const graded = read('screens/fate-graded-collection-screen.tsx');
+const collectorBridge = read('components/fate-collector-enhancements.tsx');
+const collectorArt = read('components/fate-collections-art.tsx');
 const addAction = read('components/add-to-fate-collector-action.tsx');
 const service = read('services/fate-collector.ts');
 
@@ -21,29 +27,44 @@ test('FatePulse keeps full-market top three rankings independent of ownership', 
   assert.doesNotMatch(market, /personalPulse.*PulsePanel/s);
 });
 
-test('Fate Collections owns the personal riser/faller and set-binder UI', () => {
-  assert.match(market, /FateCollectorEnhancements data=\{data\} onCollectionChanged=\{onRefresh\} signedIn=\{signedIn\}/);
-  assert.match(collector, /PERSONAL COLLECTION PULSE/);
-  assert.match(collector, /What moved among your cards\?/);
-  assert.match(collector, /YOUR TOP \{label\}/);
-  assert.match(collector, /SET BINDERS/);
-  assert.match(collector, /pulse\?\.risers \|\| \[\]/);
-  assert.match(collector, /pulse\?\.decliners \|\| \[\]/);
-  assert.match(collector, /items\.slice\(0, 3\)/);
-  assert.match(collector, /COMPARE THE BROAD MARKET/);
-  assert.match(collector, /source \{sourceCurrency\} market/);
-  assert.match(collector, /currency changes cannot create a rise or fall/);
+test('Fate Collections dashboard owns the personal top-three movement overview', () => {
+  assert.match(collectorBridge, /router\.replace\('\/collections'\)/);
+  assert.match(dashboard, /YOUR COLLECTION PULSE/);
+  assert.match(dashboard, /Your biggest risers and fallers/);
+  assert.match(dashboard, /BIGGEST WINS/);
+  assert.match(dashboard, /BIGGEST LOSSES/);
+  assert.match(dashboard, /items\.slice\(0, 3\)/);
+  assert.match(dashboard, /pulse\?\.risers \|\| \[\]/);
+  assert.match(dashboard, /pulse\?\.decliners \|\| \[\]/);
+  assert.match(dashboard, /label="7D"/);
+  assert.match(dashboard, /label="30D"/);
+});
+
+test('Collections dashboard is an overview with three dedicated destinations', () => {
+  assert.match(dashboard, /title="Personal Collection"/);
+  assert.match(dashboard, /title="Binders"/);
+  assert.match(dashboard, /title="Graded"/);
+  assert.match(dashboard, /router\.push\('\/collection'\)/);
+  assert.match(dashboard, /router\.push\('\/binders'\)/);
+  assert.match(dashboard, /router\.push\('\/graded-collection'\)/);
+  assert.match(dashboard, /SETS COMPLETED/);
+  assert.doesNotMatch(dashboard, /CLOSEST TO COMPLETION/);
+  assert.doesNotMatch(dashboard, /Import Collection CSV/);
+});
+
+test('Collections dashboard artwork stays collector-specific without redefining lifecycle companions', () => {
+  assert.match(collectorArt, /CollectionStack/);
+  assert.match(collectorArt, /BinderBook/);
+  assert.match(collectorArt, /SlabCase/);
+  assert.doesNotMatch(collectorArt, /\b(?:Oru|Fenn|Koru|Nyxen)\b/);
 });
 
 test('Collector valuation labels known coverage without presenting a partial sum as a total', () => {
-  assert.match(market, /fullyValued = Boolean\(collection && collection\.totalUnits > 0 && collection\.totalValue != null\)/);
-  assert.match(market, /summary\?\.rawCollection \|\| summary\?\.collection/);
-  assert.match(market, /fullyValued \? 'RAW COLLECTION VALUE' : 'KNOWN RAW-CARD VALUE'/);
-  assert.match(market, /collection\.pricedUnits} of \$\{collection\.totalUnits/);
-  assert.match(market, /excluded—not estimated/);
-  assert.match(market, /\$\{collection\.pricedUnits\}\/\$\{collection\.totalUnits\} priced/);
-  assert.match(market, /collectorCoverageTrack/);
-  assert.match(market, /sourceMarketCurrencyCode/);
+  assert.match(dashboard, /completeValue \? 'COLLECTION VALUE' : 'KNOWN COLLECTION VALUE'/);
+  assert.match(dashboard, /collection\.pricedUnits === collection\.totalUnits/);
+  assert.match(dashboard, /Price coverage \$\{collection\.priceCoveragePercent\.toFixed\(1\)\}%/);
+  assert.match(dashboard, /verified evidence only/);
+  assert.doesNotMatch(dashboard, /knownValue \|\| 0/);
 });
 
 test('exact FatePrice cards can be manually added to the canonical collection', () => {
@@ -54,29 +75,44 @@ test('exact FatePrice cards can be manually added to the canonical collection', 
   assert.match(service, /fateCardId: id, quantity, copyState: 'raw', conditionCode/);
 });
 
-test('third-party collection import is user-picked, previewed and explicitly confirmed', () => {
-  assert.match(collector, /File\.pickFileAsync/);
-  assert.match(collector, /previewCollectrCsv\(text\)/);
-  assert.match(collector, /CONFIRM EXACT IMPORT/);
-  assert.match(collector, /confirmCollectrCsv\(csvText/);
+test('collection import moved to Personal Collection and remains preview-first and confirmed', () => {
+  assert.match(personal, /File\.pickFileAsync/);
+  assert.match(personal, /previewCollectrCsv\(text\)/);
+  assert.match(personal, /SAFE IMPORT PREVIEW/);
+  assert.match(personal, /CONFIRM EXACT IMPORT/);
+  assert.match(personal, /confirmCollectrCsv\(csvText/);
+  assert.match(personal, /ambiguous or unresolved rows remain held/i);
   assert.match(service, /\/v1\/collectors\/import\/collectr\/preview/);
   assert.match(service, /\/v1\/collectors\/import\/collectr\/confirm/);
   assert.match(service, /confirmed: true/);
-  assert.match(collector, /ambiguous.*unresolved.*rejected CSV rows/s);
-  assert.match(collector, /await onCollectionChanged\(\)/);
+  assert.match(personal, /await load\(\)/);
   assert.match(service, /invalidateFateCollectorsSummaryCache\(\)/);
 });
 
+test('Binders owns closest set and set-list organisation', () => {
+  assert.match(binders, /CLOSEST TO COMPLETION/);
+  assert.match(binders, /Your Set Binders/);
+  assert.match(binders, /label="All"/);
+  assert.match(binders, /label="In progress"/);
+  assert.match(binders, /label="Completed"/);
+  assert.match(binders, /router\.push\(\{ pathname: '\/binder\/\[setId\]'/);
+});
+
 test('raw binders and graded pride cards have separate dedicated routes', () => {
-  const binder = read('screens/fate-binder-screen.tsx');
-  const graded = read('screens/fate-graded-collection-screen.tsx');
-  const browser = read('screens/fate-collection-browser-screen.tsx');
-  assert.match(market, /router\.push\('\/graded-collection'\)/);
-  assert.match(market, /pathname: '\/binder\/\[setId\]'/);
-  assert.match(binder, /Mark \$\{card\.name \|\| 'card'\} as owned/);
+  assert.match(dashboard, /router\.push\('\/graded-collection'\)/);
+  assert.match(dashboard, /router\.push\('\/binders'\)/);
+  assert.match(binder, /accessibilityLabel=\{`Add \$\{card\.name \|\| 'card'\} as owned`\}/);
   assert.match(binder, /addExactCardToCollector\(card\.fateCardId\)/);
-  assert.match(binder, /Graded slabs never fill binder slots/);
-  assert.match(graded, /Exact grade evidence only/);
-  assert.match(graded, /Raw-card FatePrice is never reused for a slab/);
-  assert.match(browser, /item\.copyState === 'raw'/);
+  assert.match(binder, /Graded cards do not fill binder slots/);
+  assert.match(graded, /Raw-card FatePrice is never reused for slabs/);
+  assert.match(graded, /exact card \+ grader \+ grade evidence/i);
+  assert.match(personal, /item\.copyState === 'raw'/);
+});
+
+test('graded performance fails visibly closed until exact slab history exists', () => {
+  assert.match(graded, /BEST PERFORMER/);
+  assert.match(graded, /BIGGEST DROP/);
+  assert.match(graded, /Building graded history/);
+  assert.match(graded, /exact card, grader and grade have trustworthy historical evidence/);
+  assert.doesNotMatch(graded, /\+42\.3%|-18\.6%/);
 });
