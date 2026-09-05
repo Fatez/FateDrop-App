@@ -1,17 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PROFILE_AVATAR_IDS = ['oru', 'fenn', 'koru', 'nyxen', 'mark'] as const;
+
+// Canonical selectable wallpaper set. Keep this list deliberately small: these are
+// the only wallpapers exposed in Profile Customisation.
 export const PROFILE_WALLPAPER_IDS = [
-  'koruHome',
-  'default',
-  'oru',
-  'fenn',
-  'nyxen',
   'fatedrop1',
   'fatedrop2',
   'fatedrop3',
   'fatedrop4',
   'fatedrop5',
+] as const;
+
+// Historical IDs remain in the type so older persisted/profile state can be read
+// safely during migration, but they are not selectable and fail closed to the
+// canonical default when loaded from storage.
+const LEGACY_PROFILE_WALLPAPER_IDS = [
+  'koruHome',
+  'default',
+  'oru',
+  'fenn',
+  'nyxen',
   'fatedrop6',
   'fatedrop7',
   'fatedrop8',
@@ -24,7 +33,9 @@ export const PROFILE_WALLPAPER_IDS = [
 ] as const;
 
 export type ProfileAvatarId = (typeof PROFILE_AVATAR_IDS)[number];
-export type ProfileWallpaperId = (typeof PROFILE_WALLPAPER_IDS)[number];
+export type ProfileWallpaperId =
+  | (typeof PROFILE_WALLPAPER_IDS)[number]
+  | (typeof LEGACY_PROFILE_WALLPAPER_IDS)[number];
 
 export type ProfileCustomisation = {
   avatarId: ProfileAvatarId;
@@ -33,7 +44,7 @@ export type ProfileCustomisation = {
 
 export const DEFAULT_PROFILE_CUSTOMISATION: ProfileCustomisation = {
   avatarId: 'oru',
-  wallpaperId: 'koruHome',
+  wallpaperId: 'fatedrop1',
 };
 
 const STORAGE_PREFIX = 'fatedrop:profile-customisation:v1';
@@ -46,8 +57,8 @@ function isAvatarId(value: unknown): value is ProfileAvatarId {
   return typeof value === 'string' && PROFILE_AVATAR_IDS.includes(value as ProfileAvatarId);
 }
 
-function isWallpaperId(value: unknown): value is ProfileWallpaperId {
-  return typeof value === 'string' && PROFILE_WALLPAPER_IDS.includes(value as ProfileWallpaperId);
+function isWallpaperId(value: unknown): value is (typeof PROFILE_WALLPAPER_IDS)[number] {
+  return typeof value === 'string' && PROFILE_WALLPAPER_IDS.includes(value as (typeof PROFILE_WALLPAPER_IDS)[number]);
 }
 
 export async function loadProfileCustomisation(identity?: string | null): Promise<ProfileCustomisation> {
