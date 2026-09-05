@@ -21,7 +21,7 @@ function countBy(items, keyOf) {
   return counts;
 }
 
-export function buildFatePriceDiscovery(cards, {
+function buildFatePriceDiscovery(cards, {
   tcgCode = '',
   setId = '',
   printingId = '',
@@ -123,9 +123,11 @@ export function buildFatePriceDiscovery(cards, {
   });
 }
 
-export function fatePriceVariantLabel(card) {
+function fatePriceVariantLabel(card) {
   const variant = (text(card?.variantCode) || 'standard').replaceAll('-', ' ').replaceAll('_', ' ');
   const language = (text(card?.languageCode) || 'unknown').toUpperCase();
   const rarity = text(card?.rarity);
   return [variant, language, rarity].filter(Boolean).join(' · ');
 }
+
+module.exports = { buildFatePriceDiscovery, fatePriceVariantLabel };
