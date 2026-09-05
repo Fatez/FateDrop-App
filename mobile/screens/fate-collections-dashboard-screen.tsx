@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,18 +52,19 @@ export default function FateCollectionsDashboardScreen() {
 
   const summary = data?.summary;
   const collection = summary?.collection;
-  const graded = summary?.gradedCollection;
   const completedSets = useMemo(() => (summary?.sets || []).filter((set) => set.status === 'available' && set.missingCount === 0 && Number(set.totalCount) > 0).length, [summary?.sets]);
   const gradedCount = summary?.gradedCardUnits ?? 0;
   const totalCards = summary?.cardUnits ?? 0;
+  const rawCards = summary?.rawCardUnits ?? Math.max(0, totalCards - gradedCount);
   const bindersTracked = (summary?.sets || []).filter((set) => set.status === 'available' && Number(set.ownedCount) > 0).length;
   const pulse = data?.personalPulse?.periods[period];
-  const completeValue = Boolean(collection && collection.totalUnits > 0 && collection.unpricedUnits === 0 && collection.totalValue != null);
+  const completeValue = Boolean(collection && collection.totalUnits > 0 && collection.pricedUnits === collection.totalUnits && collection.totalValue != null);
   const headlineValue = completeValue ? collection?.totalValue : collection?.knownValue;
-  const currency = collection?.currencyCode || summary?.currencyCode || 'GBP';
+  const currency = summary?.currencyCode || 'GBP';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <FateDropBackground />
         <Image source={require('../assets/images/fate-market-orbital-theme.webp')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" />
@@ -111,7 +112,7 @@ export default function FateCollectionsDashboardScreen() {
             art="collection"
             title="Personal Collection"
             copy="Your raw cards and exact owned copies."
-            value={String(Math.max(0, totalCards - gradedCount))}
+            value={String(rawCards)}
             valueLabel="cards held"
             onPress={() => router.push('/collection')}
           />
