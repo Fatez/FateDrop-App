@@ -33,8 +33,8 @@ test('shared functional header is title-first and does not repeat the full wordm
   assert.doesNotMatch(brandHeader, /FATEDROP_WORDMARK_URI/);
 });
 
-test('active Home and Profile are the primary full-wordmark identity surfaces', () => {
-  assert.match(home, /FATEDROP_WORDMARK_URI/);
+test('Profile retains the full wordmark while the compact Orbital Home does not repeat it', () => {
+  assert.doesNotMatch(home, /FATEDROP_WORDMARK_URI/);
   assert.match(profile, /FATEDROP_WORDMARK_URI/);
   assert.doesNotMatch(alerts, /fatedrop-wordmark/);
   assert.doesNotMatch(alerts, /styles\.pageTitle/);
@@ -52,8 +52,8 @@ test('active Home keeps one Koru wallpaper as the approved default hero while al
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
   assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
   assert.match(home, /fetchNetworkPulse\(7\)/);
-  assert.match(home, /THE FATE NETWORK IS LIVE/);
-  assert.match(home, /Know what moved\. Hunt what matters\./);
+  assert.match(home, /HomePersonalBriefing embedded/);
+  assert.match(home, /heroBriefing/);
 });
 
 test('Home keeps monitor health out of the welcome experience', () => {

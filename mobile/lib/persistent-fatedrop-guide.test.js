@@ -11,10 +11,12 @@ const guide = read('app/demo.tsx');
 const onboarding = read('app/onboarding.tsx');
 const more = read('screens/more-screen-v2.tsx');
 
-test('Home keeps a prominent permanent FateDrop Guide entry', () => {
-  assert.match(home, /FATEDROP GUIDE/);
-  assert.match(home, /How FateDrop works/);
-  assert.match(home, /router\.push\('\/demo'\)/);
+test('Orbital Home keeps the approved direct actions while the permanent guide remains in More', () => {
+  assert.match(home, /title="Search"/);
+  assert.match(home, /title="FateFind"/);
+  assert.match(home, /title="Events"/);
+  assert.doesNotMatch(home, /FATEDROP GUIDE/);
+  assert.match(more, /title: 'App Guide'/);
 });
 
 test('persistent guide can replay the full guided tour', () => {

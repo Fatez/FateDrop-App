@@ -36,7 +36,7 @@ test('Fate Market is Pulse Price Collectors and does not own Fate Trader', () =>
 
 test('FatePrice fails closed until exact canonical price evidence is available', () => {
   assert.match(market, /CANONICAL EXACT-CARD VALUE/);
-  assert.match(market, /<Text style=\{styles\.priceValue\}>—<\/Text>/);
+  assert.match(market, /label="CANONICAL EXACT-CARD VALUE" value="—"/);
   assert.match(market, /No synthetic price · no silent FX conversion/);
   assert.match(market, /FatePrice stays blank until an exact canonical card/);
 });
