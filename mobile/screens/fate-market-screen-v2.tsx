@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FateCollectorEnhancements } from '@/components/fate-collector-enhancements';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -357,6 +358,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
         <Ionicons name={error ? 'cloud-offline-outline' : 'time-outline'} size={15} color={accent} />
         <Text style={styles.readinessCopy}>{error || `${historyDetail}. Each headline is the median return of qualifying set baskets; incomplete sets cannot steer it.`}</Text>
       </View>
+
       <View style={styles.calibrationLedger}>
         <CalibrationMetric label="MARKET HEAT" value={data?.intelligence.marketHeat} />
         <View style={styles.ledgerDivider} />
@@ -407,7 +409,7 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
   const collectionCopy = !signedIn
     ? 'Connect a FateDrop ID now; ownership, imports and valuation are always private and owner-scoped.'
     : error ? error : data?.status === 'empty'
-      ? 'Your collection is empty. FateDrop accepts only a user-exported Collectr CSV and previews exact matches before anything can be added.'
+      ? 'Your collection is empty. Add an exact card from FatePrice or preview a user-exported Collectr CSV.'
       : 'Completion uses verified canonical printings. Price gaps and incomplete set catalogues stay visible instead of becoming fake precision.';
   return (
     <View style={styles.panel}>
@@ -425,7 +427,8 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
         </View>
       ) : null}
       <Text style={styles.panelCopy}>{collectionCopy}</Text>
-      {signedIn ? <Text style={styles.importNote}>COLLECTR · User-export preview only. No account automation, scraping or imported price claims.</Text> : null}
+      <FateCollectorEnhancements data={data} signedIn={signedIn} />
+      {signedIn ? <Text style={styles.importNote}>COLLECTR · User-exported files only. No account automation, scraping or imported price claims.</Text> : null}
       {!signedIn ? <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Text style={styles.orbitalActionText}>CONNECT FATEDROP ID</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.echo} /></Pressable> : null}
     </View>
   );
