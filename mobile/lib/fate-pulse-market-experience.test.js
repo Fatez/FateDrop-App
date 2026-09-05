@@ -25,8 +25,11 @@ test('FatePulse supports evidence-backed period and mover exploration', () => {
   assert.match(screen, /label="SETS"/);
   assert.match(screen, /label="CARDS"/);
   assert.match(screen, /label="RISERS"/);
-  assert.match(screen, /label="DECLINES"/);
+  assert.match(screen, /label="FALLERS"/);
   assert.match(screen, /const TOP_MOVER_LIMIT = 3/);
+  assert.match(screen, /useState<RankingScope>\('cards'\)/);
+  assert.match(screen, /GLOBAL CARD MOVERS/);
+  assert.match(screen, /Top three across eligible exact cards/);
   assert.match(screen, /risers\.slice\(0, TOP_MOVER_LIMIT\)/);
   assert.match(screen, /decliners\.slice\(0, TOP_MOVER_LIMIT\)/);
   assert.match(screen, /SELECTED EVIDENCE/);

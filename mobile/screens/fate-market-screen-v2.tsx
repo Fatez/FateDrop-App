@@ -284,7 +284,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
   scopeOptions: MarketScope[];
 }) {
   const [periodKey, setPeriodKey] = useState<PulsePeriodKey>('d30');
-  const [rankingScope, setRankingScope] = useState<RankingScope>('sets');
+  const [rankingScope, setRankingScope] = useState<RankingScope>('cards');
   const [selectedMoverKey, setSelectedMoverKey] = useState<string | null>(null);
   const direction = data?.pulse?.direction;
   const period = direction?.periods[periodKey];
@@ -305,7 +305,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
 
   return (
     <View style={styles.panel}>
-      <PanelHeading eyebrow="FATEPULSE" title="What is happening across tracked sets?" accent={accent} status={evidenceStatus} />
+      <PanelHeading eyebrow="FATEPULSE" title="What is moving across the market?" accent={accent} status={evidenceStatus} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRail}>
         {scopeOptions.map((option) => (
           <ScopeButton key={option} label={option === 'all' ? 'ALL TCGs' : scopeLabel(option).toUpperCase()} selected={scope === option} onPress={() => onScopeChange(option)} />
@@ -367,8 +367,8 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
 
       <View style={styles.moversHead}>
         <View>
-          <Text style={styles.moversEyebrow}>MARKET MOVERS</Text>
-          <Text style={styles.moversTitle}>Top three in both directions</Text>
+          <Text style={styles.moversEyebrow}>{rankingScope === 'cards' ? 'GLOBAL CARD MOVERS' : 'MARKET SET MOVERS'}</Text>
+          <Text style={styles.moversTitle}>{rankingScope === 'cards' ? 'Top three across eligible exact cards' : 'Top three qualifying set baskets'}</Text>
         </View>
         <View style={styles.segmentedRow}>
           <SegmentButton label="SETS" selected={rankingScope === 'sets'} onPress={() => setRankingScope('sets')} />
@@ -377,7 +377,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
       </View>
       <View style={styles.moverColumns}>
         <MoverColumn accent={FateDropColors.manifested} items={topRisers} label="RISERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
-        <MoverColumn accent={FateDropColors.vanished} items={topDecliners} label="DECLINES" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
+        <MoverColumn accent={FateDropColors.vanished} items={topDecliners} label="FALLERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
       </View>
       {selectedMover ? <MoverEvidence item={selectedMover} currencyCode={data?.source.currencyCode} periodLabel={periodKey.slice(1)} /> : null}
     </View>
@@ -459,7 +459,7 @@ function SegmentButton({ label, onPress, selected }: { label: string; onPress: (
   return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.segmentButton, selected && styles.segmentButtonActive]}><Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextActive]}>{label}</Text></Pressable>;
 }
 
-function MoverColumn({ accent, items, label, onSelect, selectedKey }: { accent: string; items: RankedMover[]; label: 'RISERS' | 'DECLINES'; onSelect: (item: RankedMover) => void; selectedKey: string | null }) {
+function MoverColumn({ accent, items, label, onSelect, selectedKey }: { accent: string; items: RankedMover[]; label: 'RISERS' | 'FALLERS'; onSelect: (item: RankedMover) => void; selectedKey: string | null }) {
   return (
     <View style={styles.moverColumn}>
       <View style={styles.moverColumnHead}><Ionicons name={label === 'RISERS' ? 'trending-up-outline' : 'trending-down-outline'} size={14} color={accent} /><Text style={[styles.moverColumnLabel, { color: accent }]}>{label}</Text><Text style={styles.moverColumnLimit}>TOP 3</Text></View>
