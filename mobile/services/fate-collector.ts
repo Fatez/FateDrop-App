@@ -44,10 +44,52 @@ export type FateCollectorSetBinder = {
   totalCount: number | null;
   missingCount: number | null;
   completionPercent: number | null;
+  missingCards?: FateCollectorMissingCard[];
+  value?: FateCollectorBinderValue | null;
+};
+
+export type FateCollectorMissingCard = {
+  fateCardId: string;
+  printingId: string | null;
+  setId: string;
+  setName: string | null;
+  tcgCode: string | null;
+  name: string | null;
+  collectorNumber: string | null;
+  rarity: string | null;
+  variantCode: string | null;
+  languageCode: string | null;
+};
+
+export type FateCollectorValueCoverage = {
+  status: 'available' | 'partial' | 'unavailable';
+  reason: string | null;
+  currencyCode: string;
+  totalUnits: number;
+  pricedUnits: number;
+  unpricedUnits: number;
+  priceCoveragePercent: number;
+  totalValue: number | null;
+  knownValue: number;
+};
+
+export type FateCollectorBinderValue = {
+  fullSetValue: number | null;
+  ownedValue: number | null;
+  missingValue: number | null;
+  currencyCode: string;
+  status?: string;
+  reason?: string | null;
 };
 
 export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summary' | 'evidence'> & {
-  summary: FateCollectorsSnapshot['summary'] & { sets?: FateCollectorSetBinder[] };
+  summary: FateCollectorsSnapshot['summary'] & {
+    sets?: FateCollectorSetBinder[];
+    rawCardUnits?: number;
+    gradedCardUnits?: number;
+    rawCollection?: FateCollectorValueCoverage;
+    gradedCollection?: FateCollectorValueCoverage;
+  };
   personalPulse?: {
     schemaVersion: 'collector-personal-pulse:1';
     ownedIdentityCount: number;
@@ -57,7 +99,12 @@ export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summ
       d30: FateCollectorPersonalPulsePeriod;
     };
   };
-  evidence: FateCollectorsSnapshot['evidence'] & { personalPulseConnected?: boolean };
+  evidence: FateCollectorsSnapshot['evidence'] & {
+    personalPulseConnected?: boolean;
+    gradedCollectionValuesConnected?: boolean;
+    binderOwnershipPolicy?: 'raw_only';
+    personalMovementPolicy?: 'raw_only';
+  };
 };
 
 export type FateCollectorCardIdentity = {
@@ -82,6 +129,15 @@ export type FateCollectorItem = {
   copyState: 'raw' | 'graded';
   conditionCode: string | null;
   revision: number;
+  grading?: {
+    gradingCompany: string;
+    gradeLabel: string;
+    gradeValue: number | null;
+    certificationNumber: string | null;
+    certificationStatus: 'unverified' | 'verified' | 'failed' | 'unavailable';
+    verificationSource: string | null;
+    verifiedAt: number | null;
+  } | null;
   card?: FateCollectorCardIdentity | null;
 };
 
@@ -144,7 +200,7 @@ let dashboardFlight: { token: string; promise: Promise<FateCollectorsDashboardSn
 
 async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
   const token = await getStoredSessionToken();
-  if (!token) throw new FateCollectorApiError('Connect your FateDrop ID to use FateCollector.', 401, 'AUTH_REQUIRED');
+  if (!token) throw new FateCollectorApiError('Connect your FateDrop ID to use Fate Collections.', 401, 'AUTH_REQUIRED');
   const headers: Record<string, string> = { Accept: 'application/json', Authorization: `Bearer ${token}` };
   if (init.body) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${SIGNAL_ENGINE_URL}${path}`, {
@@ -156,10 +212,10 @@ async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
   try {
     payload = await response.json() as ApiEnvelope<T>;
   } catch {
-    throw new FateCollectorApiError('FateCollector returned an invalid response.', response.status, 'INVALID_RESPONSE');
+    throw new FateCollectorApiError('Fate Collections returned an invalid response.', response.status, 'INVALID_RESPONSE');
   }
   if (!response.ok || !payload.ok || payload.data === undefined) {
-    throw new FateCollectorApiError(payload.error?.message || `FateCollector HTTP ${response.status}`, response.status, payload.error?.code || `HTTP_${response.status}`);
+    throw new FateCollectorApiError(payload.error?.message || `Fate Collections HTTP ${response.status}`, response.status, payload.error?.code || `HTTP_${response.status}`);
   }
   return { data: payload.data, token };
 }
@@ -209,7 +265,7 @@ export async function addExactCardToCollector(cardIdentityId: string, {
 
 export async function previewCollectrCsv(csvText: string) {
   const csv = csvText.trim();
-  if (!csv) throw new FateCollectorApiError('Choose a Collectr CSV export first.', 400, 'COLLECTR_CSV_REQUIRED');
+  if (!csv) throw new FateCollectorApiError('Choose a collection CSV export first.', 400, 'COLLECTR_CSV_REQUIRED');
   const { data } = await authenticatedRequest<CollectrPreview>('/v1/collectors/import/collectr/preview', {
     method: 'POST',
     body: JSON.stringify({ csvText }),

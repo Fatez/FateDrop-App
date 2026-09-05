@@ -26,12 +26,12 @@ test('main centre compass keeps the approved hunting and action destinations', (
   assertCompassDestinations(tabLayout);
 });
 
-test('Fate Market owns Pulse Price and Collectors in the former Live Network slot', () => {
+test('Fate Market owns Pulse Price and Collections in the former Live Network slot', () => {
   assert.match(tabLayout, /name="market"/);
   assert.match(tabLayout, /name="network" options=\{\{ href: null \}\}/);
   assert.match(market, /title: 'FatePulse'/);
   assert.match(market, /title: 'FatePrice'/);
-  assert.match(market, /title: 'Fate Collectors'/);
+  assert.match(market, /title: 'Collections'/);
   assert.doesNotMatch(market, /title: 'Fate Trader'/);
   assert.match(persistentDock, /label="Fate Market"/);
   assert.doesNotMatch(persistentDock, /label="Live Network"/);

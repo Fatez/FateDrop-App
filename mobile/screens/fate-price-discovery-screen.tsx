@@ -197,7 +197,7 @@ export default function FatePriceDiscoveryScreen() {
       <View accessibilityRole="tablist" style={styles.areaRail}>
         <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} style={styles.areaTab}><Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>FatePulse</Text></Pressable>
         <View accessibilityRole="tab" accessibilityState={{ selected: true }} style={[styles.areaTab, styles.areaTabActive]}><Ionicons name="pricetag-outline" size={16} color={FateDropColors.goldBright} /><Text style={[styles.areaTitle, styles.areaTitleActive]}>FatePrice</Text><View style={styles.areaActiveGem} /></View>
-        <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} style={styles.areaTab}><Ionicons name="albums-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>Collectors</Text></Pressable>
+        <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} style={styles.areaTab}><Ionicons name="albums-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>Collections</Text></Pressable>
       </View>
 
       <View style={styles.searchPanel}>

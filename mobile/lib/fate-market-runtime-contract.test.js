@@ -32,14 +32,14 @@ test('FatePrice consumes exact Cloud valuation in GBP presentation and never cal
   assert.doesNotMatch(fatePrice, /function\s+(?:calculate|score).*(?:price|movement|value)/i);
 });
 
-test('Collectr import stays user-exported, preview-first and explicitly confirmed', () => {
+test('third-party collection import stays user-exported, preview-first and explicitly confirmed', () => {
   assert.match(collectorService, /\/v1\/collectors\/import\/collectr\/preview/);
   assert.match(collectorService, /\/v1\/collectors\/import\/collectr\/confirm/);
   assert.match(collectorService, /mode: 'preview_only'/);
   assert.match(collectorService, /writesPerformed: false/);
   assert.match(collectorService, /confirmed: true/);
-  assert.match(collector, /You choose a CSV exported from your own account/);
-  assert.match(collector, /No COLLECTR LOGIN AUTOMATION/i);
+  assert.match(collector, /Choose a CSV exported from another collection tracker/);
+  assert.match(collector, /NO THIRD-PARTY LOGIN AUTOMATION/i);
 });
 
 test('FatePulse and collection value remain blank when Cloud evidence is unavailable', () => {

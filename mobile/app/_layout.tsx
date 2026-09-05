@@ -171,6 +171,9 @@ function FateDropShell() {
       <Stack.Screen name="retailers/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="true-price" options={{ headerShown: false }} />
       <Stack.Screen name="fate-price" options={{ headerShown: false }} />
+      <Stack.Screen name="collection" options={{ headerShown: false }} />
+      <Stack.Screen name="binder/[setId]" options={{ headerShown: false }} />
+      <Stack.Screen name="graded-collection" options={{ headerShown: false }} />
       <Stack.Screen name="fatefind" options={{ headerShown: false }} />
       <Stack.Screen name="fate-match" options={{ headerShown: false }} />
       <Stack.Screen name="fate-trader" options={{ headerShown: false }} />

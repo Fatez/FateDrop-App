@@ -15,7 +15,7 @@ test('Home implements the approved Orbital Command hierarchy', () => {
   assert.match(home, /OrbitalIntelligenceHub/);
   assert.match(home, /home-orbital-crystal\.png/);
   assert.match(home, /TCG MARKET/);
-  assert.match(home, /FATE COLLECTORS/);
+  assert.match(home, /FATE COLLECTIONS/);
   assert.match(home, /OrbitalCommandPortal/);
   assert.match(home, /rankedLiveOpportunities/);
   assert.match(home, /alert\.product\.imageUrl/);
@@ -49,11 +49,11 @@ test('centre crystal is a deterministic personal signal rather than a network sc
   assert.doesNotMatch(home, /accessibilityLabel="Open Fate Market"/);
 });
 
-test('Home market snapshots render Cloud values only when evidence is available', () => {
+test('Home collection teaser leads with owned cards while retaining Cloud valuation coverage', () => {
   assert.match(home, /fetchFatePulse\(\)/);
   assert.match(home, /fetchFateCollectorsSummary\(\)/);
   assert.match(home, /period\.status !== 'available'/);
   assert.match(home, /period\.condition === 'insufficient_evidence'/);
-  assert.match(home, /collection\.status === 'unavailable'/);
-  assert.match(home, /collection\.pricedUnits === 0/);
+  assert.match(home, /value = `\$\{data\.summary\.cardUnits\}`/);
+  assert.match(home, /collection\.pricedUnits > 0/);
 });

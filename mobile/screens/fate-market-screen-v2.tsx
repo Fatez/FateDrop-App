@@ -10,6 +10,7 @@ import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import type { FateCollectorsDashboardSnapshot } from '@/services/fate-collector';
 import {
   fetchFateCollectorsSummary,
   fetchFatePulse,
@@ -48,10 +49,10 @@ const marketAreas: Record<MarketAreaKey, {
   },
   collectors: {
     accent: FateDropColors.echo,
-    detail: 'Ownership, completion and personal value.',
-    eyebrow: 'WHAT DOES IT MEAN TO ME?',
+    detail: 'Your cards, active binders and graded collection.',
+    eyebrow: 'WHAT AM I BUILDING?',
     icon: 'albums-outline',
-    title: 'Fate Collectors',
+    title: 'Collections',
   },
 };
 
@@ -411,8 +412,9 @@ function collectorStatus(data: FateCollectorsSnapshot | null, error: string, loa
 }
 
 function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | null; loading: boolean }) {
-  const summary = data?.summary;
-  const collection = summary?.collection;
+  const dashboard = data as FateCollectorsDashboardSnapshot | null;
+  const summary = dashboard?.summary;
+  const collection = summary?.rawCollection || summary?.collection;
   const fullyValued = Boolean(collection && collection.totalUnits > 0 && collection.totalValue != null);
   const hasKnownValue = Boolean(collection && collection.pricedUnits > 0);
   const value = fullyValued ? collection?.totalValue : collection?.knownValue;
@@ -423,7 +425,7 @@ function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | 
   const note = !collection
     ? loading ? 'Reading your private collection and verified FatePrice coverage…' : 'Collection value appears only when verified FatePrice evidence exists.'
     : collection.totalUnits === 0
-      ? 'No cards are recorded yet. Add one exact card or preview a Collectr export to begin.'
+      ? 'No cards are recorded yet. Add one exact card or preview a collection CSV to begin.'
       : collection.pricedUnits === 0
       ? `None of your ${collection.totalUnits} recorded ${collection.totalUnits === 1 ? 'copy has' : 'copies have'} a verified FatePrice yet.`
       : fullyValued
@@ -432,7 +434,6 @@ function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | 
 
   return (
     <View style={styles.collectorValueCard}>
-      <View pointerEvents="none" style={styles.collectorValueGlow} />
       <View style={styles.collectorValueTop}>
         <View style={styles.collectorValueSource}>
           <Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.echo} />
@@ -440,13 +441,8 @@ function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | 
         </View>
         <Text style={styles.collectorCurrency}>{currency || '—'}</Text>
       </View>
-      <Text style={styles.collectorValueLabel}>{fullyValued ? 'COLLECTION VALUE' : 'KNOWN PRICED VALUE'}</Text>
-      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.collectorValueMain}>{hasKnownValue ? formatMoney(value, currency) : '—'}</Text>
+      <View style={styles.collectorValueLine}><View style={styles.flex}><Text style={styles.collectorValueLabel}>{fullyValued ? 'RAW COLLECTION VALUE' : 'KNOWN RAW-CARD VALUE'}</Text><Text adjustsFontSizeToFit numberOfLines={1} style={styles.collectorValueMain}>{hasKnownValue ? formatMoney(value, currency) : '—'}</Text></View><Text style={styles.collectorCoverageValue}>{collection && collection.totalUnits > 0 ? `${collection.pricedUnits}/${collection.totalUnits} priced` : 'No priced cards'}</Text></View>
       <Text style={styles.collectorValueNote}>{note}</Text>
-      <View style={styles.collectorCoverageTop}>
-        <Text style={styles.collectorCoverageLabel}>PRICE COVERAGE</Text>
-        <Text style={styles.collectorCoverageValue}>{collection && collection.totalUnits > 0 ? concisePercent(collection.priceCoveragePercent) : '—'}</Text>
-      </View>
       <View style={styles.collectorCoverageTrack}>
         <View style={[styles.collectorCoverageFill, { width: `${Math.min(100, Math.max(0, coverage))}%` }]} />
       </View>
@@ -455,39 +451,33 @@ function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | 
   );
 }
 
-function CollectorFact({ detail, icon, label, value }: { detail: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
-  return (
-    <View style={styles.collectorFact}>
-      <Ionicons name={icon} size={15} color={FateDropColors.echo} />
-      <View style={styles.flex}>
-        <Text style={styles.collectorFactLabel}>{label}</Text>
-        <Text numberOfLines={1} adjustsFontSizeToFit style={styles.collectorFactValue}>{value}</Text>
-        <Text style={styles.collectorFactDetail}>{detail}</Text>
-      </View>
-    </View>
-  );
-}
-
 function CollectorsPanel({ data, error, loading, onRefresh, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; onRefresh: () => Promise<void>; signedIn: boolean }) {
-  const summary = data?.summary;
+  const dashboard = data as FateCollectorsDashboardSnapshot | null;
+  const summary = dashboard?.summary;
+  const gradedCount = summary?.gradedCardUnits ?? 0;
+  const rawCount = summary?.rawCardUnits ?? Math.max(0, (summary?.cardUnits ?? 0) - gradedCount);
   const collectionCopy = !signedIn
     ? 'Connect your FateDrop ID to see an owner-scoped view of your cards, values, binders and personal movement.'
     : error && data ? `${error} The last safely loaded snapshot remains visible.` : error
       ? error : data?.status === 'empty'
-      ? 'Your collection is empty. Add an exact card from FatePrice or preview a user-exported Collectr CSV.'
+      ? 'Your collection is empty. Add an exact card from FatePrice or import a collection CSV.'
       : 'Owned copies reflect your recorded collection. Exact-card, binder and valuation figures use verified canonical identities; every gap stays visible.';
   return (
     <View style={styles.panel}>
-      <PanelHeading eyebrow="FATE COLLECTORS" title="Your collection, clearly accounted for." accent={FateDropColors.echo} status={collectorStatus(data, error, loading, signedIn)} />
-      <CollectorValueCard data={data} loading={loading} />
-      {summary ? <View style={styles.collectorFactGrid}>
-        <CollectorFact detail="total copies recorded" icon="layers-outline" label="OWNED COPIES" value={String(summary.cardUnits)} />
-        <CollectorFact detail="canonical identities" icon="finger-print-outline" label="EXACT CARDS" value={String(data?.evidence.verifiedOwnedIdentities ?? 0)} />
-        <CollectorFact detail="binders represented" icon="albums-outline" label="SETS OWNED" value={String(summary.setsOwned)} />
-        <CollectorFact detail="identity needs review" icon="help-circle-outline" label="UNRESOLVED" value={String(data?.evidence.unresolvedCollectionItemCount ?? 0)} />
-      </View> : null}
+      <PanelHeading eyebrow="FATE COLLECTIONS" title="The cards you own. The sets you are building." accent={FateDropColors.echo} status={collectorStatus(data, error, loading, signedIn)} />
+      <View style={styles.collectionCabinet}>
+        <View pointerEvents="none" style={styles.collectionCabinetOrbit} />
+        <Ionicons name="albums-outline" size={26} color={FateDropColors.echo} />
+        <Text style={styles.collectionCabinetEyebrow}>YOUR COLLECTION</Text>
+        <Text style={styles.collectionCabinetTitle}>{summary ? `${rawCount} raw ${rawCount === 1 ? 'card' : 'cards'}` : loading ? 'Opening your collection…' : 'Ready when you are'}</Text>
+        <Text style={styles.collectionCabinetCopy}>{summary ? `${summary.setsOwned} ${summary.setsOwned === 1 ? 'set' : 'sets'} represented · ${gradedCount} graded ${gradedCount === 1 ? 'card' : 'cards'} kept separately` : 'Add exact cards from FatePrice and build verified set binders.'}</Text>
+        {signedIn ? <View style={styles.collectionDoorRow}>
+          <CollectionDoor icon="layers-outline" label="RAW CARDS" value={String(rawCount)} onPress={() => router.push('/collection')} />
+          <CollectionDoor icon="ribbon-outline" label="GRADED" value={String(gradedCount)} onPress={() => router.push('/graded-collection')} />
+        </View> : null}
+      </View>
       {summary?.closestSet ? (
-        <View style={styles.closestSetCard}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Open ${summary.closestSet.setName || 'closest set'} binder`} onPress={() => router.push({ pathname: '/binder/[setId]', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined } })} style={({ pressed }) => [styles.closestSetCard, pressed && styles.pressed]}>
           <View style={styles.closestSetTop}>
             <View style={styles.flex}><Text style={styles.closestSetEyebrow}>CLOSEST SET</Text><Text style={styles.closestSetName}>{summary.closestSet.setName || 'Verified set'}</Text></View>
             <Text style={styles.closestSetPercent}>{concisePercent(summary.closestSet.completionPercent)}</Text>
@@ -495,17 +485,21 @@ function CollectorsPanel({ data, error, loading, onRefresh, signedIn }: { data: 
           <View style={styles.closestSetTrack}><View style={[styles.closestSetFill, { width: `${Math.min(100, Math.max(0, summary.closestSet.completionPercent))}%` }]} /></View>
           <View style={styles.closestSetBottom}>
             <Text style={styles.closestSetDetail}>{summary.closestSet.missingCount} {summary.closestSet.missingCount === 1 ? 'card' : 'cards'} still missing</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Find missing cards from ${summary.closestSet.setName || 'closest set'} in FatePrice`} onPress={() => router.push({ pathname: '/fate-price', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined, tcg: summary.closestSet?.tcgCode || undefined } })} style={({ pressed }) => [styles.closestSetAction, pressed && styles.pressed]}><Text style={styles.closestSetActionText}>FIND CARDS</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.echo} /></Pressable>
+            <View style={styles.closestSetAction}><Text style={styles.closestSetActionText}>OPEN BINDER</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.echo} /></View>
           </View>
-        </View>
+        </Pressable>
       ) : null}
+      <CollectorValueCard data={data} loading={loading} />
       <View style={styles.collectorExplanation}><Ionicons name={error ? 'alert-circle-outline' : 'information-circle-outline'} size={16} color={error ? FateDropColors.vanished : FateDropColors.echo} /><Text style={styles.panelCopy}>{collectionCopy}</Text></View>
-      {signedIn ? <Pressable accessibilityRole="button" accessibilityLabel="View every card in my collection" onPress={() => router.push('/collection')} style={({ pressed }) => [styles.collectionPrimaryAction, pressed && styles.pressed]}><Ionicons name="grid-outline" size={17} color={FateDropColors.background} /><Text style={styles.collectionPrimaryActionText}>VIEW MY CARDS</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.background} /></Pressable> : null}
       {error && signedIn ? <Pressable accessibilityRole="button" disabled={loading} onPress={() => void onRefresh()} style={({ pressed }) => [styles.retryAction, pressed && styles.pressed]}>{loading ? <ActivityIndicator size="small" color={FateDropColors.echo} /> : <Ionicons name="refresh-outline" size={15} color={FateDropColors.echo} />}<Text style={styles.retryActionText}>REFRESH PRIVATE EVIDENCE</Text></Pressable> : null}
       <FateCollectorEnhancements data={data} onCollectionChanged={onRefresh} signedIn={signedIn} />
       {!signedIn ? <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Text style={[styles.orbitalActionText, { color: FateDropColors.echo }]}>CONNECT FATEDROP ID</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.echo} /></Pressable> : null}
     </View>
   );
+}
+
+function CollectionDoor({ icon, label, onPress, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; value: string }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${label.toLowerCase()}`} onPress={onPress} style={({ pressed }) => [styles.collectionDoor, pressed && styles.pressed]}><Ionicons name={icon} size={17} color={FateDropColors.echo} /><View style={styles.flex}><Text style={styles.collectionDoorValue}>{value}</Text><Text style={styles.collectionDoorLabel}>{label}</Text></View><Ionicons name="chevron-forward" size={13} color={FateDropColors.muted} /></Pressable>;
 }
 
 function ValueInstrument({ accent, detail, icon, label, value }: { accent: string; detail: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
@@ -692,18 +686,27 @@ const styles = StyleSheet.create({
   metricLabel: { color: FateDropColors.muted, fontSize: 6.3, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
   metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 2, textAlign: 'center' },
   metricDetail: { color: FateDropColors.muted, fontSize: 6.3, marginTop: 2 },
-  collectorValueCard: { position: 'relative', overflow: 'hidden', marginTop: 10, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.58)', borderRadius: 24, backgroundColor: 'rgba(4,9,23,.78)' },
-  collectorValueGlow: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -74, top: -102, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.38)', backgroundColor: 'rgba(124,110,255,.05)' },
+  collectionCabinet: { minHeight: 250, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginTop: 12, padding: 20, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', backgroundColor: 'rgba(3,8,20,.28)' },
+  collectionCabinetOrbit: { position: 'absolute', top: 17, width: 178, height: 178, borderRadius: 89, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.42)' },
+  collectionCabinetEyebrow: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginTop: 10 },
+  collectionCabinetTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 28, lineHeight: 34, marginTop: 3, textAlign: 'center' },
+  collectionCabinetCopy: { maxWidth: 285, color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, textAlign: 'center', marginTop: 4 },
+  collectionDoorRow: { width: '100%', flexDirection: 'row', gap: 9, marginTop: 22 },
+  collectionDoor: { flex: 1, minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)', borderRadius: 12, backgroundColor: 'rgba(4,9,23,.66)' },
+  collectionDoorValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17 },
+  collectionDoorLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
+  collectorValueCard: { marginTop: 12, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.22)' },
   collectorValueTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   collectorValueSource: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   collectorValueSourceText: { color: FateDropColors.echo, fontSize: 9, fontWeight: '900', letterSpacing: .85 },
   collectorCurrency: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .8 },
-  collectorValueLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: .9, marginTop: 24 },
-  collectorValueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 42, lineHeight: 50, marginTop: 2 },
-  collectorValueNote: { maxWidth: 330, color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 15, marginTop: 7 },
+  collectorValueLine: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 10 },
+  collectorValueLabel: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: .75 },
+  collectorValueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 24, lineHeight: 29, marginTop: 1 },
+  collectorValueNote: { maxWidth: 330, color: FateDropColors.secondary, fontSize: 9, lineHeight: 13, marginTop: 5 },
   collectorCoverageTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
   collectorCoverageLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
-  collectorCoverageValue: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900' },
+  collectorCoverageValue: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900' },
   collectorCoverageTrack: { height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,255,255,.09)', marginTop: 7 },
   collectorCoverageFill: { height: 5, borderRadius: 3, backgroundColor: FateDropColors.echo },
   collectorSourceNote: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12, marginTop: 9 },

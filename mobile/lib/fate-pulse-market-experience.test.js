@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const screen = read('screens/fate-market-screen-v2.tsx');
+const binderScreen = read('screens/fate-binder-screen.tsx');
 const service = read('services/fate-market.ts');
 const marketTheme = path.join(root, 'assets/images/fate-market-orbital-theme.webp');
 
@@ -37,9 +38,11 @@ test('FatePulse supports evidence-backed period and mover exploration', () => {
   assert.match(screen, /cardId: item\.cardIdentityId/);
 });
 
-test('FatePrice and Collectors are explicitly interlinked without routing through FateFind', () => {
+test('FatePrice and Fate Collections are explicitly interlinked without routing through FateFind', () => {
   assert.match(screen, /OPEN FATEPRICE/);
-  assert.match(screen, /Find missing cards from .* in FatePrice/);
+  assert.match(screen, /pathname: '\/binder\/\[setId\]'/);
+  assert.match(binderScreen, /pathname: '\/fate-price'/);
+  assert.match(binderScreen, /addExactCardToCollector/);
   assert.match(screen, /pathname: '\/fate-price'/);
   assert.doesNotMatch(screen, /CHOOSE AN EXACT CARD IN FATEFIND/);
 });

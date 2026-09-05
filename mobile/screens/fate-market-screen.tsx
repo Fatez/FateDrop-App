@@ -42,7 +42,7 @@ const marketAreas: Record<MarketAreaKey, {
     detail: 'Ownership, completion and personal value.',
     eyebrow: 'YOUR POSITION',
     icon: 'albums-outline',
-    title: 'Fate Collectors',
+    title: 'Collections',
   },
 };
 
@@ -221,11 +221,11 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
     : error
       ? error
       : data?.status === 'empty'
-        ? 'Your collection is empty. FateDrop will accept only a user-exported Collectr CSV and will preview exact matches before anything can be added.'
+        ? 'Your collection is empty. FateDrop accepts an optional user-exported collection CSV and previews exact matches before anything can be added.'
         : 'Completion uses verified canonical printings. Price gaps and incomplete set catalogues stay visible instead of becoming fake precision.';
   return (
     <View style={[styles.panel, { borderColor: `${FateDropColors.echo}55` }]}>
-      <PanelHeading eyebrow="FATE COLLECTORS" title="What do I own, and what does it mean?" accent={FateDropColors.echo} status={status} />
+      <PanelHeading eyebrow="FATE COLLECTIONS" title="What do I own, and what does it mean?" accent={FateDropColors.echo} status={status} />
       <View style={styles.collectorHero}>
         <Text style={styles.collectorLabel}>KNOWN COLLECTION VALUE</Text>
         <Text style={styles.collectorValue}>{valueText(data)}</Text>
@@ -237,7 +237,7 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
         <CollectorMetric label="CLOSEST SET" value={summary?.closestSet ? `${summary.closestSet.completionPercent}%` : '—'} />
       </View>
       <Text style={styles.panelCopy}>{collectionCopy}</Text>
-      {signedIn ? <Text style={styles.importNote}>COLLECTR · User-export preview only. No account automation, scraping or imported price claims.</Text> : null}
+      {signedIn ? <Text style={styles.importNote}>COLLECTION CSV · User-export preview only. No account automation, scraping or imported price claims.</Text> : null}
       {!signedIn ? (
         <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
           <Text style={styles.secondaryButtonText}>CONNECT FATEDROP ID</Text>
