@@ -321,11 +321,11 @@ export function fetchFatePulse(tcgCode?: string, { force = false }: { force?: bo
 }
 
 function fatePriceScopeQuery(scope?: Partial<FatePriceScope> | null) {
-  const params: string[] = [];
+  const params: string[] = ['displayCurrency=GBP'];
   if (scope?.currencyCode) params.push(`currency=${encodeURIComponent(scope.currencyCode)}`);
   if (scope?.marketSegmentKey) params.push(`marketSegment=${encodeURIComponent(scope.marketSegmentKey)}`);
   if (scope?.conditionCode) params.push(`condition=${encodeURIComponent(scope.conditionCode)}`);
-  return params.length ? `?${params.join('&')}` : '';
+  return `?${params.join('&')}`;
 }
 
 export function fetchFatePrice(cardIdentityId: string, {
@@ -394,7 +394,7 @@ export async function fetchFateCollectorsSummary({ force = false }: { force?: bo
   if (!token) throw new FateMarketApiError('Connect your FateDrop ID to view your collection.', 401, 'AUTH_REQUIRED');
   if (!force && collectorsCache?.token === token && Date.now() - collectorsCache.cachedAt < MARKET_SNAPSHOT_TTL_MS) return collectorsCache.data;
   if (collectorsFlight?.token === token) return collectorsFlight.promise;
-  const promise = request<FateCollectorsSnapshot>('/v1/collectors/summary?currency=EUR&language=en&variant=standard', {
+  const promise = request<FateCollectorsSnapshot>('/v1/collectors/summary?currency=GBP&language=en&variant=standard', {
     authenticated:true,
     authorizationToken:token,
   }).then((data) => {
