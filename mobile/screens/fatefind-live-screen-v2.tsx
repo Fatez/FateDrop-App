@@ -11,6 +11,7 @@ import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry'
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { useTcgCapabilities } from '@/contexts/tcg-capabilities-context';
 import { rrpBasisLabel } from '@/lib/value-compare';
+import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import { LocalWishlistRepository } from '@/services/wishlist';
 import type {
@@ -24,6 +25,7 @@ import type {
 } from '@/types/true-price';
 
 type SortMode = 'item' | 'delivered';
+type BestDeal = { alert: CanonicalMobileAlert; deliveredPence: number; rrpPence: number; deltaPercent: number };
 const wishlist = new LocalWishlistRepository();
 const money = (value?: number | null) => value == null ? 'Unknown' : `£${value.toFixed(2)}`;
 const sortedOffers = (offers: TruePriceOffer[], sort: SortMode) => [...offers].sort((a, b) => sort === 'item' ? (a.priceGbp ?? Infinity) - (b.priceGbp ?? Infinity) : (a.totalDeliveredGbp ?? Infinity) - (b.totalDeliveredGbp ?? Infinity));
@@ -42,6 +44,13 @@ function deltaLabel(value: number | undefined, rrp: number | undefined) {
   const sign = difference > 0 ? '+' : difference < 0 ? '−' : '';
   const percentSign = percent > 0 ? '+' : percent < 0 ? '−' : '';
   return `${sign}£${Math.abs(difference).toFixed(2)} · ${percentSign}${Math.abs(percent).toFixed(1)}% vs RRP/reference`;
+}
+function bestDealStatus(deltaPercent: number) {
+  if (deltaPercent < -0.05) return { label: 'UNDER RRP', color: FateDropColors.mint };
+  if (Math.abs(deltaPercent) <= 0.05) return { label: 'AT RRP', color: FateDropColors.mint };
+  if (deltaPercent <= 5) return { label: 'GREAT DEAL', color: FateDropColors.goldBright };
+  if (deltaPercent <= 10) return { label: '+5–10% OVER', color: FateDropColors.amber };
+  return { label: 'PREMIUM', color: FateDropColors.muted };
 }
 
 async function parseVerdictResponse(response: Response) {
@@ -115,6 +124,8 @@ export default function FateFindLiveScreenV2() {
   const [saved, setSaved] = useState<string[]>([]);
   const [compareLeftId, setCompareLeftId] = useState('');
   const [compareRightId, setCompareRightId] = useState('');
+  const [liveDealAlerts, setLiveDealAlerts] = useState<CanonicalMobileAlert[]>([]);
+  const [bestDealsLoading, setBestDealsLoading] = useState(false);
 
   useEffect(() => { if (incomingQuery) setQuery(incomingQuery); }, [incomingQuery]);
   useEffect(() => {
@@ -122,6 +133,15 @@ export default function FateFindLiveScreenV2() {
     setTcgCode((current) => requested ?? (selectedTcgCodes.includes(current) ? current : selectedTcgCodes[0]));
   }, [incomingTcg, selectedTcgCodes]);
   useFocusEffect(useCallback(() => { void wishlist.list().then((items) => setSaved(items.filter((item) => item.targetType === 'PRODUCT').map((item) => item.targetId))); }, []));
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setBestDealsLoading(true);
+    void fetchCanonicalLiveOpportunities(50)
+      .then((alerts) => { if (active) setLiveDealAlerts(alerts); })
+      .catch(() => { if (active) setLiveDealAlerts([]); })
+      .finally(() => { if (active) setBestDealsLoading(false); });
+    return () => { active = false; };
+  }, []));
 
   const tcgDefinition = TCG_REGISTRY.find((entry) => entry.code === tcgCode) ?? TCG_REGISTRY[0];
   const tcgCapability = capabilityFor(tcgCode);
@@ -234,6 +254,20 @@ export default function FateFindLiveScreenV2() {
 
   const displayed = useMemo(() => groups.map((group) => ({ ...group, offers: sortedOffers(group.offers, sort) })), [groups, sort]);
   const compareOptions = useMemo(() => displayed.filter((group) => group.offers.length > 0), [displayed]);
+  const bestDeals = useMemo<BestDeal[]>(() => {
+    const byProduct = new Map<string, BestDeal>();
+    for (const alert of liveDealAlerts) {
+      if (alert.tcgCode !== tcgCode) continue;
+      const deliveredPence = alert.product.deliveredPricePence;
+      const rrpPence = alert.product.rrpPence ?? alert.priceIntelligence.rrpPence;
+      if (!Number.isFinite(deliveredPence) || !Number.isFinite(rrpPence) || !deliveredPence || !rrpPence || rrpPence <= 0) continue;
+      const deltaPercent = percentDelta(deliveredPence, rrpPence);
+      const next = { alert, deliveredPence, rrpPence, deltaPercent };
+      const existing = byProduct.get(alert.productId);
+      if (!existing || deltaPercent < existing.deltaPercent || (deltaPercent === existing.deltaPercent && deliveredPence < existing.deliveredPence)) byProduct.set(alert.productId, next);
+    }
+    return [...byProduct.values()].sort((a, b) => a.deltaPercent - b.deltaPercent || a.deliveredPence - b.deliveredPence).slice(0, 5);
+  }, [liveDealAlerts, tcgCode]);
   const chooseLeft = (id: string) => {
     if (id === compareRightId) return;
     setCompareLeftId(id);
@@ -255,6 +289,7 @@ export default function FateFindLiveScreenV2() {
     <Text style={styles.label}>Trading card game</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>{TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => <FilterChip key={entry.code} label={`${entry.shortName}${capabilityFor(entry.code).browseEnabled ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />)}</ScrollView>
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
+    {displayed.length === 0 ? <BestDealsPanel deals={bestDeals} loading={bestDealsLoading} /> : null}
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
     <Text style={styles.disclaimer}>RRP/reference percentage shows whether the item price is fair against the verified value baseline. True Price shows what you will actually pay when mandatory delivery/fees are known. Unknown delivery never becomes £0. FateDrop Cloud owns the ranking and Fate Verdict.</Text>
@@ -263,7 +298,32 @@ export default function FateFindLiveScreenV2() {
     <MobileValueCompare groups={compareOptions} leftId={compareLeftId} rightId={compareRightId} onLeft={chooseLeft} onRight={chooseRight} result={pairVerdict} loading={pairLoading} error={pairError} />
   </>;
 
-  return <SafeAreaView style={styles.safe}><FateDropBackground /><FlatList data={displayed} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} ListHeaderComponent={header} ListEmptyComponent={loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{error || 'Search at least two characters to run FateFind across the live database.'}</Text>} renderItem={({ item }) => <ComparisonGroup group={item} saved={saved.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
+  return <SafeAreaView style={styles.safe}><FateDropBackground /><FlatList data={displayed} keyExtractor={(item) => item.id} contentContainerStyle={styles.content} ListHeaderComponent={header} ListEmptyComponent={loading ? <ActivityIndicator color={FateDropColors.violetLight} style={styles.state} /> : <Text style={styles.state}>{error || 'Search at least two characters to run FateFind across the live database.'}</Text>} ListFooterComponent={displayed.length ? <BestDealsPanel deals={bestDeals} loading={bestDealsLoading} /> : null} renderItem={({ item }) => <ComparisonGroup group={item} saved={saved.includes(item.id)} onToggle={() => void toggleProduct(item)} />} /></SafeAreaView>;
+}
+
+function BestDealsPanel({ deals, loading }: { deals: BestDeal[]; loading: boolean }) {
+  return <View style={styles.bestDealsPanel}>
+    <View style={styles.bestDealsHead}>
+      <View style={{ flex: 1 }}><Text style={styles.bestDealsEyebrow}>BEST DEALS RIGHT NOW</Text><Text style={styles.bestDealsTitle}>Closest to retail price across FateDrop</Text><Text style={styles.bestDealsCopy}>Current Manifested offers only · ranked by delivered price against verified RRP.</Text></View>
+      <Ionicons name="sparkles" size={20} color={FateDropColors.goldBright} />
+    </View>
+    {loading ? <View style={styles.bestDealsState}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.bestDealsStateText}>Checking live deals…</Text></View> : deals.length ? deals.map((deal, index) => {
+      const status = bestDealStatus(deal.deltaPercent);
+      return <View key={`${deal.alert.productId}:${deal.alert.offerId}`} style={styles.bestDealRow}>
+        <Text style={styles.bestDealRank}>{index + 1}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.bestDealProduct} numberOfLines={2}>{deal.alert.product.title || deal.alert.title}</Text>
+          <Text style={styles.bestDealRetailer}>{deal.alert.retailer}</Text>
+          <Text style={styles.bestDealPrice}>{money(deal.deliveredPence / 100)} delivered</Text>
+          <Text style={styles.bestDealRrp}>RRP {money(deal.rrpPence / 100)} · {percentLabel(deal.deltaPercent)}</Text>
+        </View>
+        <View style={styles.bestDealAction}>
+          <StatusBadge label={status.label} color={status.color} />
+          <Pressable accessibilityLabel={`Open deal at ${deal.alert.retailer}`} onPress={() => void openTrackedRetailerLink({ destinationUrl: deal.alert.productUrl, retailerId: deal.alert.retailerId, offerId: deal.alert.offerId, placement: 'fatefind' })} style={styles.bestDealOpen}><Text style={styles.bestDealOpenText}>FATEFIND →</Text></Pressable>
+        </View>
+      </View>;
+    }) : <Text style={styles.bestDealsEmpty}>No current Manifested offers have both verified RRP and delivered-cost evidence right now.</Text>}
+  </View>;
 }
 
 function CloudVerdictSummary({ groups, verdict }: { groups: TruePriceGroup[]; verdict: FateRankVerdict | null }) {
@@ -349,6 +409,7 @@ function ComparisonGroup({ group, saved, onToggle }: { group: TruePriceGroup; sa
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background }, content: { paddingHorizontal: 20, paddingBottom: 80 }, back: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 12 }, backText: { color: FateDropColors.text, fontWeight: '800' },
   search: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: 18, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: FateDropColors.border, marginBottom: 12 }, input: { flex: 1, color: FateDropColors.text }, label: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' }, sorts: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginVertical: 10 }, disclaimer: { color: FateDropColors.muted, fontSize: 11, lineHeight: 17, marginBottom: 14 }, state: { color: FateDropColors.muted, textAlign: 'center', margin: 40 },
+  bestDealsPanel: { padding: 15, borderRadius: 20, borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: `${FateDropColors.gold}0A`, marginBottom: 14 }, bestDealsHead: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 5 }, bestDealsEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1 }, bestDealsTitle: { color: FateDropColors.text, fontSize: 16, fontWeight: '900', marginTop: 4 }, bestDealsCopy: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, marginTop: 4 }, bestDealsState: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 }, bestDealsStateText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '800' }, bestDealsEmpty: { color: FateDropColors.muted, fontSize: 10, lineHeight: 15, paddingVertical: 13 }, bestDealRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: 1, borderTopColor: FateDropColors.border }, bestDealRank: { width: 20, color: FateDropColors.goldBright, fontSize: 16, fontWeight: '900' }, bestDealProduct: { color: FateDropColors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' }, bestDealRetailer: { color: FateDropColors.muted, fontSize: 9, marginTop: 3 }, bestDealPrice: { color: FateDropColors.text, fontSize: 12, fontWeight: '900', marginTop: 5 }, bestDealRrp: { color: FateDropColors.cyan, fontSize: 9, fontWeight: '800', marginTop: 3 }, bestDealAction: { alignItems: 'flex-end', gap: 8 }, bestDealOpen: { paddingHorizontal: 8, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: `${FateDropColors.violetLight}44` }, bestDealOpenText: { color: FateDropColors.violetLight, fontSize: 8, fontWeight: '900' },
   cloudNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 11, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: `${FateDropColors.gold}0B`, marginBottom: 14 }, cloudNoticeText: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 15 },
   comparePanel: { padding: 15, borderRadius: 20, backgroundColor: FateDropColors.glass, borderWidth: 1, borderColor: `${FateDropColors.violetLight}33`, marginBottom: 14 }, compareHead: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' }, compareEyebrow: { color: FateDropColors.violetLight, fontSize: 8, fontWeight: '900', letterSpacing: 1 }, compareTitle: { color: FateDropColors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }, compareCopy: { color: FateDropColors.muted, fontSize: 10, lineHeight: 15, marginTop: 4 },
   selector: { marginTop: 14 }, selectorLabel: { color: FateDropColors.cyan, fontSize: 8, fontWeight: '900', marginBottom: 6 }, selectorSelected: { minHeight: 58, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: `${FateDropColors.violetLight}66`, backgroundColor: `${FateDropColors.violet}28`, justifyContent: 'center' }, selectorSelectedTitle: { color: FateDropColors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' }, selectorSelectedMeta: { color: FateDropColors.violetLight, fontSize: 7, fontWeight: '900', letterSpacing: .8, marginTop: 5 }, selectorChange: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .7, marginTop: 8, marginBottom: 5 }, selectorRow: { gap: 7, paddingRight: 8 }, selectorChip: { width: 190, minHeight: 48, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.cardElevated, justifyContent: 'center' }, selectorChipText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 12, fontWeight: '800' },
