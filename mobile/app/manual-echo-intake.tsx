@@ -63,7 +63,9 @@ export default function ManualEchoIntakeScreen() {
   }, [retractAccess, selectedIssue]);
 
   useEffect(() => {
-    if (activeMode === 'retract' && retractAccess === 'authorized' && !historyLoaded) void refreshEchoes();
+    if (activeMode !== 'retract' || retractAccess !== 'authorized' || historyLoaded) return;
+    const timer = setTimeout(() => void refreshEchoes(), 0);
+    return () => clearTimeout(timer);
   }, [activeMode, historyLoaded, refreshEchoes, retractAccess]);
 
   const selectedEcho = echoes.find((echo) => echo.operatorIssue === selectedIssue) ?? null;

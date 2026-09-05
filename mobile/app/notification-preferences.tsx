@@ -71,7 +71,7 @@ function pushStatusMessage(result: { enabled: boolean; reason?: string }) {
 }
 
 export default function NotificationPreferencesScreen() {
-  const { snapshot, signedIn, refresh, syncing, loading, error } = useFateDropId();
+  const { snapshot, signedIn, refresh, syncing } = useFateDropId();
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, markets: FALLBACK_ALERT_MARKETS, sets: [] });
