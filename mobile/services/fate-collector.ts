@@ -1,5 +1,5 @@
 import { SIGNAL_ENGINE_URL } from '@/constants/api';
-import type { FateCollectorsSnapshot } from '@/services/fate-market';
+import { invalidateFateCollectorsSummaryCache, type FateCollectorsSnapshot } from '@/services/fate-market';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
 const CACHE_TTL_MS = 30_000;
@@ -167,6 +167,7 @@ async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
 export function invalidateFateCollectorCache() {
   dashboardCache = null;
   dashboardFlight = null;
+  invalidateFateCollectorsSummaryCache();
 }
 
 export async function fetchFateCollectorDashboard({ force = false }: { force?: boolean } = {}) {

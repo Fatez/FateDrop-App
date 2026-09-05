@@ -144,6 +144,9 @@ export type FateCollectorsSnapshot = {
     unresolvedCollectionItemCount: number;
     completeSetValuesConnected: boolean;
     valuationReason: string | null;
+    valuationCurrencyCode?: string;
+    sourceMarketCurrencyCode?: string;
+    personalPulseConnected?: boolean;
   };
 };
 
@@ -220,15 +223,15 @@ export type FatePriceSnapshot = {
     centralSignals?: string[];
     centralPolicy?: string;
     lowestListingUsedInCentralPrice?: false;
-    sourceEstimates?: Array<{
+    sourceEstimates?: {
       sourceName: string;
       asOf: number;
       estimate: number;
       rangeLow: number;
       rangeHigh: number;
       guideLow: number | null;
-      signals: Array<{ field: string; value: number }>;
-    }>;
+      signals: { field: string; value: number }[];
+    }[];
   };
 };
 
@@ -405,6 +408,11 @@ export async function fetchFateCollectorsSummary({ force = false }: { force?: bo
   });
   collectorsFlight = { token, promise };
   return promise;
+}
+
+export function invalidateFateCollectorsSummaryCache() {
+  collectorsCache = null;
+  collectorsFlight = null;
 }
 
 export function previewCollectrExport(csvText: string) {

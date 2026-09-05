@@ -22,14 +22,27 @@ test('FatePulse keeps full-market top three rankings independent of ownership', 
 });
 
 test('FateCollector owns the personal riser/faller and set-binder UI', () => {
-  assert.match(market, /FateCollectorEnhancements data=\{data\} signedIn=\{signedIn\}/);
-  assert.match(collector, /YOUR COLLECTION PULSE/);
-  assert.match(collector, /Your biggest risers and fallers/);
-  assert.match(collector, /YOUR BIGGEST RISERS/);
-  assert.match(collector, /YOUR BIGGEST FALLERS/);
+  assert.match(market, /FateCollectorEnhancements data=\{data\} onCollectionChanged=\{onRefresh\} signedIn=\{signedIn\}/);
+  assert.match(collector, /PERSONAL COLLECTION PULSE/);
+  assert.match(collector, /What moved among your cards\?/);
+  assert.match(collector, /YOUR TOP \{label\}/);
   assert.match(collector, /SET BINDERS/);
   assert.match(collector, /pulse\?\.risers \|\| \[\]/);
   assert.match(collector, /pulse\?\.decliners \|\| \[\]/);
+  assert.match(collector, /items\.slice\(0, 3\)/);
+  assert.match(collector, /COMPARE THE BROAD MARKET/);
+  assert.match(collector, /source \{sourceCurrency\} market/);
+  assert.match(collector, /currency changes cannot create a rise or fall/);
+});
+
+test('Collector valuation labels known coverage without presenting a partial sum as a total', () => {
+  assert.match(market, /fullyValued = Boolean\(collection && collection\.totalUnits > 0 && collection\.totalValue != null\)/);
+  assert.match(market, /fullyValued \? 'COLLECTION VALUE' : 'KNOWN PRICED VALUE'/);
+  assert.match(market, /collection\.pricedUnits} of \$\{collection\.totalUnits/);
+  assert.match(market, /excluded—not estimated/);
+  assert.match(market, /PRICE COVERAGE/);
+  assert.match(market, /collection && collection\.totalUnits > 0 \? concisePercent/);
+  assert.match(market, /sourceMarketCurrencyCode/);
 });
 
 test('exact FatePrice cards can be manually added to the canonical collection', () => {
@@ -49,4 +62,6 @@ test('Collectr import is user-picked, previewed and explicitly confirmed', () =>
   assert.match(service, /\/v1\/collectors\/import\/collectr\/confirm/);
   assert.match(service, /confirmed: true/);
   assert.match(collector, /ambiguous.*unresolved.*rejected CSV rows/s);
+  assert.match(collector, /await onCollectionChanged\(\)/);
+  assert.match(service, /invalidateFateCollectorsSummaryCache\(\)/);
 });

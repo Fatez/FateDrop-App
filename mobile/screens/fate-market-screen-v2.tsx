@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -264,7 +264,7 @@ export default function FateMarketScreenV2() {
           <PulsePanel data={loadedPulseScope === selectedScope ? pulse : null} error={pulseError} loading={loading} onScopeChange={setSelectedScope} scope={selectedScope} scopeOptions={scopeOptions} />
         ) : null}
         {activeArea === 'price' ? <PricePanel /> : null}
-        {activeArea === 'collectors' ? <CollectorsPanel data={collectors} error={collectorsError} loading={loading} signedIn={signedIn} /> : null}
+        {activeArea === 'collectors' ? <CollectorsPanel data={collectors} error={collectorsError} loading={collectorsLoading} onRefresh={() => loadCollectors(true)} signedIn={signedIn} /> : null}
 
         <View style={styles.truthLedger}>
           <Ionicons name="shield-checkmark-outline" size={17} color={FateDropColors.goldBright} />
@@ -301,19 +301,17 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
     : 'Waiting for the Cloud evidence boundary';
   const evidenceStatus = error ? 'EVIDENCE UNAVAILABLE' : available ? 'EVIDENCE LIVE' : loading && !data ? 'LOADING' : 'COVERAGE BUILDING';
 
-  useEffect(() => setSelectedMoverKey(null), [periodKey, rankingScope, scope]);
-
   return (
     <View style={styles.panel}>
       <PanelHeading eyebrow="FATEPULSE" title="What is moving across the market?" accent={accent} status={evidenceStatus} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRail}>
         {scopeOptions.map((option) => (
-          <ScopeButton key={option} label={option === 'all' ? 'ALL TCGs' : scopeLabel(option).toUpperCase()} selected={scope === option} onPress={() => onScopeChange(option)} />
+          <ScopeButton key={option} label={option === 'all' ? 'ALL TCGs' : scopeLabel(option).toUpperCase()} selected={scope === option} onPress={() => { setSelectedMoverKey(null); onScopeChange(option); }} />
         ))}
       </ScrollView>
       <View style={styles.periodRail}>
         {pulsePeriods.map((option) => (
-          <Pressable key={option.key} accessibilityRole="button" accessibilityState={{ selected: periodKey === option.key }} onPress={() => setPeriodKey(option.key)} style={[styles.periodButton, periodKey === option.key && styles.periodButtonActive]}>
+          <Pressable key={option.key} accessibilityRole="button" accessibilityState={{ selected: periodKey === option.key }} onPress={() => { setSelectedMoverKey(null); setPeriodKey(option.key); }} style={[styles.periodButton, periodKey === option.key && styles.periodButtonActive]}>
             <Text style={[styles.periodButtonText, periodKey === option.key && styles.periodButtonTextActive]}>{option.label}</Text>
           </Pressable>
         ))}
@@ -371,8 +369,8 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
           <Text style={styles.moversTitle}>{rankingScope === 'cards' ? 'Top three across eligible exact cards' : 'Top three qualifying set baskets'}</Text>
         </View>
         <View style={styles.segmentedRow}>
-          <SegmentButton label="SETS" selected={rankingScope === 'sets'} onPress={() => setRankingScope('sets')} />
-          <SegmentButton label="CARDS" selected={rankingScope === 'cards'} onPress={() => setRankingScope('cards')} />
+          <SegmentButton label="SETS" selected={rankingScope === 'sets'} onPress={() => { setSelectedMoverKey(null); setRankingScope('sets'); }} />
+          <SegmentButton label="CARDS" selected={rankingScope === 'cards'} onPress={() => { setSelectedMoverKey(null); setRankingScope('cards'); }} />
         </View>
       </View>
       <View style={styles.moverColumns}>
@@ -397,39 +395,115 @@ function PricePanel() {
   );
 }
 
-function collectionValue(data: FateCollectorsSnapshot | null) {
-  const collection = data?.summary.collection;
-  if (!collection || collection.pricedUnits === 0) return '—';
-  return formatMoney(collection.knownValue, data?.summary.currencyCode);
+function concisePercent(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
-function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; signedIn: boolean }) {
+function collectorStatus(data: FateCollectorsSnapshot | null, error: string, loading: boolean, signedIn: boolean) {
+  if (!signedIn) return 'FATEDROP ID REQUIRED';
+  if (error && !data) return 'EVIDENCE UNAVAILABLE';
+  if (loading && !data) return 'READING COLLECTION';
+  if (error && data) return 'LAST SAFE SNAPSHOT';
+  if (data?.status === 'empty') return 'PRIVATE · EMPTY';
+  if (data?.status === 'partial') return 'PRIVATE · PARTIAL';
+  return data ? 'PRIVATE · READY' : 'PRIVATE VIEW';
+}
+
+function CollectorValueCard({ data, loading }: { data: FateCollectorsSnapshot | null; loading: boolean }) {
   const summary = data?.summary;
-  const status = !signedIn ? 'FATEDROP ID REQUIRED' : data ? 'PRIVATE EVIDENCE' : loading ? 'LOADING' : 'PRIVATE PREVIEW';
+  const collection = summary?.collection;
+  const fullyValued = Boolean(collection && collection.totalUnits > 0 && collection.totalValue != null);
+  const hasKnownValue = Boolean(collection && collection.pricedUnits > 0);
+  const value = fullyValued ? collection?.totalValue : collection?.knownValue;
+  const currency = data?.evidence.valuationCurrencyCode || summary?.currencyCode;
+  const sourceCurrency = data?.evidence.sourceMarketCurrencyCode;
+  const coverage = collection && collection.totalUnits > 0 ? collection.priceCoveragePercent : 0;
+  const missingPriceCount = collection ? Math.max(0, collection.totalUnits - collection.pricedUnits) : 0;
+  const note = !collection
+    ? loading ? 'Reading your private collection and verified FatePrice coverage…' : 'Collection value appears only when verified FatePrice evidence exists.'
+    : collection.totalUnits === 0
+      ? 'No cards are recorded yet. Add one exact card or preview a Collectr export to begin.'
+      : collection.pricedUnits === 0
+      ? `None of your ${collection.totalUnits} recorded ${collection.totalUnits === 1 ? 'copy has' : 'copies have'} a verified FatePrice yet.`
+      : fullyValued
+        ? `All ${collection.totalUnits} recorded ${collection.totalUnits === 1 ? 'copy is' : 'copies are'} included.`
+        : `${collection.pricedUnits} of ${collection.totalUnits} recorded copies are included. ${missingPriceCount} ${missingPriceCount === 1 ? 'copy is' : 'copies are'} excluded—not estimated.`;
+
+  return (
+    <View style={styles.collectorValueCard}>
+      <View pointerEvents="none" style={styles.collectorValueGlow} />
+      <View style={styles.collectorValueTop}>
+        <View style={styles.collectorValueSource}>
+          <Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.echo} />
+          <Text style={styles.collectorValueSourceText}>FATEPRICE VALUATION</Text>
+        </View>
+        <Text style={styles.collectorCurrency}>{currency || '—'}</Text>
+      </View>
+      <Text style={styles.collectorValueLabel}>{fullyValued ? 'COLLECTION VALUE' : 'KNOWN PRICED VALUE'}</Text>
+      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.collectorValueMain}>{hasKnownValue ? formatMoney(value, currency) : '—'}</Text>
+      <Text style={styles.collectorValueNote}>{note}</Text>
+      <View style={styles.collectorCoverageTop}>
+        <Text style={styles.collectorCoverageLabel}>PRICE COVERAGE</Text>
+        <Text style={styles.collectorCoverageValue}>{collection && collection.totalUnits > 0 ? concisePercent(collection.priceCoveragePercent) : '—'}</Text>
+      </View>
+      <View style={styles.collectorCoverageTrack}>
+        <View style={[styles.collectorCoverageFill, { width: `${Math.min(100, Math.max(0, coverage))}%` }]} />
+      </View>
+      <Text style={styles.collectorSourceNote}>{sourceCurrency && currency ? `Cardmarket evidence in ${sourceCurrency} · values presented in ${currency}` : 'Verified exact-card evidence only'}</Text>
+    </View>
+  );
+}
+
+function CollectorFact({ detail, icon, label, value }: { detail: string; icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.collectorFact}>
+      <Ionicons name={icon} size={15} color={FateDropColors.echo} />
+      <View style={styles.flex}>
+        <Text style={styles.collectorFactLabel}>{label}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={styles.collectorFactValue}>{value}</Text>
+        <Text style={styles.collectorFactDetail}>{detail}</Text>
+      </View>
+    </View>
+  );
+}
+
+function CollectorsPanel({ data, error, loading, onRefresh, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; onRefresh: () => Promise<void>; signedIn: boolean }) {
+  const summary = data?.summary;
   const collectionCopy = !signedIn
-    ? 'Connect a FateDrop ID now; ownership, imports and valuation are always private and owner-scoped.'
-    : error ? error : data?.status === 'empty'
+    ? 'Connect your FateDrop ID to see an owner-scoped view of your cards, values, binders and personal movement.'
+    : error && data ? `${error} The last safely loaded snapshot remains visible.` : error
+      ? error : data?.status === 'empty'
       ? 'Your collection is empty. Add an exact card from FatePrice or preview a user-exported Collectr CSV.'
-      : 'Completion uses verified canonical printings. Price gaps and incomplete set catalogues stay visible instead of becoming fake precision.';
+      : 'Owned copies reflect your recorded collection. Exact-card, binder and valuation figures use verified canonical identities; every gap stays visible.';
   return (
     <View style={styles.panel}>
-      <PanelHeading eyebrow="FATE COLLECTORS" title="What do I own, and what does it mean?" accent={FateDropColors.echo} status={status} />
-      <ValueInstrument accent={FateDropColors.echo} icon="albums-outline" label="KNOWN COLLECTION VALUE" value={collectionValue(data)} detail={`Price coverage ${summary ? `${summary.collection.priceCoveragePercent}%` : '—'} · source-native evidence`} />
-      <View style={styles.threeFactLedger}>
-        <CollectorMetric label="CARDS" value={summary ? String(summary.cardUnits) : '—'} /><View style={styles.ledgerDivider} />
-        <CollectorMetric label="SETS" value={summary ? String(summary.setsOwned) : '—'} /><View style={styles.ledgerDivider} />
-        <CollectorMetric label="CLOSEST SET" value={summary?.closestSet ? `${summary.closestSet.completionPercent}%` : '—'} />
-      </View>
+      <PanelHeading eyebrow="FATE COLLECTORS" title="Your collection, clearly accounted for." accent={FateDropColors.echo} status={collectorStatus(data, error, loading, signedIn)} />
+      <CollectorValueCard data={data} loading={loading} />
+      {summary ? <View style={styles.collectorFactGrid}>
+        <CollectorFact detail="total copies recorded" icon="layers-outline" label="OWNED COPIES" value={String(summary.cardUnits)} />
+        <CollectorFact detail="canonical identities" icon="finger-print-outline" label="EXACT CARDS" value={String(data?.evidence.verifiedOwnedIdentities ?? 0)} />
+        <CollectorFact detail="binders represented" icon="albums-outline" label="SETS OWNED" value={String(summary.setsOwned)} />
+        <CollectorFact detail="identity needs review" icon="help-circle-outline" label="UNRESOLVED" value={String(data?.evidence.unresolvedCollectionItemCount ?? 0)} />
+      </View> : null}
       {summary?.closestSet ? (
-        <View style={styles.closestSetLine}>
-          <View style={styles.flex}><Text style={styles.closestSetEyebrow}>CLOSEST TO COMPLETION</Text><Text style={styles.closestSetName}>{summary.closestSet.setName || 'Verified set'}</Text><Text style={styles.closestSetDetail}>{summary.closestSet.missingCount} cards missing</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Explore closest set in FatePrice" onPress={() => router.push({ pathname: '/fate-price', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined, tcg: summary.closestSet?.tcgCode || undefined } })} style={({ pressed }) => [styles.roundAction, pressed && styles.pressed]}><Ionicons name="pricetag-outline" size={17} color={FateDropColors.echo} /></Pressable>
+        <View style={styles.closestSetCard}>
+          <View style={styles.closestSetTop}>
+            <View style={styles.flex}><Text style={styles.closestSetEyebrow}>CLOSEST SET</Text><Text style={styles.closestSetName}>{summary.closestSet.setName || 'Verified set'}</Text></View>
+            <Text style={styles.closestSetPercent}>{concisePercent(summary.closestSet.completionPercent)}</Text>
+          </View>
+          <View style={styles.closestSetTrack}><View style={[styles.closestSetFill, { width: `${Math.min(100, Math.max(0, summary.closestSet.completionPercent))}%` }]} /></View>
+          <View style={styles.closestSetBottom}>
+            <Text style={styles.closestSetDetail}>{summary.closestSet.missingCount} {summary.closestSet.missingCount === 1 ? 'card' : 'cards'} still missing</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Find missing cards from ${summary.closestSet.setName || 'closest set'} in FatePrice`} onPress={() => router.push({ pathname: '/fate-price', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined, tcg: summary.closestSet?.tcgCode || undefined } })} style={({ pressed }) => [styles.closestSetAction, pressed && styles.pressed]}><Text style={styles.closestSetActionText}>FIND CARDS</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.echo} /></Pressable>
+          </View>
         </View>
       ) : null}
-      <Text style={styles.panelCopy}>{collectionCopy}</Text>
-      <FateCollectorEnhancements data={data} signedIn={signedIn} />
-      {signedIn ? <Text style={styles.importNote}>COLLECTR · User-exported files only. No account automation, scraping or imported price claims.</Text> : null}
-      {!signedIn ? <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Text style={styles.orbitalActionText}>CONNECT FATEDROP ID</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.echo} /></Pressable> : null}
+      <View style={styles.collectorExplanation}><Ionicons name={error ? 'alert-circle-outline' : 'information-circle-outline'} size={16} color={error ? FateDropColors.vanished : FateDropColors.echo} /><Text style={styles.panelCopy}>{collectionCopy}</Text></View>
+      {signedIn ? <Pressable accessibilityRole="button" accessibilityLabel="View every card in my collection" onPress={() => router.push('/collection')} style={({ pressed }) => [styles.collectionPrimaryAction, pressed && styles.pressed]}><Ionicons name="grid-outline" size={17} color={FateDropColors.background} /><Text style={styles.collectionPrimaryActionText}>VIEW MY CARDS</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.background} /></Pressable> : null}
+      {error && signedIn ? <Pressable accessibilityRole="button" disabled={loading} onPress={() => void onRefresh()} style={({ pressed }) => [styles.retryAction, pressed && styles.pressed]}>{loading ? <ActivityIndicator size="small" color={FateDropColors.echo} /> : <Ionicons name="refresh-outline" size={15} color={FateDropColors.echo} />}<Text style={styles.retryActionText}>REFRESH PRIVATE EVIDENCE</Text></Pressable> : null}
+      <FateCollectorEnhancements data={data} onCollectionChanged={onRefresh} signedIn={signedIn} />
+      {!signedIn ? <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Text style={[styles.orbitalActionText, { color: FateDropColors.echo }]}>CONNECT FATEDROP ID</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.echo} /></Pressable> : null}
     </View>
   );
 }
@@ -500,14 +574,6 @@ function MoverEvidence({ currencyCode, item, periodLabel }: { currencyCode: stri
     });
   };
   return <View style={styles.moverEvidence}><Text style={styles.moverEvidenceEyebrow}>SELECTED EVIDENCE · {periodLabel}D</Text><Text style={styles.moverEvidenceTitle}>{title}</Text><View style={styles.moverEvidenceFacts}>{facts.map((fact) => <View key={fact.label} style={styles.moverEvidenceFact}><Text style={styles.moverEvidenceLabel}>{fact.label}</Text><Text style={styles.moverEvidenceValue}>{fact.value}</Text></View>)}</View>{isCard ? <Pressable accessibilityRole="button" accessibilityLabel={`Open FatePrice for ${title}`} onPress={openFatePrice} style={({ pressed }) => [styles.moverPriceAction, pressed && styles.pressed]}><Ionicons name="pricetag-outline" size={14} color={FateDropColors.goldBright} /><Text style={styles.moverPriceActionText}>READ EXACT FATEPRICE</Text><Ionicons name="arrow-forward" size={13} color={FateDropColors.goldBright} /></Pressable> : null}</View>;
-}
-
-function MarketMetric({ detail, label, value }: { detail: string; label: string; value: string }) {
-  return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricDetail}>{detail}</Text></View>;
-}
-
-function CollectorMetric({ label, value }: { label: string; value: string }) {
-  return <View style={styles.metric}><Text numberOfLines={1} adjustsFontSizeToFit style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -622,18 +688,47 @@ const styles = StyleSheet.create({
   valueLabel: { color: FateDropColors.gold, fontSize: 6.8, fontWeight: '900', letterSpacing: .8, marginTop: 8 },
   valueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 37, lineHeight: 44, marginTop: 2 },
   valueSub: { maxWidth: 230, color: FateDropColors.secondary, fontSize: 8, lineHeight: 12, textAlign: 'center', marginTop: 2 },
-  threeFactLedger: { minHeight: 68, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   metricLabel: { color: FateDropColors.muted, fontSize: 6.3, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
   metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 2, textAlign: 'center' },
   metricDetail: { color: FateDropColors.muted, fontSize: 6.3, marginTop: 2 },
-  closestSetLine: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
-  closestSetEyebrow: { color: FateDropColors.echo, fontSize: 6.2, fontWeight: '900', letterSpacing: .7 },
-  closestSetName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 14, marginTop: 2 },
-  closestSetDetail: { color: FateDropColors.muted, fontSize: 7, marginTop: 2 },
-  roundAction: { width: 36, height: 36, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(217,205,187,.54)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(3,8,20,.38)' },
-  panelCopy: { color: FateDropColors.secondary, fontSize: 9.2, lineHeight: 15, paddingHorizontal: 8, marginTop: 13 },
-  importNote: { color: FateDropColors.echo, fontSize: 7.3, lineHeight: 12, fontWeight: '800', paddingHorizontal: 8, marginTop: 9 },
+  collectorValueCard: { position: 'relative', overflow: 'hidden', marginTop: 10, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.58)', borderRadius: 24, backgroundColor: 'rgba(4,9,23,.78)' },
+  collectorValueGlow: { position: 'absolute', width: 190, height: 190, borderRadius: 95, right: -74, top: -102, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.38)', backgroundColor: 'rgba(124,110,255,.05)' },
+  collectorValueTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  collectorValueSource: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  collectorValueSourceText: { color: FateDropColors.echo, fontSize: 9, fontWeight: '900', letterSpacing: .85 },
+  collectorCurrency: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .8 },
+  collectorValueLabel: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900', letterSpacing: .9, marginTop: 24 },
+  collectorValueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 42, lineHeight: 50, marginTop: 2 },
+  collectorValueNote: { maxWidth: 330, color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 15, marginTop: 7 },
+  collectorCoverageTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
+  collectorCoverageLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
+  collectorCoverageValue: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900' },
+  collectorCoverageTrack: { height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,255,255,.09)', marginTop: 7 },
+  collectorCoverageFill: { height: 5, borderRadius: 3, backgroundColor: FateDropColors.echo },
+  collectorSourceNote: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12, marginTop: 9 },
+  collectorFactGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 },
+  collectorFact: { width: '48.7%', minHeight: 92, flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)', borderRadius: 17, backgroundColor: 'rgba(3,8,20,.52)' },
+  collectorFactLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .55 },
+  collectorFactValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 22, lineHeight: 27, marginTop: 2 },
+  collectorFactDetail: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 11, marginTop: 2 },
+  closestSetCard: { marginTop: 12, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.44)', borderRadius: 18, backgroundColor: 'rgba(7,12,25,.62)' },
+  closestSetTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  closestSetEyebrow: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: .75 },
+  closestSetName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, lineHeight: 21, marginTop: 3 },
+  closestSetPercent: { color: FateDropColors.echo, fontFamily: Fonts.serif, fontSize: 22 },
+  closestSetTrack: { height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(255,255,255,.09)', marginTop: 12 },
+  closestSetFill: { height: 4, borderRadius: 2, backgroundColor: FateDropColors.echo },
+  closestSetBottom: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, marginTop: 8 },
+  closestSetDetail: { flex: 1, color: FateDropColors.secondary, fontSize: 9.5 },
+  closestSetAction: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}66`, backgroundColor: `${FateDropColors.echo}0B` },
+  closestSetActionText: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: .45 },
+  collectorExplanation: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 4, marginTop: 14 },
+  panelCopy: { flex: 1, color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 15 },
+  collectionPrimaryAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingHorizontal: 15, borderRadius: 15, backgroundColor: FateDropColors.echo },
+  collectionPrimaryActionText: { flex: 1, color: FateDropColors.background, fontSize: 10, fontWeight: '900', letterSpacing: .65, textAlign: 'center' },
+  retryAction: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}55`, borderRadius: 13 },
+  retryActionText: { color: FateDropColors.echo, fontSize: 8.5, fontWeight: '900', letterSpacing: .55 },
   orbitalAction: { minHeight: 45, marginTop: 14, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', backgroundColor: 'rgba(3,8,20,.20)' },
   orbitalActionText: { color: FateDropColors.goldBright, fontSize: 7.8, fontWeight: '900', letterSpacing: .65 },
   truthLedger: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 19, paddingHorizontal: 8, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
