@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -39,8 +39,8 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'FateCollector could not complete that action.';
 }
 
-export function FateCollectorEnhancements({ data, signedIn }: { data: FateCollectorsSnapshot | null; signedIn: boolean }) {
-  const [localData, setLocalData] = useState<FateCollectorsDashboardSnapshot | null>(data as FateCollectorsDashboardSnapshot | null);
+export function FateCollectorEnhancements({ data, onDataChange, signedIn }: { data: FateCollectorsSnapshot | null; onDataChange: (next: FateCollectorsDashboardSnapshot) => void; signedIn: boolean }) {
+  const dashboardData = data as FateCollectorsDashboardSnapshot | null;
   const [period, setPeriod] = useState<PersonalPeriod>('d30');
   const [csvText, setCsvText] = useState('');
   const [fileName, setFileName] = useState('');
@@ -48,14 +48,10 @@ export function FateCollectorEnhancements({ data, signedIn }: { data: FateCollec
   const [working, setWorking] = useState<'pick' | 'preview' | 'confirm' | ''>('');
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    if (data) setLocalData(data as FateCollectorsDashboardSnapshot);
-  }, [data]);
-
-  const pulse = localData?.personalPulse?.periods[period];
-  const binders = useMemo(() => (localData?.summary.sets || [])
+  const pulse = dashboardData?.personalPulse?.periods[period];
+  const binders = useMemo(() => (dashboardData?.summary.sets || [])
     .filter((set) => set.ownedCount == null || set.ownedCount > 0)
-    .sort((left, right) => Number(right.completionPercent || 0) - Number(left.completionPercent || 0)), [localData?.summary.sets]);
+    .sort((left, right) => Number(right.completionPercent || 0) - Number(left.completionPercent || 0)), [dashboardData?.summary.sets]);
 
   const pickCollectrCsv = async () => {
     setWorking('pick');
@@ -93,7 +89,7 @@ export function FateCollectorEnhancements({ data, signedIn }: { data: FateCollec
     try {
       const result = await confirmCollectrCsv(csvText, preview.confirmationToken || preview.preview.confirmationToken || '');
       const refreshed = await fetchFateCollectorDashboard({ force: true });
-      setLocalData(refreshed);
+      onDataChange(refreshed);
       setPreview(null);
       setCsvText('');
       setFileName('');

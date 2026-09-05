@@ -10,6 +10,7 @@ import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import type { FateCollectorsDashboardSnapshot } from '@/services/fate-collector';
 import {
   fetchFateCollectorsSummary,
   fetchFatePulse,
@@ -264,7 +265,7 @@ export default function FateMarketScreenV2() {
           <PulsePanel data={loadedPulseScope === selectedScope ? pulse : null} error={pulseError} loading={loading} onScopeChange={setSelectedScope} scope={selectedScope} scopeOptions={scopeOptions} />
         ) : null}
         {activeArea === 'price' ? <PricePanel /> : null}
-        {activeArea === 'collectors' ? <CollectorsPanel data={collectors} error={collectorsError} loading={loading} signedIn={signedIn} /> : null}
+        {activeArea === 'collectors' ? <CollectorsPanel data={collectors} error={collectorsError} loading={loading} onDataChange={setCollectors} signedIn={signedIn} /> : null}
 
         <View style={styles.truthLedger}>
           <Ionicons name="shield-checkmark-outline" size={17} color={FateDropColors.goldBright} />
@@ -403,7 +404,7 @@ function collectionValue(data: FateCollectorsSnapshot | null) {
   return formatMoney(collection.knownValue, data?.summary.currencyCode);
 }
 
-function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; signedIn: boolean }) {
+function CollectorsPanel({ data, error, loading, onDataChange, signedIn }: { data: FateCollectorsSnapshot | null; error: string; loading: boolean; onDataChange: (next: FateCollectorsDashboardSnapshot) => void; signedIn: boolean }) {
   const summary = data?.summary;
   const status = !signedIn ? 'FATEDROP ID REQUIRED' : data ? 'PRIVATE EVIDENCE' : loading ? 'LOADING' : 'PRIVATE PREVIEW';
   const collectionCopy = !signedIn
@@ -427,7 +428,7 @@ function CollectorsPanel({ data, error, loading, signedIn }: { data: FateCollect
         </View>
       ) : null}
       <Text style={styles.panelCopy}>{collectionCopy}</Text>
-      <FateCollectorEnhancements data={data} signedIn={signedIn} />
+      <FateCollectorEnhancements data={data} onDataChange={onDataChange} signedIn={signedIn} />
       {signedIn ? <Text style={styles.importNote}>COLLECTR · User-exported files only. No account automation, scraping or imported price claims.</Text> : null}
       {!signedIn ? <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Text style={styles.orbitalActionText}>CONNECT FATEDROP ID</Text><Ionicons name="arrow-forward" size={15} color={FateDropColors.echo} /></Pressable> : null}
     </View>
