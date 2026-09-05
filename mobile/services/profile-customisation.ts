@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PROFILE_AVATAR_IDS = ['oru', 'fenn', 'koru', 'nyxen', 'mark'] as const;
 
-// Canonical selectable wallpaper set. Keep this list deliberately small: these are
-// the only wallpapers exposed in Profile Customisation.
+// Canonical selectable wallpaper set. Keep this list deliberately small: Koru plus
+// the five current FateDrop wallpapers are the only wallpapers exposed in Profile Customisation.
 export const PROFILE_WALLPAPER_IDS = [
+  'koruHome',
   'fatedrop1',
   'fatedrop2',
   'fatedrop3',
@@ -16,7 +17,6 @@ export const PROFILE_WALLPAPER_IDS = [
 // safely during migration, but they are not selectable and fail closed to the
 // canonical default when loaded from storage.
 const LEGACY_PROFILE_WALLPAPER_IDS = [
-  'koruHome',
   'default',
   'oru',
   'fenn',
@@ -44,7 +44,7 @@ export type ProfileCustomisation = {
 
 export const DEFAULT_PROFILE_CUSTOMISATION: ProfileCustomisation = {
   avatarId: 'oru',
-  wallpaperId: 'fatedrop1',
+  wallpaperId: 'koruHome',
 };
 
 const STORAGE_PREFIX = 'fatedrop:profile-customisation:v1';
