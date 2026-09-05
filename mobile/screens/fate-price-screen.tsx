@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FatePriceDiscoveryPanel } from '@/components/fate-price-discovery-panel';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   FateMarketApiError,
   fetchFatePrice,
   fetchFatePriceCard,
   fetchFatePriceHistory,
-  searchFatePriceCards,
   type FatePriceCard,
   type FatePriceHistoryDays,
   type FatePriceHistorySnapshot,
@@ -77,12 +77,6 @@ function evidenceReason(reason: string | null | undefined) {
   return 'Choose an exact canonical card to read its verified market evidence.';
 }
 
-function cardLabel(card: FatePriceCard) {
-  const number = card.collectorNumber ? ` #${card.collectorNumber}` : '';
-  const variant = card.variantCode && card.variantCode !== 'standard' ? ` · ${card.variantCode.replaceAll('-', ' ')}` : '';
-  return `${card.name || 'Unknown card'}${number}${variant}`;
-}
-
 export default function FatePriceScreen() {
   const params = useLocalSearchParams<{
     cardId?: string | string[];
@@ -91,26 +85,26 @@ export default function FatePriceScreen() {
     query?: string | string[];
     setId?: string | string[];
     setName?: string | string[];
+    seriesId?: string | string[];
+    seriesName?: string | string[];
     tcg?: string | string[];
   }>();
   const routeCardId = first(params.cardId)?.trim() || '';
+  const routeTcg = first(params.tcg)?.trim() || '';
+  const routeSeriesId = first(params.seriesId)?.trim() || '';
+  const routeSeriesName = first(params.seriesName)?.trim() || '';
   const routeSetId = first(params.setId)?.trim() || '';
   const routeSetName = first(params.setName)?.trim() || '';
   const routeName = first(params.name)?.trim() || '';
   const routeCollectorNumber = first(params.collectorNumber)?.trim() || '';
   const routeQuery = first(params.query)?.trim() || '';
-  const [query, setQuery] = useState(routeSetId ? '' : routeQuery || routeName);
-  const [setFilterId, setSetFilterId] = useState(routeSetId);
-  const [results, setResults] = useState<FatePriceCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<FatePriceCard | null>(null);
   const [selectedCardId, setSelectedCardId] = useState(routeCardId);
   const [price, setPrice] = useState<FatePriceSnapshot | null>(null);
   const [history, setHistory] = useState<FatePriceHistorySnapshot | null>(null);
   const [historyDays, setHistoryDays] = useState<FatePriceHistoryDays>(30);
-  const [searching, setSearching] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [searchNotice, setSearchNotice] = useState('');
   const [priceNotice, setPriceNotice] = useState('');
   const [historyNotice, setHistoryNotice] = useState('');
 
@@ -142,29 +136,6 @@ export default function FatePriceScreen() {
     }
   }, []);
 
-  const searchCards = useCallback(async (nextQuery: string, nextSetId: string) => {
-    const cleanQuery = nextQuery.trim();
-    if (cleanQuery.length < 2 && !nextSetId) {
-      setSearchNotice('Enter at least two letters or numbers.');
-      setResults([]);
-      return;
-    }
-    setSearching(true);
-    setSearchNotice('');
-    try {
-      const response = await searchFatePriceCards({ query: cleanQuery, setId: nextSetId, limit: 60 });
-      setResults(response.cards);
-      setSearchNotice(response.cards.length ? `${response.count} exact canonical card${response.count === 1 ? '' : 's'} found.` : 'No exact canonical cards matched that search.');
-    } catch (error) {
-      setResults([]);
-      setSearchNotice(error instanceof FateMarketApiError ? error.message : 'Canonical card search is temporarily unavailable.');
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  const runSearch = useCallback(() => searchCards(query, setFilterId), [query, searchCards, setFilterId]);
-
   useEffect(() => {
     let active = true;
     if (routeCardId) {
@@ -181,20 +152,13 @@ export default function FatePriceScreen() {
       });
       setPriceLoading(true);
       setHistoryLoading(true);
-    } else if (routeSetId) {
-      void searchCards('', routeSetId);
-    } else if (routeQuery || routeName) {
-      void searchCards(routeQuery || routeName, '');
     }
     return () => { active = false; };
-  }, [routeCardId, routeName, routeQuery, routeSetId, searchCards]);
+  }, [routeCardId]);
 
   const selectCard = useCallback((card: FatePriceCard) => {
     setSelectedCard(card);
     setSelectedCardId(card.id);
-    setQuery(card.name || card.collectorNumber || '');
-    setResults([]);
-    setSearchNotice('');
     setPrice(null);
     setHistory(null);
     setHistoryNotice('');
@@ -254,39 +218,15 @@ export default function FatePriceScreen() {
         <MarketConstellation />
 
         <View style={styles.searchPanel}>
-          <View style={styles.searchHeading}>
-            <View style={styles.flex}>
-              <Text style={styles.sectionEyebrow}>EXACT CARD IDENTITY</Text>
-              <Text style={styles.searchTitle}>{setFilterId ? `Choose a card from ${routeSetName || 'this set'}` : 'Find a card by name or number'}</Text>
-            </View>
-            {setFilterId ? <Pressable accessibilityLabel="Clear set filter" onPress={() => { setSetFilterId(''); setResults([]); setSearchNotice(''); }} style={styles.clearFilter}><Ionicons name="close" size={14} color={FateDropColors.goldBright} /></Pressable> : null}
-          </View>
-          <View style={styles.searchRow}>
-            <Ionicons name="search-outline" size={18} color={FateDropColors.goldBright} />
-            <TextInput
-              accessibilityLabel="Search exact cards"
-              autoCapitalize="words"
-              autoCorrect={false}
-              onChangeText={setQuery}
-              onSubmitEditing={() => void runSearch()}
-              placeholder={setFilterId ? 'Filter this set' : 'e.g. Charizard or 194'}
-              placeholderTextColor={FateDropColors.muted}
-              returnKeyType="search"
-              style={styles.searchInput}
-              value={query}
-            />
-            <Pressable accessibilityLabel="Search cards" disabled={searching} onPress={() => void runSearch()} style={({ pressed }) => [styles.searchAction, pressed && styles.pressed]}>
-              {searching ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : <Ionicons name="arrow-forward" size={17} color={FateDropColors.goldBright} />}
-            </Pressable>
-          </View>
-          {searchNotice ? <Text style={styles.searchNotice}>{searchNotice}</Text> : null}
-          {results.length ? <View style={styles.results}>{results.map((card) => (
-            <Pressable key={card.id} accessibilityRole="button" accessibilityLabel={`Read FatePrice for ${cardLabel(card)}`} onPress={() => selectCard(card)} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
-              <View style={styles.resultGem}><Ionicons name="diamond-outline" size={15} color={FateDropColors.goldBright} /></View>
-              <View style={styles.flex}><Text style={styles.resultName}>{cardLabel(card)}</Text><Text style={styles.resultMeta}>{card.setName || 'Verified set'} · {card.languageCode.toUpperCase()}</Text></View>
-              <Ionicons name="chevron-forward" size={15} color={FateDropColors.muted} />
-            </Pressable>
-          ))}</View> : null}
+          <FatePriceDiscoveryPanel
+            initialQuery={routeSetId ? '' : routeQuery || routeName}
+            initialTcgCode={routeTcg}
+            initialSeriesId={routeSeriesId}
+            initialSeriesName={routeSeriesName}
+            initialSetId={routeSetId}
+            initialSetName={routeSetName}
+            onSelectCard={selectCard}
+          />
         </View>
 
         <View style={styles.pricePanel}>
