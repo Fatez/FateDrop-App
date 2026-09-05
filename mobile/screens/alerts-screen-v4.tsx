@@ -38,10 +38,10 @@ import { openExternalRetailerLink, openTrackedRetailerLink } from '@/services/ou
 const stages: CanonicalAlertStage[] = ['WHISPER', 'ECHO', 'MANIFESTED', 'VANISHED'];
 type AlertView = 'signals' | 'matches';
 const meta: Record<CanonicalAlertStage, { label: string; companion: string; color: string; hero: number }> = {
-  WHISPER: { label: 'Whisper', companion: 'Oru', color: FateDropColors.whisper, hero: require('../assets/images/alert-oru-hero-final.webp') },
-  ECHO: { label: 'Echo', companion: 'Fenn', color: FateDropColors.echo, hero: require('../assets/images/alert-fenn-hero-final.webp') },
-  MANIFESTED: { label: 'Manifested', companion: 'Koru', color: FateDropColors.manifested, hero: require('../assets/images/alert-koru-hero-final.webp') },
-  VANISHED: { label: 'Vanished', companion: 'Nyxen', color: FateDropColors.vanished, hero: require('../assets/images/alert-nyxen-hero-final.webp') },
+  WHISPER: { label: 'Whisper', companion: 'Oru', color: FateDropColors.whisper, hero: require('../assets/images/orualertscreen-whisper.png') },
+  ECHO: { label: 'Echo', companion: 'Fenn', color: FateDropColors.echo, hero: require('../assets/images/Fennalertscreen-echo.png') },
+  MANIFESTED: { label: 'Manifested', companion: 'Koru', color: FateDropColors.manifested, hero: require('../assets/images/korumanifestalertscreen.png') },
+  VANISHED: { label: 'Vanished', companion: 'Nyxen', color: FateDropColors.vanished, hero: require('../assets/images/nyxenalertscreen-vanish.png') },
 };
 const stagePreferenceKey: Record<CanonicalAlertStage, LifecycleMarketStage> = {
   WHISPER: 'whisper',
