@@ -135,9 +135,14 @@ export function FateCollectorEnhancements({ data, signedIn }: { data: FateCollec
     <View style={styles.section}>
       <Text style={styles.eyebrow}>SET BINDERS</Text>
       <Text style={styles.title}>Your collection, organised by set</Text>
-      <Text style={styles.copy}>Manual adds and reconciled imports feed the same owner-scoped collection. Completion collapses to checklist printings; exact variants still keep their own identity.</Text>
+      <Text style={styles.copy}>Tap a binder to see the exact cards you own in that set. Use the full collection view to browse everything attached to your FateDrop ID.</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="View full collection" onPress={() => router.push('/collection')} style={({ pressed }) => [styles.collectionButton, pressed && styles.pressed]}>
+        <Ionicons name="grid-outline" size={16} color={FateDropColors.echo} />
+        <Text style={styles.collectionButtonText}>VIEW FULL COLLECTION</Text>
+        <Ionicons name="chevron-forward" size={14} color={FateDropColors.echo} />
+      </Pressable>
       {binders.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.binderRail}>
-        {binders.map((binder) => <Pressable key={binder.setId} accessibilityRole="button" accessibilityLabel={`Open ${binder.setName || 'set'} in FatePrice`} onPress={() => router.push({ pathname: '/fate-price', params: { setId: binder.setId, setName: binder.setName || undefined, tcg: binder.tcgCode || undefined } })} style={({ pressed }) => [styles.binderCard, pressed && styles.pressed]}>
+        {binders.map((binder) => <Pressable key={binder.setId} accessibilityRole="button" accessibilityLabel={`Open ${binder.setName || 'set'} collection`} onPress={() => router.push({ pathname: '/collection', params: { setId: binder.setId, setName: binder.setName || undefined } })} style={({ pressed }) => [styles.binderCard, pressed && styles.pressed]}>
           <View style={styles.binderTop}><Ionicons name="albums-outline" size={18} color={FateDropColors.echo} /><Text style={styles.binderPercent}>{binder.completionPercent == null ? '—' : `${binder.completionPercent}%`}</Text></View>
           <Text style={styles.binderName} numberOfLines={2}>{binder.setName || 'Verified set'}</Text>
           <Text style={styles.binderMeta}>{binder.ownedCount == null ? 'Checklist building' : `${binder.ownedCount}/${binder.totalCount ?? '—'} cards`}</Text>
@@ -222,6 +227,8 @@ const styles = StyleSheet.create({
   emptyMover: { color: FateDropColors.muted, fontSize: 7, lineHeight: 11, paddingVertical: 14 },
   buildingLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 8 },
   buildingText: { flex: 1, color: FateDropColors.muted, fontSize: 6.8, lineHeight: 10 },
+  collectionButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}66`, borderRadius: 13, backgroundColor: `${FateDropColors.echo}09` },
+  collectionButtonText: { flex: 1, color: FateDropColors.echo, fontSize: 7.5, fontWeight: '900', letterSpacing: .55 },
   binderRail: { gap: 8, paddingVertical: 12, paddingRight: 8 },
   binderCard: { width: 142, minHeight: 128, padding: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}55`, borderRadius: 14, backgroundColor: 'rgba(7,12,20,.55)' },
   binderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
