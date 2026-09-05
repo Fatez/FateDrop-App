@@ -17,6 +17,7 @@ const fateMatch = read('screens/fatematch-screen-v2.tsx');
 const fateDropId = read('services/fatedrop-id.ts');
 const legacyTruePrice = read('app/true-price.tsx');
 const fatePriceRoute = read('app/fate-price.tsx');
+const fatePriceEntry = read('screens/fate-price-entry-screen.tsx');
 const fatePrice = read('screens/fate-price-screen.tsx');
 
 test('primary navigation is Home, Alerts, FateDrop compass, Fate Market and Profile', () => {
@@ -107,10 +108,13 @@ test('Search remains passive database discovery and hands intelligent work to Fa
   assert.doesNotMatch(search, /saveRemoteFateFind/);
 });
 
-test('legacy True Price deep links resolve into the dedicated FatePrice page', () => {
+test('legacy True Price deep links resolve into the dedicated exact FatePrice path', () => {
   assert.match(legacyTruePrice, /Redirect/);
   assert.match(legacyTruePrice, /pathname: '\/fate-price'/);
-  assert.match(fatePriceRoute, /fate-price-screen/);
+  assert.match(fatePriceRoute, /fate-price-entry-screen/);
+  assert.match(fatePriceEntry, /FatePriceScreen/);
+  assert.match(fatePriceEntry, /FatePriceDiscoveryScreen/);
+  assert.match(fatePriceEntry, /cardId \? <FatePriceScreen \/> : <FatePriceDiscoveryScreen \/>/);
   assert.match(fatePrice, /fetchFatePrice/);
   assert.doesNotMatch(fatePrice, /\/fatefind/);
 });
