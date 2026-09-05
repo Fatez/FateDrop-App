@@ -35,24 +35,24 @@ test('active Home promotes Fate Encounters with the supplied event artwork', () 
 });
 
 test('profile wallpaper picker uses the full high-quality supplied wallpaper library and keeps one Koru wallpaper as default', () => {
-  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop14'/);
+  assert.match(profileCustomisationService, /PROFILE_WALLPAPER_IDS = \[[^\]]*'koruHome'[^\]]*'fatedrop1'[^\]]*'fatedrop7'/);
   assert.doesNotMatch(profileCustomisationService, /\n\s*'koru',/);
   assert.match(profileCustomisationService, /wallpaperId: 'koruHome'/);
 
-  assert.match(profileCustomisation, /koruHome: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
-  assert.match(profileCustomisation, /default: require\('\.\.\/assets\/images\/default-image\.png'\)/);
-  assert.match(profileCustomisation, /oru: require\('\.\.\/assets\/images\/profile-wallpaper-oru\.jpeg'\)/);
-  assert.match(profileCustomisation, /fenn: require\('\.\.\/assets\/images\/profile-wallpaper-fenn\.jpeg'\)/);
-  assert.match(profileCustomisation, /nyxen: require\('\.\.\/assets\/images\/profile-wallpaper-nyxen\.jpeg'\)/);
+  assert.match(profileCustomisation, /const koruHome = require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
+  assert.match(profileCustomisation, /default: koruHome/);
+  assert.match(profileCustomisation, /oru: koruHome/);
+  assert.match(profileCustomisation, /fenn: koruHome/);
+  assert.match(profileCustomisation, /nyxen: koruHome/);
   assert.match(profileCustomisation, /koruHome: \{ name: 'Koru'/);
   assert.doesNotMatch(profileCustomisation, /\n\s*koru: require\('\.\.\/assets\/images\/home-koru-hero\.png\.png'\)/);
 
-  assert.match(profileCustomisation, /fatedrop1: require\('\.\.\/assets\/images\/fatedrop-app-wallpaper1\.png'\)/);
-  for (let index = 2; index <= 12; index += 1) {
-    assert.match(profileCustomisation, new RegExp(`fatedrop${index}: require\\('\\.\\.\\/assets\\/images\\/fdwallpaper${index}\\.png'\\)`));
+  for (let index = 1; index <= 7; index += 1) {
+    assert.match(profileCustomisation, new RegExp(`const wallpaper${index} = require\\('\\.\\.\\/assets\\/images\\/wallpapers\\/wallpaper-${index}\\.png'\\)`));
+    assert.match(profileCustomisation, new RegExp(`const wallpaper${index}Thumbnail = require\\('\\.\\.\\/assets\\/images\\/wallpaper-thumbnails\\/wallpaper-${index}\\.webp'\\)`));
+    assert.match(profileCustomisation, new RegExp(`fatedrop${index}: wallpaper${index}`));
+    assert.match(profileCustomisation, new RegExp(`fatedrop${index}: wallpaper${index}Thumbnail`));
   }
-  assert.match(profileCustomisation, /fatedrop13: require\('\.\.\/assets\/images\/fdwallpaper13\.jpg'\)/);
-  assert.match(profileCustomisation, /fatedrop14: require\('\.\.\/assets\/images\/fdwallpaper14\.png'\)/);
 
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-oru-hero-final\.webp/);
   assert.doesNotMatch(profileCustomisation, /profileWallpaperSources[\s\S]*alert-fenn-hero-final\.webp/);
