@@ -34,7 +34,20 @@ export type FateCollectorPersonalPulsePeriod = {
   decliners: FateCollectorPersonalMover[];
 };
 
-export type FateCollectorsDashboardSnapshot = FateCollectorsSnapshot & {
+export type FateCollectorSetBinder = {
+  setId: string;
+  setName: string | null;
+  tcgCode: string | null;
+  status: 'available' | 'unavailable';
+  reason: string | null;
+  ownedCount: number | null;
+  totalCount: number | null;
+  missingCount: number | null;
+  completionPercent: number | null;
+};
+
+export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summary' | 'evidence'> & {
+  summary: FateCollectorsSnapshot['summary'] & { sets?: FateCollectorSetBinder[] };
   personalPulse?: {
     schemaVersion: 'collector-personal-pulse:1';
     ownedIdentityCount: number;
