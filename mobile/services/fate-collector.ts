@@ -60,6 +60,19 @@ export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summ
   evidence: FateCollectorsSnapshot['evidence'] & { personalPulseConnected?: boolean };
 };
 
+export type FateCollectorCardIdentity = {
+  fateCardId: string;
+  tcgCode: string | null;
+  setId: string | null;
+  setName: string | null;
+  name: string | null;
+  collectorNumber: string | null;
+  rarity: string | null;
+  supertype: string | null;
+  variantCode: string | null;
+  languageCode: string | null;
+};
+
 export type FateCollectorItem = {
   id: string;
   fateCardId: string;
@@ -69,6 +82,18 @@ export type FateCollectorItem = {
   copyState: 'raw' | 'graded';
   conditionCode: string | null;
   revision: number;
+  card?: FateCollectorCardIdentity | null;
+};
+
+export type FateCollectorCollectionSnapshot = {
+  items: FateCollectorItem[];
+  wants: unknown[];
+  summary: {
+    ownedLots: number;
+    totalCopies: number;
+    tradeableCopies: number;
+    wantedCards: number;
+  };
 };
 
 export type CollectrPreview = {
@@ -159,6 +184,12 @@ export async function fetchFateCollectorDashboard({ force = false }: { force?: b
     });
   dashboardFlight = { token, promise };
   return promise;
+}
+
+export async function fetchFateCollectorCollection({ limit = 2000 }: { limit?: number } = {}) {
+  const safeLimit = Math.min(2000, Math.max(1, Math.trunc(limit || 2000)));
+  const { data } = await authenticatedRequest<FateCollectorCollectionSnapshot>(`/v1/collection?limit=${safeLimit}`);
+  return data;
 }
 
 export async function addExactCardToCollector(cardIdentityId: string, {
