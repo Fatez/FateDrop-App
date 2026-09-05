@@ -17,9 +17,14 @@ test('Fate Market consumes Cloud-owned Pulse and owner-authenticated Collectors 
 
 test('FatePrice consumes exact Cloud valuation and never calculates market movement in the App', () => {
   assert.match(service, /\/v1\/fate-price\/\$\{encodeURIComponent\(id\)\}/);
+  assert.match(service, /\/v1\/fate-price\/cards\?/);
+  assert.match(service, /\/v1\/fate-price\/cards\/\$\{encodeURIComponent\(cardIdentityId\.trim\(\)\)\}/);
+  assert.match(service, /\/v1\/fate-price\/\$\{encodeURIComponent\(id\)\}\/history/);
   assert.match(service, /marketSegment=\$\{encodeURIComponent\(scope\.marketSegmentKey\)\}/);
   assert.match(fatePrice, /movementText\(price\?\.movement\.d7\)/);
   assert.match(fatePrice, /movementText\(price\?\.movement\.d30\)/);
+  assert.match(fatePrice, /stored market days only/i);
+  assert.match(fatePrice, /Missing days are never filled/i);
   assert.match(fatePrice, /lowest listing is shown only as context/i);
   assert.doesNotMatch(fatePrice, /function\s+(?:calculate|score).*(?:price|movement|value)/i);
 });

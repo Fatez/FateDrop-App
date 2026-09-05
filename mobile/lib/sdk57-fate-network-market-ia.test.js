@@ -42,7 +42,10 @@ test('FatePrice owns a dedicated exact-card evidence page and fails closed', () 
   assert.match(fatePrice, /EXACT-CARD VALUE/);
   assert.match(fatePrice, /7D MOVE/);
   assert.match(fatePrice, /30D MOVE/);
+  assert.match(fatePrice, /VERIFIED PRICE HISTORY/);
+  assert.match(fatePrice, /\[7, 30, 90\]/);
   assert.match(fatePrice, /CHOOSE EXACT MARKET SCOPE/);
-  assert.match(fatePriceService, /\/v1\/fate-price\//);
+  assert.match(fatePriceService, /\/v1\/fate-price\/cards/);
+  assert.match(fatePriceService, /\/history/);
   assert.doesNotMatch(fatePrice, /Math\.random|mock|demo/i);
 });

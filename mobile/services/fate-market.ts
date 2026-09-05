@@ -13,6 +13,8 @@ const pulseCache = new Map<string, SnapshotCache<FatePulseSnapshot>>();
 const pulseFlights = new Map<string, Promise<FatePulseSnapshot>>();
 const fatePriceCache = new Map<string, SnapshotCache<FatePriceSnapshot>>();
 const fatePriceFlights = new Map<string, Promise<FatePriceSnapshot>>();
+const fatePriceHistoryCache = new Map<string, SnapshotCache<FatePriceHistorySnapshot>>();
+const fatePriceHistoryFlights = new Map<string, Promise<FatePriceHistorySnapshot>>();
 let collectorsCache: (SnapshotCache<FateCollectorsSnapshot> & { token: string }) | null = null;
 let collectorsFlight: { token: string; promise: Promise<FateCollectorsSnapshot> } | null = null;
 
@@ -230,6 +232,40 @@ export type FatePriceSnapshot = {
   };
 };
 
+export type FatePriceHistoryDays = 7 | 30 | 90;
+
+export type FatePriceHistoryPoint = {
+  marketDay: string;
+  asOf: number;
+  amount: number;
+  currencyCode: string;
+  fairLow: number;
+  fairHigh: number;
+  guideLow: number | null;
+  confidence: 'low' | 'medium' | 'high';
+  sourceCount: number;
+};
+
+export type FatePriceHistorySnapshot = {
+  contractVersion: number;
+  policyVersion: string;
+  cardIdentityId: string;
+  available: boolean;
+  reason: string | null;
+  days: FatePriceHistoryDays;
+  marketScope: FatePriceScope | null;
+  points: FatePriceHistoryPoint[];
+  evidence: {
+    availableScopes: FatePriceScope[];
+    requestedScope: null | {
+      currencyCode: string | null;
+      marketSegmentKey: string | null;
+      conditionCode: string | null;
+    };
+    pointPolicy: 'stored_market_days_only_no_interpolation';
+  };
+};
+
 export class FateMarketApiError extends Error {
   status: number;
   code: string;
@@ -314,6 +350,30 @@ export function fetchFatePrice(cardIdentityId: string, {
   return flight;
 }
 
+export function fetchFatePriceHistory(cardIdentityId: string, {
+  days = 30,
+  force = false,
+  scope = null,
+}: { days?: FatePriceHistoryDays; force?: boolean; scope?: Partial<FatePriceScope> | null } = {}) {
+  const id = cardIdentityId.trim();
+  if (!id) return Promise.reject(new FateMarketApiError('Choose an exact card first.', 400, 'CARD_IDENTITY_REQUIRED'));
+  const scopeQuery = fatePriceScopeQuery(scope);
+  const query = `${scopeQuery || '?'}${scopeQuery ? '&' : ''}days=${days}`;
+  const key = `${id}${query}`;
+  const cached = fatePriceHistoryCache.get(key);
+  if (!force && cached && Date.now() - cached.cachedAt < MARKET_SNAPSHOT_TTL_MS) return Promise.resolve(cached.data);
+  const active = fatePriceHistoryFlights.get(key);
+  if (active) return active;
+  const flight = request<{ history: FatePriceHistorySnapshot }>(`/v1/fate-price/${encodeURIComponent(id)}/history${query}`).then(({ history }) => {
+    fatePriceHistoryCache.set(key, { cachedAt: Date.now(), data: history });
+    return history;
+  }).finally(() => {
+    if (fatePriceHistoryFlights.get(key) === flight) fatePriceHistoryFlights.delete(key);
+  });
+  fatePriceHistoryFlights.set(key, flight);
+  return flight;
+}
+
 export function searchFatePriceCards({
   query = '',
   setId = '',
@@ -322,11 +382,11 @@ export function searchFatePriceCards({
   const params = [`limit=${Math.max(1, Math.min(100, Math.trunc(limit)))}`];
   if (query.trim()) params.push(`q=${encodeURIComponent(query.trim())}`);
   if (setId.trim()) params.push(`setId=${encodeURIComponent(setId.trim())}`);
-  return request<{ cards: FatePriceCard[]; count: number }>(`/v1/cards?${params.join('&')}`);
+  return request<{ cards: FatePriceCard[]; count: number }>(`/v1/fate-price/cards?${params.join('&')}`);
 }
 
 export function fetchFatePriceCard(cardIdentityId: string) {
-  return request<{ card: FatePriceCard }>(`/v1/cards/${encodeURIComponent(cardIdentityId.trim())}`);
+  return request<{ card: FatePriceCard }>(`/v1/fate-price/cards/${encodeURIComponent(cardIdentityId.trim())}`);
 }
 
 export async function fetchFateCollectorsSummary({ force = false }: { force?: boolean } = {}) {
