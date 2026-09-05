@@ -288,8 +288,8 @@ export default function FateFindLiveScreenV2() {
     <AbstractHero eyebrow="FateFind" title="Find the right deal now. Keep hunting if it is not there yet." subtitle="FateFind is FateDrop's intelligent value finder. It combines verified RRP/reference maths with visible True Price, returns one Cloud Fate Verdict, and can keep searching under your conditions until a qualifying offer becomes a FateMatch." icon="telescope" />
     <Text style={styles.label}>Trading card game</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>{TCG_REGISTRY.filter((entry) => selectedTcgCodes.includes(entry.code)).map((entry) => <FilterChip key={entry.code} label={`${entry.shortName}${capabilityFor(entry.code).browseEnabled ? '' : ' · soon'}`} active={tcgCode === entry.code} onPress={() => setTcgCode(entry.code)} />)}</ScrollView>
-    <BestDealsPanel deals={bestDeals} loading={bestDealsLoading} />
     <View style={styles.search}><Ionicons name="search" size={18} color={FateDropColors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search a product to compare" placeholderTextColor={FateDropColors.muted} style={styles.input} /></View>
+    <BestDealsPanel deals={bestDeals} loading={bestDealsLoading} />
     <Text style={styles.label}>Sort offers</Text>
     <View style={styles.sorts}><FilterChip label="Item price" active={sort === 'item'} onPress={() => setSort('item')} /><FilterChip label="True Price" active={sort === 'delivered'} onPress={() => setSort('delivered')} /></View>
     <Text style={styles.disclaimer}>RRP/reference percentage shows whether the item price is fair against the verified value baseline. True Price shows what you will actually pay when mandatory delivery/fees are known. Unknown delivery never becomes £0. FateDrop Cloud owns the ranking and Fate Verdict.</Text>
