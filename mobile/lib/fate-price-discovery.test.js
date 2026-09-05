@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+const assert = require('node:assert/strict');
+const test = require('node:test');
 
-import { buildFatePriceDiscovery, fatePriceVariantLabel } from './fate-price-discovery.js';
+const { buildFatePriceDiscovery, fatePriceVariantLabel } = require('./fate-price-discovery.js');
 
 function card(overrides = {}) {
   return {
