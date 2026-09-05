@@ -312,11 +312,9 @@ function LifecycleRibbon({ pulse, state }: { pulse: NetworkPulse; state: LoadSta
         const meta = stageMeta[stage];
         return (
           <Pressable accessibilityRole="button" key={stage} onPress={() => router.push({ pathname: '/(tabs)/alerts', params: { stage: stage.toUpperCase() } })} style={[styles.lifecycleItem, index === stageOrder.length - 1 && styles.lifecycleItemLast]}>
-            <View style={styles.lifecycleItemHeading}>
-              <Ionicons name={meta.icon} size={10} color={meta.color} />
-              <Text numberOfLines={1} style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
-            </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
+            <Ionicons name={meta.icon} size={9} color={meta.color} />
+            <Text numberOfLines={1} style={styles.lifecycleLabel}>{meta.label.toUpperCase()}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.lifecycleValue, { color: meta.color }]}>{state === 'ready' ? pulse[stage] : '—'}</Text>
           </Pressable>
         );
       })}
@@ -732,13 +730,12 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
   hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
-  lifecycleBelowHub: { height: 48, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
-  lifecycleRibbon: { height: 48, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', backgroundColor: 'rgba(3,7,18,.24)' },
-  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 4, paddingBottom: 3, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.20)' },
-  lifecycleItemHeading: { width: '100%', minHeight: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  lifecycleBelowHub: { height: 34, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
+  lifecycleRibbon: { height: 34, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', backgroundColor: 'rgba(3,7,18,.22)' },
+  lifecycleItem: { flex: 1, minWidth: 0, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
   lifecycleItemLast: { borderRightWidth: 0 },
-  lifecycleLabel: { color: 'rgba(242,233,218,.88)', fontSize: 5.6, lineHeight: 7, fontWeight: '800', letterSpacing: .18, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
-  lifecycleValue: { maxWidth: '90%', fontFamily: Fonts.serif, fontSize: 15, lineHeight: 17, marginTop: 1, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  lifecycleLabel: { flexShrink: 1, color: 'rgba(242,233,218,.90)', fontSize: 5.4, lineHeight: 7, fontWeight: '800', letterSpacing: .14, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  lifecycleValue: { flexShrink: 0, maxWidth: 31, fontFamily: Fonts.serif, fontSize: 12.5, lineHeight: 15, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   orbitalHub: { height: 194, marginTop: -1, overflow: 'visible' },
   hubHorizon: { position: 'absolute', left: 7, right: 7, top: 86, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.35)' },
   hubArc: { position: 'absolute', width: '88%', height: 170, left: '6%', top: -2, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
