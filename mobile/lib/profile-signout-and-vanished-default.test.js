@@ -10,7 +10,7 @@ const profile = fs.readFileSync(path.join(mobile, 'screens', 'profile-screen-v2.
 const identity = fs.readFileSync(path.join(mobile, 'services', 'fatedrop-id.ts'), 'utf8');
 
 test('Profile exposes the existing secure FateDrop ID sign-out path', () => {
-  assert.match(profile, /snapshot, signedIn, signOut, syncing/);
+  assert.match(profile, /snapshot, signedIn, signOut, loading, syncing/);
   assert.match(profile, /accessibilityLabel="Sign out of FateDrop"/);
   assert.match(profile, /onPress=\{requestSignOut\}/);
   assert.match(profile, /void signOut\(\)\.catch/);
