@@ -7,9 +7,9 @@ const notifications = fs.readFileSync(path.join(__dirname, 'notifications.ts'), 
 const preferences = fs.readFileSync(path.join(__dirname, '../app/notification-preferences.tsx'), 'utf8');
 const localRadarHelper = notifications.slice(notifications.indexOf('export async function sendLocalRadarPresentationTest'));
 
-test('Notifications exposes the real global Echo control and no visible Local Radar QA alert', () => {
-  assert.match(preferences, /SEND GLOBAL ECHO ALERT/);
-  assert.match(preferences, /router\.push\('\/manual-echo-intake'\)/);
+test('Notifications contains no operator or visible Local Radar QA control', () => {
+  assert.doesNotMatch(preferences, /SEND GLOBAL ECHO ALERT/);
+  assert.doesNotMatch(preferences, /router\.push\('\/manual-echo-intake'\)/);
   assert.doesNotMatch(preferences, /TEST LOCAL RADAR ALERT/);
   assert.doesNotMatch(preferences, /sendLocalRadarPresentationTest/);
   assert.doesNotMatch(preferences, /TEST VANISHED ALERT/);

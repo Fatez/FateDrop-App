@@ -23,7 +23,6 @@ import {
   type LifecycleMarketGroup,
   type LifecycleMarketStage,
 } from '@/services/notification-preference-contract';
-import { globalEchoAccessState } from '@/services/operator-access';
 
 type PreferenceKey = 'whisper' | 'echo' | 'manifested' | 'vanished' | 'fateMatch' | 'priceChange' | 'manifestedReminders' | 'sealedTcg' | 'singleCards' | 'accessories' | 'merchandise' | 'unknownProducts' | 'english' | 'japanese' | 'korean' | 'simplifiedChinese' | 'traditionalChinese' | 'otherLanguages' | 'unknownLanguage' | 'allSets' | 'unknownSets' | 'web' | 'discord';
 
@@ -73,7 +72,6 @@ function pushStatusMessage(result: { enabled: boolean; reason?: string }) {
 
 export default function NotificationPreferencesScreen() {
   const { snapshot, signedIn, refresh, syncing, loading, error } = useFateDropId();
-  const globalEchoAccess = globalEchoAccessState({ snapshot, signedIn, loading, syncing, error });
   const [working, setWorking] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [facetOptions, setFacetOptions] = useState<AlertFacetOptions>({ languages: FALLBACK_ALERT_LANGUAGES, markets: FALLBACK_ALERT_MARKETS, sets: [] });
@@ -216,14 +214,6 @@ export default function NotificationPreferencesScreen() {
           <PreferenceRow title="Push on this device" detail="Native device alert permission and this installation's FateDrop push registration." enabled={devicePushEnabled} disabled={Boolean(working) || !deviceReadinessLoaded} onPress={() => void togglePush()} />
           {deviceWarning ? <Pressable onPress={() => void Linking.openSettings()} style={styles.deviceWarning}><Ionicons name="warning-outline" size={17} color={FateDropColors.manifested} /><View style={styles.rowCopy}><Text style={styles.deviceWarningTitle}>IPHONE DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceWarning} Tap to open Settings.</Text></View></Pressable> : null}
           {deviceRegistrationMessage ? <View style={styles.deviceRegistration}><Ionicons name="phone-portrait-outline" size={17} color={FateDropColors.cyan} /><View style={styles.rowCopy}><Text style={styles.deviceRegistrationTitle}>FATEDROP DELIVERY NEEDS ATTENTION</Text><Text style={styles.rowDetail}>{deviceRegistrationMessage}</Text></View></View> : null}
-          {globalEchoAccess === 'authorized' ? <Pressable onPress={() => router.push('/manual-echo-intake')} style={({ pressed }) => [styles.localRadarTestRow, pressed && styles.pressed]}>
-            <View style={styles.localRadarTestIcon}><Ionicons name="radio-outline" size={17} color={FateDropColors.cyan} /></View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.localRadarTestTitle}>SEND GLOBAL ECHO ALERT</Text>
-              <Text style={styles.rowDetail}>Your authorised human-intervention control: write the alert, attach an HTTPS link and notify eligible Echo subscribers.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={FateDropColors.cyan} />
-          </Pressable> : null}
 
           <Text style={styles.sectionLabel}>ALERT TYPES</Text>
           {signalRows.map((row) => <PreferenceRow key={row.key} title={row.title} detail={row.detail} enabled={Boolean(preferences[row.key])} disabled={Boolean(working)} onPress={() => void toggle(row.key)} />)}
@@ -321,9 +311,6 @@ const styles = StyleSheet.create({
   checkboxOn: { borderColor: FateDropColors.violet, backgroundColor: 'rgba(124,58,237,.72)' },
   noSets: { color: FateDropColors.secondary, fontSize: 9, padding: 12, textAlign: 'center' },
   facetError: { color: FateDropColors.warning, fontSize: 9, lineHeight: 14, marginBottom: 8 },
-  localRadarTestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 8, borderRadius: 16, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },
-  localRadarTestIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.cyan}55` },
-  localRadarTestTitle: { color: FateDropColors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
   deviceWarning: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginBottom: 8, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.manifested}55`, backgroundColor: `${FateDropColors.manifested}0D` },
   deviceWarningTitle: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: .45 },
   deviceRegistration: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginBottom: 8, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.cyan}55`, backgroundColor: `${FateDropColors.cyan}0D` },

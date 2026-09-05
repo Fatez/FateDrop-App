@@ -92,6 +92,12 @@ function FateDropShell() {
           });
         };
 
+        const handleOperatorEchoRetraction = (data: Record<string, unknown>) => {
+          if (!userId || data.operatorEchoRetraction !== true) return false;
+          invalidateCanonicalAlertQueries({ accountId: userId, stage: 'ECHO', tcgCode: null });
+          return true;
+        };
+
         const handleResponse = (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
           if (!active || !response) return;
           const identifier = response.notification.request.identifier;
@@ -99,6 +105,7 @@ function FateDropShell() {
           if (identifier) handledResponses.add(identifier);
 
           const data = response.notification.request.content.data as Record<string, unknown>;
+          if (handleOperatorEchoRetraction(data)) return;
           if (data?.route === 'local-radar') {
             handleLocalRadarData(data, true);
             return;
@@ -118,6 +125,7 @@ function FateDropShell() {
 
         receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
           const data = notification.request.content.data as Record<string, unknown>;
+          if (handleOperatorEchoRetraction(data)) return;
           if (data?.route === 'local-radar') handleLocalRadarData(data, false);
           if (data?.route === 'alerts') invalidateAlertData(data);
         });

@@ -24,6 +24,12 @@ export type ManualGlobalEchoInput = {
   expiresAt?: string;
 };
 
+export type ManualGlobalEchoRetractionInput = {
+  operatorIssue: number;
+  headline?: string;
+  reason: string;
+};
+
 function clean(value: string, max: number) {
   return value.trim().slice(0, max);
 }
@@ -60,7 +66,9 @@ export function buildManualEchoIntake(input: ManualEchoInput, now = Date.now()) 
     ? input.sourceType === 'official_retailer_page' ? 'expected' : 'reported'
     : undefined;
   const body = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    operation: 'publish',
+    operatorConfirmation: 'SEND_GLOBAL_ECHO',
     testOnly: false,
     tcgCode: 'pokemon',
     retailerId,
@@ -89,6 +97,34 @@ export function buildManualEchoIntake(input: ManualEchoInput, now = Date.now()) 
     issueUrl,
     stage: 'ECHO' as const,
     physicalEvidenceState: physicalEvidenceState || null,
+    shareText: `${issueTitle}\n\n${issueBody}`,
+  };
+}
+
+export function buildManualGlobalEchoRetraction(input: ManualGlobalEchoRetractionInput, now = Date.now()) {
+  const operatorIssue = Math.trunc(Number(input.operatorIssue));
+  const reason = clean(input.reason, 500);
+  const headline = clean(input.headline || '', 120);
+  if (!Number.isInteger(operatorIssue) || operatorIssue <= 0) throw new Error('Choose the original manual Echo to retract.');
+  if (reason.length < 10) throw new Error('Add a clear retraction reason of at least 10 characters.');
+
+  const body = {
+    schemaVersion: 2,
+    operation: 'retract',
+    operatorConfirmation: 'RETRACT_GLOBAL_ECHO',
+    targetOperatorIssue: operatorIssue,
+    reason,
+    requestedAt: new Date(now).toISOString(),
+  };
+  const suffix = headline ? ` · ${headline}` : '';
+  const issueTitle = `[FATEDROP ECHO RETRACTION] #${operatorIssue}${suffix}`.slice(0, 240);
+  const issueBody = JSON.stringify(body, null, 2);
+  const issueUrl = `https://github.com/Fatez/Fatedrop-Cloud/issues/new?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(issueBody)}`;
+  return {
+    issueTitle,
+    issueBody,
+    issueUrl,
+    targetEventId: `local-radar-operator:${operatorIssue}`,
     shareText: `${issueTitle}\n\n${issueBody}`,
   };
 }

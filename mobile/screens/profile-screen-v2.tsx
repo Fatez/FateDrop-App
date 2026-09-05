@@ -19,6 +19,7 @@ import {
   type ProfileAvatarId,
   type ProfileCustomisation,
 } from '@/services/profile-customisation';
+import { operatorEchoConsoleAccessState } from '@/services/operator-access';
 
 const companionIds = ['oru', 'fenn', 'koru', 'nyxen'] as const;
 
@@ -30,7 +31,8 @@ const companionColors = {
 } as const;
 
 export default function ProfileScreenV2() {
-  const { snapshot, signedIn, signOut, syncing } = useFateDropId();
+  const { snapshot, signedIn, signOut, loading, syncing, error } = useFateDropId();
+  const operatorAccess = operatorEchoConsoleAccessState({ snapshot, signedIn, loading, syncing, error });
   const displayName = snapshot?.user.displayName || snapshot?.user.handle || 'Seeker';
   const tier = snapshot?.entitlement.effectiveTier?.toUpperCase() || 'FREE';
   const identity = snapshot?.user.fateId || 'guest';
@@ -170,6 +172,13 @@ export default function ProfileScreenV2() {
             <Preference icon="card-outline" title="Membership" detail="Server-confirmed tier and capabilities." onPress={() => router.push('/account')} />
           </View>
 
+          {operatorAccess === 'authorized' ? <>
+            <SectionTitle label="OWNER OPERATOR" />
+            <View style={styles.operatorPanel}>
+              <Preference icon="radio-outline" title="Operator Echoes" detail="Private global Echo publication, active manual history and audited retraction." onPress={() => router.push('/manual-echo-intake')} />
+            </View>
+          </> : null}
+
           {signedIn ? (
             <>
               <SectionTitle label="ACCOUNT" />
@@ -299,6 +308,7 @@ const styles = StyleSheet.create({
   storiesBadgeText: { color: FateDropColors.goldBright, fontSize: 7.5, fontWeight: '900', letterSpacing: .65 },
 
   panel: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: 'rgba(18,24,32,.92)', overflow: 'hidden', marginBottom: 22 },
+  operatorPanel: { borderRadius: 18, borderWidth: 1, borderColor: `${FateDropColors.cyan}42`, backgroundColor: 'rgba(12,21,28,.94)', overflow: 'hidden', marginBottom: 22 },
   preference: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13 },
   preferenceIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: `${FateDropColors.gold}0F`, borderWidth: 1, borderColor: `${FateDropColors.gold}32` },
   preferenceTitle: { color: FateDropColors.ivory, fontSize: 15, fontWeight: '900' },

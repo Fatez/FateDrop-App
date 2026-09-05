@@ -19,7 +19,8 @@ export type BetaAccessStatus = 'pending'|'approved'|'revoked';
 export type FateDropBetaAccess = { status:BetaAccessStatus; approved:boolean; requestedAt:number|null; approvedAt:number|null; approvedBy:string|null; updatedAt:number|null };
 export type FateDropIdentity = { id:string; fateId:string; email:string; handle:string|null; displayName:string|null; createdAt:number };
 export type FateDropEntitlement = { configuredTier:'free'|'plus'|'pro'; effectiveTier:'free'|'plus'|'pro'; status:string; active:boolean; capabilities:FateCapability[]; trialEndsAt:number|null; currentPeriodEnd:number|null; cancelAtPeriodEnd:boolean; updatedAt:number };
-export type FateDropOperatorCapabilities = { canSendGlobalEcho:boolean };
+export type FateDropOperatorCapabilities = { canSendGlobalEcho:boolean;canRetractGlobalEcho:boolean };
+export type ActiveManualOperatorEcho = { eventId:string;operatorIssue:number;headline:string;retailerName:string;expectedLabel:string|null;sourceUrl:string|null;createdAt:string };
 export type CrossPlatformWishlistItem = { id:string; userId:string; productIdentityId:string|null; query:string; title:string; tcg:string|null; imageUrl:string|null; source:string; createdAt:number; updatedAt:number };
 export type CrossPlatformFateFind = Record<string, unknown> & { id:string; userId:string; enabled:boolean };
 export type CrossPlatformFateMatch = { id:string; fateFindId:string; userId:string; tcgCode:TcgCode|'unknown'; offerId:string; productId:string; retailerId:string; retailerName:string; title:string; url:string; itemPricePence:number|null; postagePence:number|null; deliveredPricePence:number|null; rrpPence:number|null; percentAboveRrp:number|null; stockStatus:string; reasons:string[]; companionId:FateFindCompanionId; matchedAt:number; lastObservedAt:number };
@@ -74,7 +75,7 @@ const defaultPreferences:CrossPlatformNotificationPreferences={
 };
 const fallbackEntitlement:FateDropEntitlement={ configuredTier:'free',effectiveTier:'free',status:'free',active:false,capabilities:[],trialEndsAt:null,currentPeriodEnd:null,cancelAtPeriodEnd:false,updatedAt:0 };
 const fallbackBetaAccess:FateDropBetaAccess={status:'pending',approved:false,requestedAt:null,approvedAt:null,approvedBy:null,updatedAt:null};
-const noOperatorCapabilities:FateDropOperatorCapabilities={canSendGlobalEcho:false};
+const noOperatorCapabilities:FateDropOperatorCapabilities={canSendGlobalEcho:false,canRetractGlobalEcho:false};
 const defaultTcgPreferences:CrossPlatformTcgPreferences={selectedTcgCodes:['pokemon'],onboardingCompleted:false,alertPreferences:recommendedTcgAlerts(['pokemon'])};
 
 function isCompanionId(value:unknown):value is FateFindCompanionId{return value==='koru'||value==='fenn'||value==='oru'||value==='nyxen';}
@@ -123,7 +124,7 @@ function normalizeBetaAccess(input:FateDropBetaAccess|undefined):FateDropBetaAcc
   return {...input,approved:input.status==='approved'&&input.approved===true};
 }
 function normalizeOperatorCapabilities(input:Partial<FateDropOperatorCapabilities>|undefined,accessAllowed:boolean):FateDropOperatorCapabilities{
-  return {canSendGlobalEcho:accessAllowed&&input?.canSendGlobalEcho===true};
+  return {canSendGlobalEcho:accessAllowed&&input?.canSendGlobalEcho===true,canRetractGlobalEcho:accessAllowed&&input?.canRetractGlobalEcho===true};
 }
 function normalizeSnapshot(snapshot:FateDropSyncSnapshot):FateDropSyncSnapshot{
   const betaAccess=normalizeBetaAccess(snapshot.betaAccess);
@@ -209,7 +210,9 @@ export async function syncFateDropId():Promise<FateDropSyncSnapshot>{
 export async function entitlementIsFresh(maxAgeSeconds=300){const snapshot=await loadCachedIdentitySnapshot();return Boolean(snapshot&&Math.floor(Date.now()/1000)-snapshot.syncedAt<=maxAgeSeconds);}
 export function hasCapability(snapshot:FateDropSyncSnapshot|null,capability:FateCapability){return Boolean(snapshot?.accessAllowed&&snapshot.betaAccess?.approved&&snapshot.entitlement?.active&&snapshot.entitlement.capabilities.includes(capability));}
 export function canSendGlobalEcho(snapshot:FateDropSyncSnapshot|null){return Boolean(snapshot?.accessAllowed&&snapshot.betaAccess?.approved&&snapshot.operatorCapabilities?.canSendGlobalEcho===true);}
+export function canRetractGlobalEcho(snapshot:FateDropSyncSnapshot|null){return Boolean(snapshot?.accessAllowed&&snapshot.betaAccess?.approved&&snapshot.operatorCapabilities?.canRetractGlobalEcho===true);}
 async function authenticatedFetch(path:string,init:RequestInit={}){const token=await getStoredSessionToken();if(!token)throw new Error('FateDrop ID sign-in required.');const response=await fetch(`${baseUrl()}${path}`,{...init,headers:{accept:'application/json',...(init.body?{'content-type':'application/json'}:{}),...init.headers,authorization:`Bearer ${token}`}});if(response.status===401)await clearStoredSession();return response;}
+export async function listActiveManualOperatorEchoes(){const result=await parseJson<{success:boolean;echoes:ActiveManualOperatorEcho[]}>(await authenticatedFetch('/api/mobile/operator-echoes'));return Array.isArray(result.echoes)?result.echoes:[];}
 export async function saveRemoteWishlistItem(input:{productIdentityId?:string|null;query:string;title:string;tcg?:string|null;imageUrl?:string|null}){await parseJson(await authenticatedFetch('/api/wishlist',{method:'POST',body:JSON.stringify(input)}));return syncFateDropId();}
 export async function removeRemoteWishlistItem(id:string){await parseJson(await authenticatedFetch('/api/wishlist',{method:'DELETE',body:JSON.stringify({id})}));return syncFateDropId();}
 export async function saveRemoteFateFind(input:Record<string,unknown>){await parseJson(await authenticatedFetch('/api/fate-matches',{method:'POST',body:JSON.stringify(input)}));return syncFateDropId();}
