@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FatePriceBackdrop, FatePriceCardGlyph, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
+import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { FateMarketApiError, fetchFatePriceSetCards, type FatePriceCard } from '@/services/fate-market';
 
@@ -95,7 +95,7 @@ export default function FatePriceVariantsScreen() {
   }, [setName, tcg]);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
-    <FatePriceBackdrop sceneKey={`variants:${printingId}`} />
+    <FatePriceScreenBackground sceneKey={`variants:${printingId}`} />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <FatePriceTopBar step={3} backLabel={setName} />
 

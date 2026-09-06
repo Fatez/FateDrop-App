@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   FatePriceAreaRail,
-  FatePriceBackdrop,
+  FatePriceScreenBackground,
   FatePriceCardGlyph,
   FatePriceTopBar,
   FatePriceTruth,
@@ -155,7 +155,7 @@ export default function FatePriceDiscoveryScreen() {
   const games = TCG_REGISTRY.slice(0, 4);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
-    <FatePriceBackdrop sceneKey="discovery" />
+    <FatePriceScreenBackground sceneKey="discovery" />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <FatePriceTopBar step={1} />
 

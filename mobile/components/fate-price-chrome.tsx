@@ -8,7 +8,7 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
-export function FatePriceBackdrop({ sceneKey }: { sceneKey: string }) {
+export function FatePriceScreenBackground({ sceneKey }: { sceneKey: string }) {
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     <FateDropBackground />
     <Image

@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddToFateCollectorAction } from '@/components/add-to-fate-collector-action';
-import { FatePriceBackdrop, FatePriceCardGlyph, FatePriceTopBar } from '@/components/fate-price-chrome';
+import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   FateMarketApiError,
@@ -225,7 +225,7 @@ export default function FatePriceScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <FatePriceBackdrop sceneKey={`detail:${selectedCardId || 'unselected'}`} />
+      <FatePriceScreenBackground sceneKey={`detail:${selectedCardId || 'unselected'}`} />
 
       <ScrollView
         contentContainerStyle={styles.content}
