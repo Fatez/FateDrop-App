@@ -488,7 +488,7 @@ function EmptyCopy({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
-  veil: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,8,16,.72)' },
+  veil: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,16,.72)' },
   content: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 122, gap: 12 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   headerCopy: { flex: 1 },
