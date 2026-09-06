@@ -9,7 +9,7 @@ const directory = fs.readFileSync(path.join(__dirname, '../services/retailer-dir
 const encountersRoute = fs.readFileSync(path.join(__dirname, '../app/encounters/index.tsx'), 'utf8');
 const encounters = fs.readFileSync(path.join(__dirname, '../screens/encounters-screen-v2.tsx'), 'utf8');
 const moreRoute = fs.readFileSync(path.join(__dirname, '../app/(tabs)/more.tsx'), 'utf8');
-const more = fs.readFileSync(path.join(__dirname, '../screens/more-screen-v2.tsx'), 'utf8');
+const more = fs.readFileSync(path.join(__dirname, '../screens/more-screen-v3.tsx'), 'utf8');
 
 test('Retailers uses one live Cloud directory with approved discovery segments', () => {
   assert.match(indiesRoute, /indies-screen-v2/);
@@ -34,9 +34,9 @@ test('Fate Encounters keeps live events and saved-event behaviour in the redesig
 });
 
 test('More becomes a focused account and collector-tools hub', () => {
-  assert.match(moreRoute, /more-screen-v2/);
+  assert.match(moreRoute, /more-screen-v3/);
   assert.match(more, /COLLECTOR TOOLS/);
   assert.match(more, /ACCOUNT & EXPERIENCE/);
   assert.match(more, /Notification preferences/);
-  assert.match(more, /Advanced systems stay behind the interface/);
+  assert.match(more, /The machinery stays behind the experience/);
 });
