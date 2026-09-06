@@ -15,6 +15,8 @@ const fatePriceCache = new Map<string, SnapshotCache<FatePriceSnapshot>>();
 const fatePriceFlights = new Map<string, Promise<FatePriceSnapshot>>();
 const fatePriceHistoryCache = new Map<string, SnapshotCache<FatePriceHistorySnapshot>>();
 const fatePriceHistoryFlights = new Map<string, Promise<FatePriceHistorySnapshot>>();
+const fatePriceRetailCache = new Map<string, SnapshotCache<FatePriceRetailResponse>>();
+const fatePriceRetailFlights = new Map<string, Promise<FatePriceRetailResponse>>();
 let collectorsCache: (SnapshotCache<FateCollectorsSnapshot> & { token: string }) | null = null;
 let collectorsFlight: { token: string; promise: Promise<FateCollectorsSnapshot> } | null = null;
 
@@ -290,6 +292,62 @@ export type FatePriceHistorySnapshot = {
   };
 };
 
+export type FatePriceRetailComparison = {
+  status: 'good_price' | 'fair_price' | 'high_price' | 'unavailable';
+  label: 'Good price' | 'Fair price' | 'High price' | 'Unable to compare';
+  reason: string | null;
+  basis: 'delivered' | null;
+  deliveredAmount: number | null;
+  differenceAmount: number | null;
+  differencePercent: number | null;
+  fatePrice: null | {
+    amount: number;
+    fairLow: number;
+    fairHigh: number;
+    currencyCode: 'GBP';
+    asOf: number | null;
+    confidence: 'medium' | 'high';
+  };
+};
+
+export type FatePriceRetailOffer = {
+  offerId: string;
+  retailerId: string;
+  retailerName: string;
+  retailerSku: string | null;
+  title: string;
+  url: string;
+  imageUrl: string | null;
+  currencyCode: 'GBP';
+  itemPrice: number | null;
+  postage: number | null;
+  deliveredPrice: number | null;
+  deliveryKnown: boolean;
+  deliverySource: 'retailer_offer' | 'verified_delivery_policy' | null;
+  conditionCode: string | null;
+  marketSegmentKey: string | null;
+  languageCode: string | null;
+  stockStatus: string;
+  stockConfidence: number | null;
+  stockQuantity: number | null;
+  lastVerifiedAt: number | null;
+  exactIdentityVerifiedAt: number | null;
+  comparison: FatePriceRetailComparison;
+};
+
+export type FatePriceRetailSnapshot = {
+  contractVersion: number;
+  cardIdentityId: string;
+  status: 'available' | 'empty' | 'unavailable';
+  reason: 'no_verified_live_retail_offers' | 'retail_card_offer_schema_missing' | string | null;
+  offers: FatePriceRetailOffer[];
+};
+
+export type FatePriceRetailResponse = {
+  card: FatePriceCard;
+  retail: FatePriceRetailSnapshot;
+};
+
 export class FateMarketApiError extends Error {
   status: number;
   code: string;
@@ -441,6 +499,23 @@ export function fetchFatePriceSetCards(setId: string, {
 
 export function fetchFatePriceCard(cardIdentityId: string) {
   return request<{ card: FatePriceCard }>(`/v1/fate-price/cards/${encodeURIComponent(cardIdentityId.trim())}`);
+}
+
+export function fetchFatePriceRetailOffers(cardIdentityId: string, { force = false }: { force?: boolean } = {}) {
+  const id = cardIdentityId.trim();
+  if (!id) return Promise.reject(new FateMarketApiError('Choose an exact card first.', 400, 'CARD_IDENTITY_REQUIRED'));
+  const cached = fatePriceRetailCache.get(id);
+  if (!force && cached && Date.now() - cached.cachedAt < MARKET_SNAPSHOT_TTL_MS) return Promise.resolve(cached.data);
+  const active = fatePriceRetailFlights.get(id);
+  if (active) return active;
+  const flight = request<FatePriceRetailResponse>(`/v1/fate-price/${encodeURIComponent(id)}/offers`).then((data) => {
+    fatePriceRetailCache.set(id, { cachedAt: Date.now(), data });
+    return data;
+  }).finally(() => {
+    if (fatePriceRetailFlights.get(id) === flight) fatePriceRetailFlights.delete(id);
+  });
+  fatePriceRetailFlights.set(id, flight);
+  return flight;
 }
 
 export async function fetchFateCollectorsSummary({ force = false }: { force?: boolean } = {}) {

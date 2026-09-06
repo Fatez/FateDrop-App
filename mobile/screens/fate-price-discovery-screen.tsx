@@ -1,31 +1,53 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import {
+  FatePriceAreaRail,
+  FatePriceScreenBackground,
+  FatePriceCardGlyph,
+  FatePriceTopBar,
+  FatePriceTruth,
+} from '@/components/fate-price-chrome';
 import { TCG_REGISTRY } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
-import { buildFatePriceDiscovery, fatePriceVariantLabel } from '@/lib/fate-price-discovery';
-import { FateMarketApiError, searchFatePriceCards, type FatePriceCard } from '@/services/fate-market';
+import {
+  FateMarketApiError,
+  fetchFatePriceSets,
+  searchFatePriceCards,
+  type FatePriceCard,
+  type FatePriceSet,
+} from '@/services/fate-market';
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function tcgMeta(code: string) {
-  const found = TCG_REGISTRY.find((item) => item.code === code);
-  return found || null;
-}
-
 function tcgName(code: string) {
-  return tcgMeta(code)?.shortName || code.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return TCG_REGISTRY.find((item) => item.code === code)?.shortName
+    || code.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function cardTitle(card: { name: string; collectorNumber: string }) {
-  return `${card.name}${card.collectorNumber ? ` #${card.collectorNumber}` : ''}`;
+function releaseLabel(value: number | null) {
+  if (!value) return 'Release date verified later';
+  return new Date(value).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+
+type PrintingResult = { card: FatePriceCard; identityCount: number };
+
+function groupPrintings(cards: FatePriceCard[]) {
+  const grouped = new Map<string, PrintingResult>();
+  for (const card of cards) {
+    const current = grouped.get(card.printingId);
+    if (current) current.identityCount += 1;
+    else grouped.set(card.printingId, { card, identityCount: 1 });
+  }
+  return [...grouped.values()].sort((left, right) => (
+    String(left.card.name || '').localeCompare(String(right.card.name || ''))
+    || left.card.collectorNumber.localeCompare(right.card.collectorNumber, undefined, { numeric: true })
+  ));
 }
 
 export default function FatePriceDiscoveryScreen() {
@@ -33,364 +55,258 @@ export default function FatePriceDiscoveryScreen() {
     collectorNumber?: string | string[];
     name?: string | string[];
     query?: string | string[];
-    setId?: string | string[];
-    setName?: string | string[];
     tcg?: string | string[];
   }>();
-  const routeSetId = first(params.setId)?.trim() || '';
-  const routeSetName = first(params.setName)?.trim() || '';
-  const routeTcg = first(params.tcg)?.trim().toLowerCase() || '';
-  const routeName = first(params.name)?.trim() || '';
-  const routeQuery = first(params.query)?.trim() || '';
-  const routeCollectorNumber = first(params.collectorNumber)?.trim() || '';
-
-  const [query, setQuery] = useState(routeQuery || routeName || routeCollectorNumber);
-  const [results, setResults] = useState<FatePriceCard[]>([]);
+  const routeTcg = first(params.tcg)?.trim().toLowerCase() || 'pokemon';
+  const initialQuery = first(params.query)?.trim() || first(params.name)?.trim() || first(params.collectorNumber)?.trim() || '';
   const [selectedTcg, setSelectedTcg] = useState(routeTcg);
-  const [selectedSetId, setSelectedSetId] = useState(routeSetId);
-  const [selectedPrintingId, setSelectedPrintingId] = useState('');
+  const [query, setQuery] = useState(initialQuery);
+  const [sets, setSets] = useState<FatePriceSet[]>([]);
+  const [matchingSets, setMatchingSets] = useState<FatePriceSet[]>([]);
+  const [cards, setCards] = useState<FatePriceCard[]>([]);
+  const [loadingSets, setLoadingSets] = useState(true);
   const [searching, setSearching] = useState(false);
   const [notice, setNotice] = useState('');
+  const seededSearch = useRef(false);
 
-  const model = useMemo(() => buildFatePriceDiscovery(results, {
-    tcgCode: selectedTcg,
-    setId: selectedSetId,
-    printingId: selectedPrintingId,
-  }), [results, selectedPrintingId, selectedSetId, selectedTcg]);
+  const loadSets = useCallback(async (tcgCode: string) => {
+    setLoadingSets(true);
+    setNotice('');
+    try {
+      const response = await fetchFatePriceSets({ tcgCode, limit: 80 });
+      setSets(response.sets);
+      if (!response.sets.length) setNotice(`No verified ${tcgName(tcgCode)} sets are published in FatePrice yet.`);
+    } catch (error) {
+      setSets([]);
+      setNotice(error instanceof FateMarketApiError ? error.message : 'Verified FatePrice sets are temporarily unavailable.');
+    } finally {
+      setLoadingSets(false);
+    }
+  }, []);
 
-  const selectedSet = useMemo(() => model.sets.find((set) => set.id === selectedSetId) || null, [model.sets, selectedSetId]);
-  const selectedCard = useMemo(() => model.cards.find((card) => card.printingId === selectedPrintingId) || null, [model.cards, selectedPrintingId]);
+  useEffect(() => {
+    void loadSets(routeTcg);
+  }, [loadSets, routeTcg]);
 
-  const searchCards = useCallback(async (nextQuery: string, nextSetId = '') => {
-    const cleanQuery = nextQuery.trim();
-    if (cleanQuery.length < 2 && !nextSetId) {
-      setNotice('Enter at least two letters or numbers to start the identity path.');
-      setResults([]);
+  const runSearch = useCallback(async () => {
+    const cleanQuery = query.trim();
+    if (cleanQuery.length < 2) {
+      setCards([]);
+      setMatchingSets([]);
+      setNotice('Enter at least two letters or numbers. FatePrice will keep the identity path exact.');
       return;
     }
     setSearching(true);
     setNotice('');
     try {
-      const response = await searchFatePriceCards({ query: cleanQuery, setId: nextSetId, limit: 100 });
-      const cards = response.cards;
-      setResults(cards);
-      setSelectedPrintingId('');
-
-      if (nextSetId) {
-        const anchor = cards.find((card) => card.setId === nextSetId);
-        setSelectedTcg(anchor?.tcgCode || routeTcg || '');
-        setSelectedSetId(nextSetId);
-      } else {
-        setSelectedTcg(routeTcg && cards.some((card) => card.tcgCode === routeTcg) ? routeTcg : '');
-        setSelectedSetId('');
-      }
-
-      if (!cards.length) {
-        setNotice('No verified canonical card identities matched that search.');
-      } else if (cards.length >= 100) {
-        setNotice('100 verified identities loaded. Narrow by game, set, or a more specific name/number to keep the path exact.');
-      } else {
-        setNotice(`${cards.length} verified identit${cards.length === 1 ? 'y' : 'ies'} loaded. Follow the path to the exact variant.`);
-      }
+      const [cardResponse, setResponse] = await Promise.all([
+        searchFatePriceCards({ query: cleanQuery, limit: 100 }),
+        fetchFatePriceSets({ tcgCode: selectedTcg, query: cleanQuery, limit: 20 }),
+      ]);
+      const scopedCards = cardResponse.cards.filter((card) => !selectedTcg || card.tcgCode === selectedTcg);
+      setCards(scopedCards);
+      setMatchingSets(setResponse.sets);
+      if (!scopedCards.length && !setResponse.sets.length) setNotice('No verified set or exact-card identity matched that search.');
     } catch (error) {
-      setResults([]);
-      setNotice(error instanceof FateMarketApiError ? error.message : 'Canonical FatePrice discovery is temporarily unavailable.');
+      setCards([]);
+      setMatchingSets([]);
+      setNotice(error instanceof FateMarketApiError ? error.message : 'FatePrice discovery is temporarily unavailable.');
     } finally {
       setSearching(false);
     }
-  }, [routeTcg]);
+  }, [query, selectedTcg]);
 
   useEffect(() => {
-    if (routeSetId) {
-      void searchCards(query, routeSetId);
-    } else if (query.trim().length >= 2) {
-      void searchCards(query);
-    }
-    // Route values are the initial discovery seed only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (seededSearch.current || initialQuery.length < 2) return;
+    seededSearch.current = true;
+    void runSearch();
+  }, [initialQuery, runSearch]);
 
-  useEffect(() => {
-    if (!results.length || selectedTcg || model.games.length !== 1) return;
-    setSelectedTcg(model.games[0].code);
-  }, [model.games, results.length, selectedTcg]);
-
-  useEffect(() => {
-    if (!selectedTcg || selectedSetId || model.sets.length !== 1) return;
-    setSelectedSetId(model.sets[0].id);
-  }, [model.sets, selectedSetId, selectedTcg]);
-
-  useEffect(() => {
-    if (!selectedSetId || selectedPrintingId || model.cards.length !== 1) return;
-    setSelectedPrintingId(model.cards[0].printingId);
-  }, [model.cards, selectedPrintingId, selectedSetId]);
-
-  const chooseGame = useCallback((code: string) => {
-    setSelectedTcg(code);
-    setSelectedSetId('');
-    setSelectedPrintingId('');
-  }, []);
-
-  const chooseSet = useCallback((id: string) => {
-    setSelectedSetId(id);
-    setSelectedPrintingId('');
-  }, []);
-
-  const resetDiscovery = useCallback(() => {
+  const chooseTcg = useCallback((tcgCode: string) => {
+    setSelectedTcg(tcgCode);
+    setCards([]);
+    setMatchingSets([]);
     setQuery('');
-    setResults([]);
-    setSelectedTcg('');
-    setSelectedSetId('');
-    setSelectedPrintingId('');
-    setNotice('');
-  }, []);
+    void loadSets(tcgCode);
+  }, [loadSets]);
 
-  const openExactCard = useCallback((card: FatePriceCard) => {
+  const openSet = useCallback((set: FatePriceSet) => {
+    router.push({ pathname: '/fate-price-set', params: { setId: set.id, setName: set.name, tcg: set.tcgCode || selectedTcg } });
+  }, [selectedTcg]);
+
+  const openPrinting = useCallback((card: FatePriceCard) => {
     router.push({
-      pathname: '/fate-price',
+      pathname: '/fate-price-variants',
       params: {
-        cardId: card.id,
         collectorNumber: card.collectorNumber,
         name: card.name || '',
+        printingId: card.printingId,
         setId: card.setId,
         setName: card.setName || '',
-        tcg: card.tcgCode || '',
+        tcg: card.tcgCode || selectedTcg,
       },
     });
-  }, []);
+  }, [selectedTcg]);
+
+  const verifiedSets = useMemo(() => [...sets]
+    .sort((left, right) => (right.releasedAt || 0) - (left.releasedAt || 0) || left.name.localeCompare(right.name))
+    .slice(0, 10), [sets]);
+  const printings = useMemo(() => groupPrintings(cards), [cards]);
+  const games = TCG_REGISTRY.slice(0, 4);
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <FateDropBackground />
-      <Image
-        source={require('../assets/images/fate-market-orbital-theme.webp')}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        contentPosition="top center"
-        cachePolicy="disk"
-        enforceEarlyResizing
-        recyclingKey="fate-price:discovery"
-      />
-      <View style={styles.themeVeil} />
-      <View style={styles.themeLowerVeil} />
-    </View>
-
+    <FatePriceScreenBackground sceneKey="discovery" />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <Pressable accessibilityLabel="Back to Fate Market" onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-        <Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} />
-        <Text style={styles.backText}>Fate Market</Text>
-      </Pressable>
+      <FatePriceTopBar step={1} />
 
       <View style={styles.hero}>
-        <View style={styles.heroCopy}>
-          <Text style={styles.eyebrow}>FATEPRICE · EXACT DISCOVERY</Text>
-          <Text style={styles.title}>Find the card. Then remove every ambiguity.</Text>
-          <Text style={styles.copy}>Search once, then narrow through Game → Set → Card → Variant. FatePrice only opens when the identity is exact.</Text>
-        </View>
-        <View style={styles.marketMark}>
-          <View style={styles.marketMarkOuter} />
-          <View style={styles.marketMarkInner} />
-          <Image source={require('../assets/images/home-orbital-crystal.png')} style={styles.marketMarkCrystal} contentFit="contain" cachePolicy="memory-disk" />
+        <Text style={styles.eyebrow}>FATEPRICE · SEARCH & DISCOVERY</Text>
+        <Text style={styles.title}>Find the card.{`\n`}Remove every ambiguity.</Text>
+        <Text style={styles.copy}>Search once, then move through Game → Set → Card → Variant. The wayfinder opens a value only after the exact identity is proven.</Text>
+        <View style={styles.heroBadges}>
+          <View style={styles.heroBadge}><Ionicons name="shield-checkmark-outline" size={12} color={FateDropColors.goldBright} /><Text style={styles.heroBadgeText}>VERIFIED IDENTITIES</Text></View>
+          <View style={styles.heroBadge}><Ionicons name="cash-outline" size={12} color={FateDropColors.goldBright} /><Text style={styles.heroBadgeText}>GBP DISPLAY</Text></View>
         </View>
       </View>
 
-      <View accessibilityRole="tablist" style={styles.areaRail}>
-        <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} style={styles.areaTab}><Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>FatePulse</Text></Pressable>
-        <View accessibilityRole="tab" accessibilityState={{ selected: true }} style={[styles.areaTab, styles.areaTabActive]}><Ionicons name="pricetag-outline" size={16} color={FateDropColors.goldBright} /><Text style={[styles.areaTitle, styles.areaTitleActive]}>FatePrice</Text><View style={styles.areaActiveGem} /></View>
-        <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} style={styles.areaTab}><Ionicons name="albums-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>Collections</Text></Pressable>
-      </View>
+      <FatePriceAreaRail />
 
       <View style={styles.searchPanel}>
-        <View style={styles.searchHeading}>
-          <View style={styles.flex}>
-            <Text style={styles.sectionEyebrow}>START WITH WHAT YOU KNOW</Text>
-            <Text style={styles.searchTitle}>{selectedSetId ? `Search inside ${selectedSet?.name || routeSetName || 'this set'}` : 'Card name or collector number'}</Text>
-          </View>
-          {results.length ? <Pressable accessibilityLabel="Start FatePrice discovery again" onPress={resetDiscovery} style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}><Ionicons name="refresh" size={14} color={FateDropColors.goldBright} /><Text style={styles.resetText}>RESET</Text></Pressable> : null}
+        <View style={styles.searchCopy}>
+          <Text style={styles.sectionEyebrow}>START WITH WHAT YOU KNOW</Text>
+          <Text style={styles.searchTitle}>Cards, sets or collector numbers</Text>
         </View>
         <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={18} color={FateDropColors.goldBright} />
+          <Ionicons name="search-outline" size={20} color={FateDropColors.goldBright} />
           <TextInput
-            accessibilityLabel="Search verified FatePrice cards"
+            accessibilityLabel="Search FatePrice cards, sets or collector numbers"
             autoCapitalize="words"
             autoCorrect={false}
             onChangeText={setQuery}
-            onSubmitEditing={() => void searchCards(query, selectedSetId)}
-            placeholder={selectedSetId ? 'e.g. 194 or Charizard' : 'e.g. Charizard or 194'}
+            onSubmitEditing={() => void runSearch()}
+            placeholder="e.g. Charizard, 151, 199…"
             placeholderTextColor={FateDropColors.muted}
             returnKeyType="search"
             style={styles.searchInput}
             value={query}
           />
-          <Pressable accessibilityLabel="Search verified cards" disabled={searching} onPress={() => void searchCards(query, selectedSetId)} style={({ pressed }) => [styles.searchAction, pressed && styles.pressed]}>
-            {searching ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : <Ionicons name="arrow-forward" size={17} color={FateDropColors.goldBright} />}
+          <Pressable accessibilityLabel="Search FatePrice" disabled={searching} onPress={() => void runSearch()} style={({ pressed }) => [styles.searchAction, pressed && styles.pressed]}>
+            {searching ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : <Ionicons name="arrow-forward" size={18} color={FateDropColors.goldBright} />}
           </Pressable>
         </View>
+        <View style={styles.scopeLine}><View style={styles.scopeDot} /><Text style={styles.scopeText}>Searching verified {tcgName(selectedTcg)} identities</Text></View>
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       </View>
 
-      <DiscoveryRail
-        game={selectedTcg ? tcgName(selectedTcg) : ''}
-        set={selectedSet?.name || (selectedSetId === routeSetId ? routeSetName : '')}
-        card={selectedCard ? cardTitle(selectedCard) : ''}
-        variantReady={model.variants.length > 0}
-      />
-
-      {!results.length && !searching ? <View style={styles.emptyState}>
-        <Ionicons name="git-branch-outline" size={25} color={FateDropColors.goldBright} />
-        <Text style={styles.emptyTitle}>No catalogue maze.</Text>
-        <Text style={styles.emptyCopy}>Type the card name or number you know. FateDrop will turn the matches into a short identity path instead of dumping a wall of near-identical cards on you.</Text>
+      {(matchingSets.length > 0 || printings.length > 0) ? <View style={styles.section}>
+        <SectionHeading eyebrow="EXACT MATCHES" title="Continue the identity path" detail={`${matchingSets.length} set${matchingSets.length === 1 ? '' : 's'} · ${printings.length} canonical card printing${printings.length === 1 ? '' : 's'}`} />
+        {matchingSets.map((set) => <SetResult key={set.id} set={set} onPress={() => openSet(set)} />)}
+        {printings.map(({ card, identityCount }) => <PrintingResultRow key={card.printingId} card={card} identityCount={identityCount} onPress={() => openPrinting(card)} />)}
       </View> : null}
 
-      {results.length ? <StepSection number="01" eyebrow="GAME" title={selectedTcg ? tcgName(selectedTcg) : 'Which game?'} detail={selectedTcg ? 'Change game to reset the steps below.' : 'Only games present in these verified matches are shown.'}>
-        <View style={styles.optionStack}>
-          {model.games.map((game) => {
-            const meta = tcgMeta(game.code);
+      <View style={styles.section}>
+        <SectionHeading eyebrow="BROWSE BY TCG" title="Choose the world first" detail="Only verified catalogue evidence appears beyond this point." />
+        <View style={styles.gameGrid}>
+          {games.map((game) => {
             const active = selectedTcg === game.code;
-            return <Pressable key={game.code} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => chooseGame(game.code)} style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}>
-              <View style={[styles.optionIcon, active && styles.optionIconActive]}><Ionicons name={(meta?.icon || 'layers-outline') as keyof typeof Ionicons.glyphMap} size={17} color={active ? FateDropColors.goldBright : FateDropColors.secondary} /></View>
-              <View style={styles.flex}><Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{tcgName(game.code)}</Text><Text style={styles.optionMeta}>{game.identityCount} matching exact identit{game.identityCount === 1 ? 'y' : 'ies'}</Text></View>
-              <Ionicons name={active ? 'checkmark-circle' : 'chevron-forward'} size={17} color={active ? FateDropColors.goldBright : FateDropColors.muted} />
+            return <Pressable key={game.code} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => chooseTcg(game.code)} style={({ pressed }) => [styles.gameCard, active && styles.gameCardActive, pressed && styles.pressed]}>
+              <View style={[styles.gameIcon, active && styles.gameIconActive]}><Ionicons name={game.icon} size={22} color={active ? FateDropColors.goldBright : game.accent} /></View>
+              <Text numberOfLines={1} style={[styles.gameName, active && styles.gameNameActive]}>{game.shortName}</Text>
+              <Text style={styles.gameStatus}>{active ? 'SELECTED' : game.live ? 'VERIFIED' : 'CATALOGUE'}</Text>
             </Pressable>;
           })}
         </View>
-      </StepSection> : null}
-
-      {selectedTcg ? <StepSection number="02" eyebrow="SET" title={selectedSet ? selectedSet.name : 'Which set?'} detail={selectedSet ? selectedSet.seriesName || 'Verified canonical set' : 'Matching sets only — no giant all-time catalogue dump.'}>
-        <View style={styles.optionStack}>
-          {model.sets.map((set) => {
-            const active = selectedSetId === set.id;
-            return <Pressable key={set.id} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => chooseSet(set.id)} style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}>
-              <View style={[styles.optionIcon, active && styles.optionIconActive]}><Ionicons name="albums-outline" size={17} color={active ? FateDropColors.goldBright : FateDropColors.secondary} /></View>
-              <View style={styles.flex}><Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{set.name}</Text><Text style={styles.optionMeta}>{set.seriesName || 'Verified series'} · {set.cardCount} matching card{set.cardCount === 1 ? '' : 's'} · {set.identityCount} identit{set.identityCount === 1 ? 'y' : 'ies'}</Text></View>
-              <Ionicons name={active ? 'checkmark-circle' : 'chevron-forward'} size={17} color={active ? FateDropColors.goldBright : FateDropColors.muted} />
-            </Pressable>;
-          })}
-        </View>
-      </StepSection> : null}
-
-      {selectedSetId ? <StepSection number="03" eyebrow="CARD" title={selectedCard ? cardTitle(selectedCard) : 'Which card?'} detail={selectedCard ? `${selectedCard.identityCount} exact variant identit${selectedCard.identityCount === 1 ? 'y' : 'ies'} available.` : 'Cards are grouped by canonical printing before variants are shown.'}>
-        <View style={styles.optionStack}>
-          {model.cards.map((card) => {
-            const active = selectedPrintingId === card.printingId;
-            return <Pressable key={card.printingId} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => setSelectedPrintingId(card.printingId)} style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}>
-              <View style={[styles.optionIcon, active && styles.optionIconActive]}><Ionicons name="id-card-outline" size={17} color={active ? FateDropColors.goldBright : FateDropColors.secondary} /></View>
-              <View style={styles.flex}><Text style={[styles.optionTitle, active && styles.optionTitleActive]}>{cardTitle(card)}</Text><Text style={styles.optionMeta}>{card.rarity || card.supertype || 'Verified printing'} · {card.identityCount} variant identit{card.identityCount === 1 ? 'y' : 'ies'}</Text></View>
-              <Ionicons name={active ? 'checkmark-circle' : 'chevron-forward'} size={17} color={active ? FateDropColors.goldBright : FateDropColors.muted} />
-            </Pressable>;
-          })}
-        </View>
-      </StepSection> : null}
-
-      {selectedPrintingId ? <StepSection number="04" eyebrow="VARIANT" title="Choose the exact identity" detail="Finish and language remain separate. This is the identity FatePrice will value.">
-        <View style={styles.variantStack}>
-          {model.variants.map((card) => <Pressable key={card.id} accessibilityRole="button" accessibilityLabel={`Read FatePrice for ${cardTitle({ name: card.name || 'Unknown card', collectorNumber: card.collectorNumber })}, ${fatePriceVariantLabel(card)}`} onPress={() => openExactCard(card)} style={({ pressed }) => [styles.variantRow, pressed && styles.pressed]}>
-            <View style={styles.variantGem}><Ionicons name="diamond-outline" size={18} color={FateDropColors.goldBright} /></View>
-            <View style={styles.flex}><Text style={styles.variantTitle}>{fatePriceVariantLabel(card)}</Text><Text style={styles.variantMeta}>{cardTitle({ name: card.name || 'Unknown card', collectorNumber: card.collectorNumber })} · {card.setName || 'Verified set'}</Text></View>
-            <View style={styles.readPrice}><Text style={styles.readPriceText}>READ</Text><Ionicons name="arrow-forward" size={14} color={FateDropColors.goldBright} /></View>
-          </Pressable>)}
-        </View>
-      </StepSection> : null}
-
-      <View style={styles.truthPanel}>
-        <Ionicons name="shield-checkmark-outline" size={18} color={FateDropColors.goldBright} />
-        <View style={styles.flex}><Text style={styles.truthTitle}>Exactness is the feature.</Text><Text style={styles.truthCopy}>FateDrop does not average lookalike printings together just to produce a convenient price. Search broadly; value narrowly.</Text></View>
       </View>
+
+      <View style={styles.section}>
+        <SectionHeading eyebrow="VERIFIED SETS" title={`Explore ${tcgName(selectedTcg)}`} detail="Newest verified releases first—not a fabricated popularity chart." />
+        {loadingSets ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Reading canonical sets…</Text></View> : null}
+        {!loadingSets && verifiedSets.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.setRail}>
+          {verifiedSets.map((set) => <Pressable key={set.id} accessibilityRole="button" onPress={() => openSet(set)} style={({ pressed }) => [styles.setCard, pressed && styles.pressed]}>
+            <View style={styles.setArt}><View style={styles.setOrbit} /><Ionicons name="albums-outline" size={26} color={FateDropColors.goldBright} /></View>
+            <Text numberOfLines={2} style={styles.setName}>{set.name}</Text>
+            <Text numberOfLines={1} style={styles.setSeries}>{set.seriesName || 'Verified series'}</Text>
+            <Text style={styles.setRelease}>{releaseLabel(set.releasedAt)}</Text>
+          </Pressable>)}
+        </ScrollView> : null}
+      </View>
+
+      <FatePriceTruth title="Exactness is the feature.">FateDrop never averages lookalike printings into a convenient answer. Search broadly, then value the exact finish, rarity and language narrowly.</FatePriceTruth>
     </ScrollView>
   </SafeAreaView>;
 }
 
-function DiscoveryRail({ game, set, card, variantReady }: { game: string; set: string; card: string; variantReady: boolean }) {
-  const steps = [
-    { label: 'GAME', value: game },
-    { label: 'SET', value: set },
-    { label: 'CARD', value: card },
-    { label: 'VARIANT', value: variantReady ? 'READY' : '' },
-  ];
-  return <View style={styles.discoveryRail}>{steps.map((step, index) => <View key={step.label} style={styles.discoveryStep}>
-    <View style={[styles.stepDot, step.value && styles.stepDotActive]}>{step.value ? <Ionicons name="checkmark" size={9} color="#060A13" /> : <Text style={styles.stepNumber}>{index + 1}</Text>}</View>
-    <Text style={[styles.stepLabel, step.value && styles.stepLabelActive]}>{step.label}</Text>
-    {index < steps.length - 1 ? <View style={[styles.stepLine, step.value && styles.stepLineActive]} /> : null}
-  </View>)}</View>;
+function SectionHeading({ eyebrow, title, detail }: { eyebrow: string; title: string; detail: string }) {
+  return <View style={styles.sectionHeading}>
+    <View style={styles.headingGem} />
+    <View style={styles.flex}><Text style={styles.sectionEyebrow}>{eyebrow}</Text><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionDetail}>{detail}</Text></View>
+  </View>;
 }
 
-function StepSection({ number, eyebrow, title, detail, children }: { number: string; eyebrow: string; title: string; detail: string; children: React.ReactNode }) {
-  return <View style={styles.stepSection}>
-    <View style={styles.stepHeading}>
-      <Text style={styles.stepIndex}>{number}</Text>
-      <View style={styles.flex}><Text style={styles.sectionEyebrow}>{eyebrow}</Text><Text style={styles.stepTitle}>{title}</Text><Text style={styles.stepDetail}>{detail}</Text></View>
-    </View>
-    {children}
-  </View>;
+function SetResult({ set, onPress }: { set: FatePriceSet; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
+    <View style={styles.resultIcon}><Ionicons name="albums-outline" size={19} color={FateDropColors.goldBright} /></View>
+    <View style={styles.flex}><Text style={styles.resultTitle}>{set.name}</Text><Text style={styles.resultMeta}>SET · {set.seriesName || 'Verified series'} · {set.total || set.printedTotal || '—'} cards</Text></View>
+    <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
+  </Pressable>;
+}
+
+function PrintingResultRow({ card, identityCount, onPress }: { card: FatePriceCard; identityCount: number; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
+    <FatePriceCardGlyph collectorNumber={card.collectorNumber} />
+    <View style={styles.flex}><Text style={styles.resultTitle}>{card.name || 'Unknown card'}</Text><Text style={styles.resultMeta}>{card.setName || 'Verified set'} · #{card.collectorNumber}</Text><Text style={styles.resultVariant}>{identityCount} exact finish/language identit{identityCount === 1 ? 'y' : 'ies'}</Text></View>
+    <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
+  </Pressable>;
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#030713' },
-  themeVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.48)' },
-  themeLowerVeil: { position: 'absolute', left: 0, right: 0, top: '32%', bottom: 0, backgroundColor: 'rgba(3,7,18,.66)' },
-  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 12, paddingBottom: 124 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 7, paddingBottom: 126 },
   flex: { flex: 1 },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.988 }] },
-  back: { alignSelf: 'flex-start', minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: -7, paddingHorizontal: 7 },
-  backText: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '800', letterSpacing: .5 },
-  hero: { minHeight: 148, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heroCopy: { flex: 1 },
-  eyebrow: { color: FateDropColors.goldBright, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.3 },
-  title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 28, lineHeight: 33, marginTop: 7, textShadowColor: 'rgba(0,0,0,.94)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 9 },
-  copy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 7, maxWidth: 310 },
-  marketMark: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center' },
-  marketMarkOuter: { position: 'absolute', width: 66, height: 66, borderRadius: 33, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.66)' },
-  marketMarkInner: { position: 'absolute', width: 51, height: 51, borderRadius: 26, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.62)' },
-  marketMarkCrystal: { width: 58, height: 58 },
-  areaRail: { height: 50, flexDirection: 'row', alignItems: 'stretch', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', backgroundColor: 'rgba(3,8,20,.18)' },
-  areaTab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.16)' },
-  areaTabActive: { backgroundColor: 'rgba(226,197,141,.07)' },
-  areaTitle: { color: FateDropColors.muted, fontFamily: Fonts.serif, fontSize: 10.5 },
-  areaTitleActive: { color: FateDropColors.goldBright },
-  areaActiveGem: { position: 'absolute', width: 5, height: 5, bottom: -3, transform: [{ rotate: '45deg' }], backgroundColor: FateDropColors.goldBright },
-  searchPanel: { marginTop: 18, paddingHorizontal: 8, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)', backgroundColor: 'rgba(3,8,20,.28)' },
-  searchHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionEyebrow: { color: FateDropColors.goldBright, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
-  searchTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 16, marginTop: 3 },
-  resetButton: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', borderRadius: 999 },
-  resetText: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .65 },
-  searchRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12, paddingLeft: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', borderRadius: 4, backgroundColor: 'rgba(3,8,20,.56)' },
-  searchInput: { flex: 1, minWidth: 0, color: FateDropColors.ivory, fontSize: 12, paddingVertical: 12 },
-  searchAction: { width: 46, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: 'rgba(226,197,141,.30)' },
-  notice: { color: FateDropColors.secondary, fontSize: 8, lineHeight: 12, marginTop: 8 },
-  discoveryRail: { minHeight: 58, flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingHorizontal: 3 },
-  discoveryStep: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center' },
-  stepDot: { width: 19, height: 19, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.30)', backgroundColor: 'rgba(3,8,20,.62)' },
-  stepDotActive: { borderColor: FateDropColors.goldBright, backgroundColor: FateDropColors.goldBright },
-  stepNumber: { color: FateDropColors.muted, fontSize: 6.5, fontWeight: '900' },
-  stepLabel: { color: FateDropColors.muted, fontSize: 5.8, fontWeight: '900', letterSpacing: .55, marginTop: 5 },
-  stepLabelActive: { color: FateDropColors.goldBright },
-  stepLine: { position: 'absolute', top: 9, left: '62%', width: '76%', height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.20)' },
-  stepLineActive: { backgroundColor: 'rgba(226,197,141,.66)' },
-  emptyState: { minHeight: 205, alignItems: 'center', justifyContent: 'center', marginTop: 18, paddingHorizontal: 34, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.30)', backgroundColor: 'rgba(3,8,20,.25)' },
-  emptyTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 20, marginTop: 10 },
-  emptyCopy: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 7 },
-  stepSection: { marginTop: 14, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)', backgroundColor: 'rgba(3,8,20,.25)' },
-  stepHeading: { flexDirection: 'row', gap: 10, paddingHorizontal: 8, paddingBottom: 9 },
-  stepIndex: { width: 25, color: 'rgba(226,197,141,.42)', fontFamily: Fonts.serif, fontSize: 17 },
-  stepTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, marginTop: 2 },
-  stepDetail: { color: FateDropColors.muted, fontSize: 7.5, lineHeight: 11, marginTop: 3 },
-  optionStack: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(226,197,141,.16)' },
-  optionRow: { minHeight: 61, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 8, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.15)' },
-  optionRowActive: { backgroundColor: 'rgba(226,197,141,.065)' },
-  optionIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
-  optionIconActive: { borderColor: 'rgba(226,197,141,.72)', backgroundColor: 'rgba(226,197,141,.07)' },
-  optionTitle: { color: FateDropColors.secondary, fontFamily: Fonts.serif, fontSize: 13 },
-  optionTitleActive: { color: FateDropColors.ivory },
-  optionMeta: { color: FateDropColors.muted, fontSize: 6.8, lineHeight: 10, marginTop: 3 },
-  variantStack: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(124,110,255,.22)' },
-  variantRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(124,110,255,.18)', backgroundColor: 'rgba(124,110,255,.025)' },
-  variantGem: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)' },
-  variantTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13.5, textTransform: 'capitalize' },
-  variantMeta: { color: FateDropColors.muted, fontSize: 6.8, lineHeight: 10, marginTop: 4 },
-  readPrice: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', borderRadius: 999 },
-  readPriceText: { color: FateDropColors.goldBright, fontSize: 6.3, fontWeight: '900', letterSpacing: .55 },
-  truthPanel: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 18, paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.26)', backgroundColor: 'rgba(3,8,20,.30)' },
-  truthTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13 },
-  truthCopy: { color: FateDropColors.muted, fontSize: 7, lineHeight: 10.5, marginTop: 3 },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
+  hero: { minHeight: 238, justifyContent: 'center', paddingRight: '29%', paddingVertical: 16 },
+  eyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1.55 },
+  title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 34, lineHeight: 38, marginTop: 9, textShadowColor: 'rgba(0,0,0,.98)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
+  copy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 10, textShadowColor: '#030713', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 7 },
+  heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14 },
+  heroBadge: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.38)', borderRadius: 999, backgroundColor: 'rgba(3,8,20,.66)' },
+  heroBadgeText: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .65 },
+  searchPanel: { marginTop: 17, padding: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', borderRadius: 16, backgroundColor: 'rgba(4,9,22,.82)' },
+  searchCopy: { paddingHorizontal: 2 },
+  sectionEyebrow: { color: FateDropColors.goldBright, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.25 },
+  searchTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 4 },
+  searchRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11, paddingLeft: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.62)', borderRadius: 11, backgroundColor: 'rgba(1,5,15,.78)' },
+  searchInput: { flex: 1, minWidth: 0, color: FateDropColors.ivory, fontSize: 12, paddingVertical: 13 },
+  searchAction: { width: 49, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: 'rgba(124,110,255,.42)' },
+  scopeLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9, paddingHorizontal: 3 },
+  scopeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: FateDropColors.manifested },
+  scopeText: { color: FateDropColors.muted, fontSize: 8 },
+  notice: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 13, marginTop: 8, paddingHorizontal: 3 },
+  section: { marginTop: 22 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 11 },
+  headingGem: { width: 7, height: 7, marginTop: 4, transform: [{ rotate: '45deg' }], borderWidth: 1, borderColor: FateDropColors.goldBright, backgroundColor: 'rgba(124,110,255,.45)' },
+  sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 21, marginTop: 3 },
+  sectionDetail: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12, marginTop: 3 },
+  gameGrid: { flexDirection: 'row', gap: 7 },
+  gameCard: { flex: 1, minWidth: 0, height: 91, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 13, backgroundColor: 'rgba(4,9,22,.7)' },
+  gameCardActive: { borderColor: 'rgba(226,197,141,.86)', backgroundColor: 'rgba(124,110,255,.12)', shadowColor: FateDropColors.goldBright, shadowOpacity: .25, shadowRadius: 7 },
+  gameIcon: { width: 39, height: 39, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(124,110,255,.09)' },
+  gameIconActive: { borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.55)', backgroundColor: 'rgba(226,197,141,.07)' },
+  gameName: { color: FateDropColors.secondary, fontFamily: Fonts.serif, fontSize: 10, marginTop: 6 },
+  gameNameActive: { color: FateDropColors.ivory },
+  gameStatus: { color: FateDropColors.muted, fontSize: 5.5, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
+  loading: { minHeight: 130, alignItems: 'center', justifyContent: 'center', gap: 9 },
+  loadingText: { color: FateDropColors.muted, fontSize: 9 },
+  setRail: { gap: 9, paddingRight: 8 },
+  setCard: { width: 137, minHeight: 181, padding: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.36)', borderRadius: 14, backgroundColor: 'rgba(4,9,22,.77)' },
+  setArt: { height: 87, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.36)', backgroundColor: 'rgba(23,16,54,.7)' },
+  setOrbit: { position: 'absolute', width: 95, height: 41, borderRadius: 50, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.4)', transform: [{ rotate: '-17deg' }] },
+  setName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13, lineHeight: 16, marginTop: 8 },
+  setSeries: { color: FateDropColors.secondary, fontSize: 7.5, marginTop: 4 },
+  setRelease: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '800', letterSpacing: .45, marginTop: 5 },
+  resultRow: { minHeight: 85, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 8, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 13, backgroundColor: 'rgba(4,9,22,.8)' },
+  resultIcon: { width: 55, height: 55, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.44)', backgroundColor: 'rgba(124,110,255,.09)' },
+  resultTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 15 },
+  resultMeta: { color: FateDropColors.secondary, fontSize: 8, lineHeight: 12, marginTop: 3 },
+  resultVariant: { color: FateDropColors.goldBright, fontSize: 7, marginTop: 4 },
 });
