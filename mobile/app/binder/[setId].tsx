@@ -1,1 +1,1 @@
-export { default } from '@/screens/fate-binder-screen';
+export { default } from '@/screens/fate-binder-screen-v2';
