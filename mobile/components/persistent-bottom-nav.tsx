@@ -9,11 +9,12 @@ import { FateDropColors } from '@/constants/theme';
 const ROOT_DOCK_PREFIXES = [
   '/fatefind', '/fate-match', '/fate-trader', '/local-radar', '/encounters', '/retailers/',
   '/notification-preferences', '/dashboard', '/demo', '/tools',
+  '/collections', '/collection', '/binders', '/binder/', '/graded-collection', '/fate-price',
 ];
 
 function DockItem({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={styles.item}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.item}>
       <Ionicons name={icon} size={20} color={FateDropColors.goldBright} />
       <Text style={styles.label}>{label}</Text>
     </Pressable>
@@ -29,10 +30,10 @@ export function PersistentBottomNav() {
     <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 13) }]}>
       <DockItem label="Home" icon="home-sharp" onPress={() => router.replace('/')} />
       <DockItem label="Alerts" icon="notifications-outline" onPress={() => router.replace('/(tabs)/alerts')} />
-      <Pressable accessibilityLabel="Open Fate Network" onPress={() => router.push('/tools')} style={styles.emblemButton}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open Fate Network" onPress={() => router.push('/tools')} style={styles.emblemButton}>
         <FateDropNavEmblem size={48} />
       </Pressable>
-      <DockItem label="Fate Market" icon="analytics-outline" onPress={() => router.replace('/(tabs)/market')} />
+      <DockItem label="Fate Market" icon="analytics-outline" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
     </View>
   );

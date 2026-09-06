@@ -1,13 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FateCollectionsArt } from '@/components/fate-collections-art';
+import { CollectionsScreen } from '@/components/fate-collections-ui';
+import { useCollectionsResource } from '@/hooks/use-collections-resource';
 import { FateDropColors, Fonts } from '@/constants/theme';
-import { fetchFateCollectorCollection, fetchFateCollectorDashboard, type FateCollectorItem, type FateCollectorValueCoverage } from '@/services/fate-collector';
+import { fetchFateCollectorCollection, fetchFateCollectorDashboard, type FateCollectorItem } from '@/services/fate-collector';
+
+type ArtFields = { imageUrl?: string | null; thumbnailUrl?: string | null };
+
+type SortKey = 'grader' | 'grade' | 'name';
 
 function money(value: number | null | undefined, currency: string | undefined) {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -15,67 +20,189 @@ function money(value: number | null | undefined, currency: string | undefined) {
   catch { return `${value.toFixed(2)} ${currency || 'GBP'}`; }
 }
 
+const readGraded = async () => {
+  const [collection, dashboard] = await Promise.all([fetchFateCollectorCollection(), fetchFateCollectorDashboard({ force: true })]);
+  return { collection, dashboard };
+};
+
 export default function FateGradedCollectionScreen() {
-  const [slabs, setSlabs] = useState<FateCollectorItem[]>([]);
-  const [valuation, setValuation] = useState<FateCollectorValueCoverage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, loading, error, load } = useCollectionsResource(readGraded);
+  const slabs = useMemo(() => data?.collection.items.filter((item) => item.copyState === 'graded') || [], [data]);
+  const valuation = data?.dashboard.summary.gradedCollection;
+  const [sort, setSort] = useState<SortKey>('grader');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [collection, dashboard] = await Promise.all([fetchFateCollectorCollection(), fetchFateCollectorDashboard({ force: true })]);
-      setSlabs(collection.items.filter((item) => item.copyState === 'graded'));
-      setValuation(dashboard.summary.gradedCollection || null);
-    } catch {
-      setError('Your graded collection could not be read safely right now.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
   const graders = useMemo(() => new Set(slabs.map((item) => item.grading?.gradingCompany).filter(Boolean)).size, [slabs]);
   const knownValue = valuation && valuation.pricedUnits > 0 ? money(valuation.knownValue, valuation.currencyCode) : '—';
+  const visibleSlabs = useMemo(() => [...slabs].sort((a, b) => {
+    if (sort === 'grade') return Number(b.grading?.gradeValue || 0) - Number(a.grading?.gradeValue || 0) || String(a.card?.name || '').localeCompare(String(b.card?.name || ''));
+    if (sort === 'name') return String(a.card?.name || '').localeCompare(String(b.card?.name || ''));
+    return String(a.grading?.gradingCompany || '').localeCompare(String(b.grading?.gradingCompany || '')) || Number(b.grading?.gradeValue || 0) - Number(a.grading?.gradeValue || 0);
+  }), [slabs, sort]);
 
-  return <SafeAreaView style={styles.safe} edges={['top']}>
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}><FateDropBackground /><Image source={require('../assets/images/fate-market-orbital-theme.webp')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" /><View style={styles.veil} /></View>
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}>
-      <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}><Ionicons name="chevron-back" size={19} color={FateDropColors.ivory} /></Pressable><View style={styles.flex}><Text style={styles.eyebrow}>FATE COLLECTIONS · GRADED</Text><Text style={styles.title}>Your cabinet of distinction.</Text><Text style={styles.copy}>Every slab is one individual asset with its own card, grader, grade and certification identity.</Text></View></View>
+  return (
+    <CollectionsScreen>
 
-      <View style={styles.cabinet}>
-        <View style={styles.orbit} />
-        <Ionicons name="ribbon-outline" size={28} color={FateDropColors.goldBright} />
-        <Text style={styles.cabinetLabel}>GRADED COLLECTION</Text>
-        <Text style={styles.cabinetCount}>{slabs.length}</Text>
-        <Text style={styles.cabinetSub}>{slabs.length === 1 ? 'individual slab' : 'individual slabs'} · {graders} {graders === 1 ? 'grader' : 'graders'}</Text>
+      <FlatList data={visibleSlabs} keyExtractor={(item) => item.id} initialNumToRender={10} windowSize={5}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}
+        ListHeaderComponent={<>
+        <View style={styles.headerRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/collections')} style={styles.back}><Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} /></Pressable>
+          <View style={styles.flex}>
+            <Text style={styles.eyebrow}>FATE COLLECTIONS · GRADED</Text>
+            <Text style={styles.title}>A higher standard of glory.</Text>
+            <Text style={styles.copy}>Your proudest graded cards, each with its own recorded grader and grade. A cabinet for the cards that mean the most.</Text>
+          </View>
+          <FateCollectionsArt kind="graded" size={92} />
+        </View>
+
+        <View style={styles.valuePanel}>
+          <View style={styles.valueOrbit} />
+          <Text style={styles.valueLabel}>KNOWN GRADED VALUE</Text>
+          <Text style={styles.valueMain}>{knownValue}</Text>
+          <Text style={styles.valueCopy}>Verified slab value only · exact card + grader + grade evidence</Text>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <Metric icon="id-card-outline" value={data ? String(slabs.length) : '—'} label="TOTAL SLABS" />
+          <View style={styles.metricDivider} />
+          <Metric icon="shield-checkmark-outline" value={data ? String(graders) : '—'} label="GRADERS REPRESENTED" />
+        </View>
+
+        <View style={styles.notice}>
+          <Ionicons name="information-circle-outline" size={20} color={FateDropColors.goldBright} />
+          <Text style={styles.noticeText}>Raw-card FatePrice is never reused for slabs. Each graded card requires exact card + grader + grade evidence for value verification.</Text>
+        </View>
+
+        <View style={styles.performanceRow}>
+          <PerformanceCard positive label="BEST PERFORMERS" />
+          <PerformanceCard label="BIGGEST DROPS" />
+        </View>
+
+        <View style={styles.listHeader}>
+          <View><Text style={styles.listTitle}>Your Slabs</Text><Text style={styles.listCopy}>Your graded cards, kept together and valued separately.</Text></View>
+          <Pressable accessibilityRole="button" onPress={() => setSort((value) => value === 'grader' ? 'grade' : value === 'grade' ? 'name' : 'grader')} style={styles.sortPill}>
+            <Text style={styles.sortText}>{slabs.length} slabs · {sort === 'grader' ? 'Grader' : sort === 'grade' ? 'Grade' : 'Name'}</Text>
+            <Ionicons name="chevron-down" size={13} color={FateDropColors.secondary} />
+          </Pressable>
+        </View>
+
+        {loading && !slabs.length ? <StateLine loading text="Opening the graded cabinet…" /> : null}
+        {error ? <StateLine danger text={error} /> : null}
+        {!loading && !error && !slabs.length ? <StateLine text="No graded cards yet. Import your graded cards from Personal Collection with their grader and grade to see them here." /> : null}
+
+        </>}
+        renderItem={({ item }) => <SlabCard item={item} />}
+        ListFooterComponent={<>
+
+        <View style={styles.truth}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={FateDropColors.goldBright} />
+          <Text style={styles.truthText}>Graded value contributes to your overall collection value. Slabs never fill binder slots or increase an ungraded set’s value.</Text>
+        </View>
+        </>}
+      />
+    </CollectionsScreen>
+  );
+}
+
+function Metric({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return <View style={styles.metric}><Ionicons name={icon} size={20} color={FateDropColors.goldBright} /><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+}
+
+function PerformanceCard({ label, positive = false }: { label: string; positive?: boolean }) {
+  const accent = positive ? FateDropColors.manifested : FateDropColors.vanished;
+  return (
+    <View style={styles.performanceCard}>
+      <View style={styles.performanceHead}><Ionicons name={positive ? 'trending-up-outline' : 'trending-down-outline'} size={22} color={accent} /><Text style={[styles.performanceLabel, { color: accent }]}>{label}</Text></View>
+      <View style={styles.performanceSlab}><Ionicons name="diamond-outline" size={24} color={FateDropColors.echo} /></View>
+      <Text style={styles.performanceTitle}>Building graded history</Text>
+      <Text style={styles.performanceCopy}>Your top 3 appear when the exact card, grader and grade have trustworthy historical evidence.</Text>
+    </View>
+  );
+}
+
+function SlabCard({ item }: { item: FateCollectorItem }) {
+  const card = item.card as (NonNullable<FateCollectorItem['card']> & ArtFields) | null | undefined;
+  const art = card?.thumbnailUrl || card?.imageUrl || null;
+  return (
+    <View style={styles.slab}>
+      <View style={styles.slabArtFrame}>
+        {art ? <Image source={{ uri: art }} style={styles.slabArt} contentFit="contain" cachePolicy="memory-disk" /> : <View style={styles.slabArtPlaceholder}><Ionicons name="diamond-outline" size={22} color={FateDropColors.echo} /></View>}
       </View>
-
-      <View style={styles.valueLine}><View><Text style={styles.valueLabel}>KNOWN GRADED VALUE</Text><Text style={styles.value}>{knownValue}</Text></View><View style={styles.valueCopy}><Text style={styles.valueNote}>{valuation?.pricedUnits || 0} of {valuation?.totalUnits ?? slabs.length} slabs valued</Text><Text style={styles.valueNote}>Exact grade evidence only</Text></View></View>
-      {!valuation || valuation.status !== 'available' ? <View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.noticeText}>Raw-card FatePrice is never reused for a slab. Graded value remains unavailable until evidence matches the exact card, grading company and grade.</Text></View> : null}
-
-      {loading && !slabs.length ? <View style={styles.state}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.stateText}>Opening the graded cabinet…</Text></View> : null}
-      {error ? <View style={styles.state}><Ionicons name="alert-circle-outline" size={19} color={FateDropColors.vanished} /><Text style={styles.stateText}>{error}</Text></View> : null}
-      {!loading && !error && !slabs.length ? <View style={styles.state}><Ionicons name="ribbon-outline" size={24} color={FateDropColors.muted} /><Text style={styles.stateTitle}>No graded cards yet</Text><Text style={styles.stateText}>Graded cards imported or added with exact grading details will appear here—never inside a set binder.</Text></View> : null}
-
-      <View style={styles.gallery}>
-        {slabs.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.card?.name || 'graded card'} identity`} onPress={() => router.push({ pathname: '/fate-price', params: { cardId: item.fateCardId, name: item.card?.name || undefined, collectorNumber: item.card?.collectorNumber || undefined, setId: item.card?.setId || undefined, setName: item.card?.setName || undefined, tcg: item.card?.tcgCode || undefined } })} style={({ pressed }) => [styles.slab, pressed && styles.pressed]}>
-          <View style={styles.slabLabel}><Text style={styles.grader}>{item.grading?.gradingCompany || 'GRADER'}</Text><Text style={styles.grade}>{item.grading?.gradeLabel || '—'}</Text></View>
-          <View style={styles.slabCard}><Ionicons name="diamond-outline" size={25} color={FateDropColors.echo} /><Text style={styles.cardName} numberOfLines={2}>{item.card?.name || 'Verified card'}</Text><Text style={styles.cardMeta}>{item.card?.setName || 'Verified set'} · #{item.card?.collectorNumber || '—'}</Text></View>
-          <View style={styles.slabFooter}><Text style={styles.cert} numberOfLines={1}>{item.grading?.certificationNumber ? `CERT ${item.grading.certificationNumber}` : 'CERT NOT SUPPLIED'}</Text><Ionicons name="chevron-forward" size={13} color={FateDropColors.goldBright} /></View>
-        </Pressable>)}
+      <View style={styles.slabText}>
+        <View style={styles.gradeRow}>
+          <View style={styles.graderBadge}><Text style={styles.graderText}>{item.grading?.gradingCompany || 'GRADER'}</Text></View>
+          <View style={styles.gradeBadge}><Text style={styles.gradeText}>{item.grading?.gradeLabel || '—'}</Text></View>
+          <Text style={styles.cert} numberOfLines={1}>{item.grading?.certificationNumber ? `#${item.grading.certificationNumber}` : 'CERT NOT SUPPLIED'}</Text>
+        </View>
+        <Text style={styles.cardName} numberOfLines={1}>{card?.name || 'Verified card'}</Text>
+        <Text style={styles.cardMeta} numberOfLines={1}>{card?.setName || 'Verified set'} · #{card?.collectorNumber || '—'}</Text>
+        <Text style={styles.slabValue}>Graded price unavailable</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`View ungraded reference for ${card?.name || 'card'}`} onPress={() => router.push({ pathname: '/fate-price', params: { cardId: item.fateCardId, name: card?.name || undefined, setId: card?.setId || undefined, setName: card?.setName || undefined, collectorNumber: card?.collectorNumber || undefined, tcg: card?.tcgCode || undefined } })} style={styles.referenceLink}><Text style={styles.referenceText}>View ungraded reference</Text><Ionicons name="arrow-forward" size={14} color={FateDropColors.goldBright} /></Pressable>
       </View>
-    </ScrollView>
-  </SafeAreaView>;
+    </View>
+  );
+}
+
+function StateLine({ danger = false, loading = false, text }: { danger?: boolean; loading?: boolean; text: string }) {
+  return <View style={styles.stateLine}>{loading ? <ActivityIndicator color={FateDropColors.goldBright} /> : <Ionicons name={danger ? 'alert-circle-outline' : 'ribbon-outline'} size={20} color={danger ? FateDropColors.vanished : FateDropColors.muted} />}<Text style={styles.stateText}>{text}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: FateDropColors.background }, veil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,7,18,.64)' }, content: { paddingHorizontal: 18, paddingBottom: 130 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingTop: 8 }, back: { width: 36, height: 36, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: FateDropColors.borderSoft, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,8,18,.58)' }, flex: { flex: 1 },
-  eyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1.08 }, title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 29, lineHeight: 34, marginTop: 4 }, copy: { color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 16, marginTop: 5 },
-  cabinet: { minHeight: 235, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)' }, orbit: { position: 'absolute', width: 190, height: 190, borderRadius: 95, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.45)' }, cabinetLabel: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginTop: 10 }, cabinetCount: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 48, lineHeight: 56 }, cabinetSub: { color: FateDropColors.secondary, fontSize: 9.5 },
-  valueLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.22)' }, valueLabel: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: .65 }, value: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 23, marginTop: 3 }, valueCopy: { alignItems: 'flex-end' }, valueNote: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12 },
-  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 14 }, noticeText: { flex: 1, color: FateDropColors.secondary, fontSize: 9, lineHeight: 14 }, state: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 28 }, stateTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18 }, stateText: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, textAlign: 'center' },
-  gallery: { gap: 14, marginTop: 8 }, slab: { padding: 9, borderWidth: 1, borderColor: 'rgba(226,197,141,.42)', borderRadius: 14, backgroundColor: 'rgba(210,220,235,.08)' }, slabLabel: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, borderRadius: 7, backgroundColor: 'rgba(226,197,141,.10)' }, grader: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1 }, grade: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 22 }, slabCard: { minHeight: 180, alignItems: 'center', justifyContent: 'center', margin: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.38)', borderRadius: 9, backgroundColor: 'rgba(4,8,20,.72)' }, cardName: { maxWidth: 220, color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 20, lineHeight: 24, textAlign: 'center', marginTop: 12 }, cardMeta: { color: FateDropColors.muted, fontSize: 8.5, marginTop: 6 }, slabFooter: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 9 }, cert: { flex: 1, color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: .45 }, pressed: { opacity: .72 },
+  referenceLink: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  referenceText: { fontSize: 11, color: FateDropColors.goldBright },
+  safe: { flex: 1, backgroundColor: FateDropColors.background },
+  veil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,7,18,.60)' },
+  content: { width: '100%', maxWidth: 960, alignSelf: 'center', paddingHorizontal: 18, paddingBottom: 140 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 8 },
+  back: { width: 44, height: 44, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: FateDropColors.borderSoft, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,8,18,.58)' },
+  flex: { flex: 1 },
+  eyebrow: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.15 },
+  title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 5 },
+  copy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 6 },
+  valuePanel: { minHeight: 160, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginTop: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.66)', borderRadius: 18, backgroundColor: 'rgba(4,8,21,.74)' },
+  valueOrbit: { position: 'absolute', width: 300, height: 130, borderRadius: 150, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.38)' },
+  valueLabel: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  valueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 41, lineHeight: 47, marginTop: 4 },
+  valueCopy: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
+  metricsRow: { minHeight: 82, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  metric: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  metricDivider: { width: StyleSheet.hairlineWidth, height: 45, backgroundColor: 'rgba(226,197,141,.25)' },
+  metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 21, marginTop: 3 },
+  metricLabel: { color: FateDropColors.secondary, fontSize: 11, fontWeight: '900', letterSpacing: .75, marginTop: 2 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 13, backgroundColor: 'rgba(4,8,21,.64)' },
+  noticeText: { flex: 1, color: FateDropColors.secondary, fontSize: 11, lineHeight: 17 },
+  performanceRow: { flexDirection: 'row', gap: 8, marginTop: 13 },
+  performanceCard: { flex: 1, minHeight: 220, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 14, backgroundColor: 'rgba(4,8,21,.72)' },
+  performanceHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  performanceLabel: { fontSize: 11, fontWeight: '900', letterSpacing: .9 },
+  performanceSlab: { height: 92, alignItems: 'center', justifyContent: 'center', marginTop: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.42)', borderRadius: 9, backgroundColor: 'rgba(124,110,255,.07)' },
+  performanceTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13.5, marginTop: 8 },
+  performanceCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 4 },
+  listHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 19, marginBottom: 10 },
+  listTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 24 },
+  listCopy: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
+  sortPill: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 17 },
+  sortText: { color: FateDropColors.secondary, fontSize: 11 },
+  gallery: { gap: 8 },
+  slab: { marginBottom: 10, minHeight: 105, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.38)', borderRadius: 12, backgroundColor: 'rgba(4,8,21,.74)' },
+  slabArtFrame: { width: 62, height: 89, padding: 4, borderWidth: 1, borderColor: 'rgba(226,197,141,.45)', borderRadius: 7, backgroundColor: 'rgba(205,220,245,.07)' },
+  slabArt: { flex: 1, borderRadius: 4, backgroundColor: 'rgba(124,110,255,.08)' },
+  slabArtPlaceholder: { flex: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.42)', backgroundColor: 'rgba(124,110,255,.08)' },
+  slabText: { flex: 1, minWidth: 0 },
+  gradeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
+  graderBadge: { paddingHorizontal: 6, height: 23, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.62)', borderRadius: 5 },
+  graderText: { color: FateDropColors.echo, fontSize: 11, fontWeight: '900' },
+  gradeBadge: { paddingHorizontal: 6, height: 23, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.62)', borderRadius: 5 },
+  gradeText: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 11 },
+  cert: { flex: 1, color: FateDropColors.secondary, fontSize: 11, textAlign: 'right' },
+  cardName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 14, marginTop: 7 },
+  cardMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
+  slabValue: { color: FateDropColors.secondary, fontSize: 11, marginTop: 7, fontWeight: '800' },
+  stateLine: { minHeight: 130, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 24 },
+  stateText: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  truth: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 15, marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },
+  truthText: { flex: 1, color: FateDropColors.secondary, fontSize: 11, lineHeight: 17 },
+  pressed: { opacity: .72 },
 });
