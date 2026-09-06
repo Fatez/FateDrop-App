@@ -3,14 +3,12 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export function FatePriceScreenBackground({ sceneKey }: { sceneKey: string }) {
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-    <FateDropBackground />
     <Image
       source={require('../assets/images/fate-market-orbital-theme.webp')}
       style={StyleSheet.absoluteFill}
