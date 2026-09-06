@@ -226,7 +226,7 @@ function SnapshotCard({ label, value, detail, accent, icon }: { label: string; v
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
-  veil: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3,8,16,.64)' },
+  veil: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,16,.64)' },
   content: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 122, gap: 14 },
   hero: { minHeight: 154, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(129,94,255,.36)', overflow: 'hidden', backgroundColor: 'rgba(7,13,25,.72)', padding: 17, flexDirection: 'row' },
   heroCopy: { flex: 1, paddingRight: 8, zIndex: 2 },
