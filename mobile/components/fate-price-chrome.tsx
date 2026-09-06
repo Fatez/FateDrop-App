@@ -106,7 +106,7 @@ function Constellation() {
 }
 
 const styles = StyleSheet.create({
-  guardian: { position: 'absolute', width: 330, height: 520, right: -92, top: 22, opacity: 0.54 },
+  guardian: { display: 'none', position: 'absolute', width: 330, height: 520, right: -92, top: 22, opacity: 0 },
   topVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,15,.22)' },
   copyVeil: { position: 'absolute', left: 0, top: 0, width: '69%', height: 560, backgroundColor: 'rgba(2,6,17,.52)' },
   lowerVeil: { position: 'absolute', left: 0, right: 0, top: 390, bottom: 0, backgroundColor: 'rgba(3,7,17,.78)' },
