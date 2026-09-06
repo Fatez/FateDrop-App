@@ -11,9 +11,11 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   fetchFateCollectorDashboard,
   type FateCollectorPersonalMover,
+  type FateCollectorPersonalSetMover,
 } from '@/services/fate-collector';
 
 type PersonalPeriod = 'd7' | 'd30';
+type RankingScope = 'cards' | 'sets';
 
 function money(value: number | null | undefined, currencyCode: string | null | undefined) {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -36,6 +38,7 @@ export default function FateCollectionsDashboardScreen() {
   const { width, fontScale } = useWindowDimensions();
   const compact = width < 390 || fontScale > 1.2;
   const [period, setPeriod] = useState<PersonalPeriod>('d30');
+  const [rankingScope, setRankingScope] = useState<RankingScope>('cards');
 
 
   const summary = data?.summary;
@@ -44,7 +47,7 @@ export default function FateCollectionsDashboardScreen() {
   const gradedCount = summary?.gradedCardUnits;
   const totalCards = summary?.cardUnits;
   const rawCards = summary?.rawCardUnits;
-  const bindersTracked = summary ? (summary.sets || []).length : undefined;
+  const bindersTracked = summary?.bindersTracked ?? (summary ? (summary.sets || []).length : undefined);
   const pulse = data?.personalPulse?.periods[period];
   const completeValue = Boolean(collection && collection.totalUnits > 0 && collection.pricedUnits === collection.totalUnits && collection.totalValue != null);
   const headlineValue = completeValue ? collection?.totalValue : collection?.knownValue;
@@ -93,8 +96,8 @@ export default function FateCollectionsDashboardScreen() {
         <View style={[styles.destinationRow, compact && styles.stacked]}>
           <DestinationCard
             art="collection"
-            title="Personal Collection"
-            copy="Your raw cards and exact owned copies."
+            title="Collection Intelligence"
+            copy="Value, movement and insight from your raw cards."
             value={String(rawCards ?? '—')}
             valueLabel="cards held"
             onPress={() => router.push('/collection')}
@@ -121,7 +124,7 @@ export default function FateCollectionsDashboardScreen() {
           <View style={styles.flex}>
             <Text style={styles.sectionEyebrow}>YOUR COLLECTION PULSE</Text>
             <Text style={styles.sectionTitle}>Your biggest risers and fallers</Text>
-            <Text style={styles.sectionCopy}>Top 3 ungraded cards you own. Whole-market rankings are in FatePulse.</Text>
+            <Text style={styles.sectionCopy}>Top 3 owned {rankingScope}. Whole-market rankings stay in FatePulse.</Text>
           </View>
           <View style={styles.periodRail}>
             <PeriodButton label="7D" selected={period === 'd7'} onPress={() => setPeriod('d7')} />
@@ -129,9 +132,19 @@ export default function FateCollectionsDashboardScreen() {
           </View>
         </View>
 
+        <View style={styles.rankingRail}>
+          <RankingButton label="CARDS" selected={rankingScope === 'cards'} onPress={() => setRankingScope('cards')} />
+          <RankingButton label="SETS" selected={rankingScope === 'sets'} onPress={() => setRankingScope('sets')} />
+        </View>
+
         <View style={[styles.moverColumns, compact && styles.stacked]}>
-          <MoverColumn label="BIGGEST WINS" accent={FateDropColors.manifested} items={pulse?.risers || []} positive />
-          <MoverColumn label="BIGGEST LOSSES" accent={FateDropColors.vanished} items={pulse?.decliners || []} />
+          {rankingScope === 'cards' ? <>
+            <MoverColumn label="BIGGEST WINS" accent={FateDropColors.manifested} items={pulse?.risers || []} positive />
+            <MoverColumn label="BIGGEST LOSSES" accent={FateDropColors.vanished} items={pulse?.decliners || []} />
+          </> : <>
+            <SetMoverColumn label="BEST SETS" accent={FateDropColors.manifested} items={pulse?.setRisers || []} positive />
+            <SetMoverColumn label="WORST SETS" accent={FateDropColors.vanished} items={pulse?.setDecliners || []} />
+          </>}
         </View>
 
         {!pulse || pulse.status === 'building' ? (
@@ -143,7 +156,7 @@ export default function FateCollectionsDashboardScreen() {
 
         <View style={styles.truth}>
           <Ionicons name="shield-checkmark-outline" size={17} color={FateDropColors.goldBright} />
-          <Text style={styles.truthText}>Collection value includes ungraded and graded cards. Binders organise your ungraded cards; their value is already included.</Text>
+          <Text style={styles.truthText}>Known collection value combines exact ungraded and graded prices. Unknown slab prices stay unknown. Binders organise your ungraded cards; they never add a second value.</Text>
         </View>
       </ScrollView>
     </CollectionsScreen>
@@ -181,6 +194,10 @@ function PeriodButton({ label, onPress, selected }: { label: string; onPress: ()
   return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.periodButton, selected && styles.periodButtonActive]}><Text style={[styles.periodText, selected && styles.periodTextActive]}>{label}</Text></Pressable>;
 }
 
+function RankingButton({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.rankingButton, selected && styles.rankingButtonActive]}><Text style={[styles.rankingText, selected && styles.rankingTextActive]}>{label}</Text></Pressable>;
+}
+
 function MoverColumn({ accent, items, label, positive = false }: { accent: string; items: FateCollectorPersonalMover[]; label: string; positive?: boolean }) {
   return (
     <View style={styles.moverColumn}>
@@ -199,6 +216,17 @@ function MoverColumn({ accent, items, label, positive = false }: { accent: strin
       )) : <Text style={styles.emptyMover}>No qualifying owned movement yet.</Text>}
     </View>
   );
+}
+
+function SetMoverColumn({ accent, items, label, positive = false }: { accent: string; items: FateCollectorPersonalSetMover[]; label: string; positive?: boolean }) {
+  return <View style={styles.moverColumn}>
+    <View style={styles.moverHead}><Ionicons name={positive ? 'trending-up-outline' : 'trending-down-outline'} size={17} color={accent} /><Text style={[styles.moverLabel, { color: accent }]}>{label}</Text></View>
+    {items.length ? items.slice(0, 3).map((item, index) => <Pressable key={`${item.setId}:${index}`} accessibilityRole="button" onPress={() => router.push({ pathname: '/binder/[setId]', params: { setId: item.setId, setName: item.setName || undefined } })} style={({ pressed }) => [styles.moverRow, pressed && styles.pressed]}>
+      <View style={[styles.moverThumb, { borderColor: `${accent}66` }]}><Ionicons name="albums-outline" size={15} color={accent} /></View>
+      <View style={styles.flex}><Text style={styles.moverName} numberOfLines={1}>{item.setName || 'Owned set'}</Text><Text style={styles.moverMeta} numberOfLines={1}>{item.eligibleOwnedIdentities} cards · {item.eligibleOwnedCopies} copies</Text></View>
+      <View style={styles.moverValue}><Text style={[styles.movement, { color: accent }]}>{percent(item.movementPercent)}</Text><Text style={styles.moverPrice}>{money(item.currentValue, item.currencyCode)}</Text></View>
+    </Pressable>) : <Text style={styles.emptyMover}>No qualifying owned set movement yet.</Text>}
+  </View>;
 }
 
 const styles = StyleSheet.create({
@@ -249,6 +277,11 @@ const styles = StyleSheet.create({
   periodButtonActive: { backgroundColor: 'rgba(226,197,141,.12)' },
   periodText: { color: FateDropColors.secondary, fontSize: 11, fontWeight: '900' },
   periodTextActive: { color: FateDropColors.ivory },
+  rankingRail: { alignSelf: 'flex-start', flexDirection: 'row', marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 18, overflow: 'hidden' },
+  rankingButton: { minWidth: 76, minHeight: 38, alignItems: 'center', justifyContent: 'center' },
+  rankingButtonActive: { backgroundColor: 'rgba(124,110,255,.16)' },
+  rankingText: { color: FateDropColors.secondary, fontSize: 9, fontWeight: '900', letterSpacing: .7 },
+  rankingTextActive: { color: FateDropColors.goldBright },
   moverColumns: { flexDirection: 'row', gap: 8 },
   moverColumn: { flex: 1, minHeight: 210, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)', borderRadius: 14, backgroundColor: 'rgba(4,8,21,.72)' },
   moverHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.18)' },

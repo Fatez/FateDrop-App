@@ -28,12 +28,27 @@ export type FateCollectorPersonalMover = {
   movementPercent: number | null;
 };
 
+export type FateCollectorPersonalSetMover = {
+  setId: string;
+  setName: string | null;
+  tcgCode: string | null;
+  currencyCode: string | null;
+  currentValue: number;
+  baselineValue: number;
+  movementAmount: number;
+  movementPercent: number | null;
+  eligibleOwnedIdentities: number;
+  eligibleOwnedCopies: number;
+};
+
 export type FateCollectorPersonalPulsePeriod = {
   status: 'available' | 'building';
   reason: string | null;
   eligibleOwnedIdentities: number;
   risers: FateCollectorPersonalMover[];
   decliners: FateCollectorPersonalMover[];
+  setRisers: FateCollectorPersonalSetMover[];
+  setDecliners: FateCollectorPersonalSetMover[];
 };
 
 export type FateCollectorSetBinder = {
@@ -46,8 +61,107 @@ export type FateCollectorSetBinder = {
   totalCount: number | null;
   missingCount: number | null;
   completionPercent: number | null;
+  explicitlyTracked?: boolean;
   missingCards?: FateCollectorMissingCard[];
   value?: FateCollectorBinderValue | null;
+};
+
+export type FateCollectorPeriodValue = {
+  status: 'available' | 'building';
+  reason: string | null;
+  eligibleIdentities: number;
+  eligibleCopies: number;
+  coveragePercent: number;
+  baselineValue: number | null;
+  currentValue: number | null;
+  movementAmount: number | null;
+  movementPercent: number | null;
+};
+
+export type FateCollectorIntelligenceCard = {
+  cardIdentityId: string;
+  name: string | null;
+  tcgCode: string | null;
+  setId: string | null;
+  setName: string | null;
+  collectorNumber: string | null;
+  rarity: string | null;
+  variantCode: string | null;
+  languageCode: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+  quantity: number;
+  currentUnitPrice: number | null;
+  currentKnownValue: number | null;
+  currencyCode: string;
+  d7: FateCollectorPeriodValue;
+  d30: FateCollectorPeriodValue;
+};
+
+export type FateCollectorIntelligenceSet = {
+  setId: string | null;
+  setName: string | null;
+  tcgCode: string | null;
+  uniqueCards: number;
+  totalCopies: number;
+  pricedCopies: number;
+  unpricedCopies: number;
+  priceCoveragePercent: number;
+  currentKnownValue: number;
+  collectionSharePercent: number;
+  d7: FateCollectorPeriodValue;
+  d30: FateCollectorPeriodValue;
+};
+
+export type FateCollectorIntelligenceSnapshot = {
+  contractVersion: 1;
+  schemaVersion: 'collector-intelligence:1';
+  scope: 'owned_raw_cards_only';
+  currencyCode: string;
+  snapshot: {
+    status: 'available' | 'partial' | 'unavailable';
+    reason: string | null;
+    currentKnownValue: number;
+    totalCopies: number;
+    pricedCopies: number;
+    unpricedCopies: number;
+    priceCoveragePercent: number;
+    uniqueCards: number;
+    setsRepresented: number;
+    topFiveValue: number;
+    topFiveSharePercent: number;
+  };
+  periods: { d7: FateCollectorPeriodValue; d30: FateCollectorPeriodValue };
+  history: {
+    status: 'available' | 'building';
+    reason: string | null;
+    pointPolicy: 'stored_market_days_only_no_interpolation';
+    includedIdentities: number;
+    ownedIdentities: number;
+    currentValueCoveragePercent: number;
+    points: { marketDay: string; knownValue: number; pricedCopies: number; totalCopies: number; coveragePercent: number }[];
+  };
+  cards: FateCollectorIntelligenceCard[];
+  sets: FateCollectorIntelligenceSet[];
+  evidence: {
+    ownershipPolicy: 'raw_only';
+    movementQuantityPolicy: 'same_current_owned_quantities_at_both_endpoints';
+    concentrationIdentityPolicy: 'unique_exact_card_identity_with_quantity_weighted_value';
+    acquisitionCostUsed: false;
+    missingEvidencePolicy: 'unknown_not_zero';
+    exactPriceRuntimeConnected: boolean;
+    historyRuntimeConnected: boolean;
+    historyIdentityLimit: number;
+    historyIncludedIdentities: number;
+  };
+};
+
+export type FateCollectorSetProgressSnapshot = {
+  contractVersion: 2;
+  progress: FateCollectorSetBinder & {
+    catalogue?: { status: string; reason: string | null; expectedTotal?: number | null; verifiedChecklistCount?: number } | null;
+    priceEvidenceConnected?: boolean;
+  };
 };
 
 export type FateCollectorMissingCard = {
@@ -89,6 +203,7 @@ export type FateCollectorBinderValue = {
 export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summary' | 'evidence'> & {
   summary: FateCollectorsSnapshot['summary'] & {
     sets?: FateCollectorSetBinder[];
+    bindersTracked?: number;
     rawCardUnits?: number;
     gradedCardUnits?: number;
     rawCollection?: FateCollectorValueCoverage;
@@ -204,6 +319,8 @@ export class FateCollectorApiError extends Error {
 let dashboardCache: { token: string; cachedAt: number; data: FateCollectorsDashboardSnapshot } | null = null;
 let dashboardFlight: { token: string; promise: Promise<FateCollectorsDashboardSnapshot> } | null = null;
 let dashboardGeneration = 0;
+let intelligenceCache: { token: string; cachedAt: number; data: FateCollectorIntelligenceSnapshot } | null = null;
+let intelligenceFlight: { token: string; promise: Promise<FateCollectorIntelligenceSnapshot> } | null = null;
 
 async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
   const token = await getStoredSessionToken();
@@ -231,6 +348,8 @@ export function invalidateFateCollectorCache() {
   dashboardGeneration += 1;
   dashboardCache = null;
   dashboardFlight = null;
+  intelligenceCache = null;
+  intelligenceFlight = null;
   invalidateFateCollectorsSummaryCache();
 }
 
@@ -258,6 +377,41 @@ export async function fetchFateCollectorCollection({ limit = 2000 }: { limit?: n
   return data;
 }
 
+export async function fetchFateCollectorIntelligence({ force = false }: { force?: boolean } = {}) {
+  const token = await getStoredSessionToken();
+  if (!token) throw new FateCollectorApiError('Connect your FateDrop ID to understand your collection.', 401, 'AUTH_REQUIRED');
+  if (!force && intelligenceCache?.token === token && Date.now() - intelligenceCache.cachedAt < CACHE_TTL_MS) return intelligenceCache.data;
+  if (intelligenceFlight?.token === token) return intelligenceFlight.promise;
+  const generation = dashboardGeneration;
+  const promise = authenticatedRequest<FateCollectorIntelligenceSnapshot>('/v1/collectors/intelligence?currency=GBP')
+    .then(({ data }) => {
+      if (generation === dashboardGeneration) intelligenceCache = { token, cachedAt: Date.now(), data };
+      return data;
+    })
+    .finally(() => {
+      if (intelligenceFlight?.promise === promise) intelligenceFlight = null;
+    });
+  intelligenceFlight = { token, promise };
+  return promise;
+}
+
+export async function fetchFateCollectorSetProgress(setId: string) {
+  const id = setId.trim();
+  if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
+  const { data } = await authenticatedRequest<FateCollectorSetProgressSnapshot>(`/v1/collectors/sets/${encodeURIComponent(id)}/progress?currency=GBP&language=en&variant=standard`);
+  return data;
+}
+
+export async function setFateCollectorBinderTracked(setId: string, tracked: boolean) {
+  const id = setId.trim();
+  if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
+  const { data } = await authenticatedRequest<{ contractVersion: 1; binder: { setId: string; tracked: boolean } }>(`/v1/collectors/binders/${encodeURIComponent(id)}`, {
+    method: tracked ? 'PUT' : 'DELETE',
+  });
+  invalidateFateCollectorCache();
+  return data;
+}
+
 export async function addExactCardToCollector(cardIdentityId: string, {
   quantity = 1,
   conditionCode = 'unknown',
@@ -267,6 +421,19 @@ export async function addExactCardToCollector(cardIdentityId: string, {
   const { data } = await authenticatedRequest<{ item: FateCollectorItem }>('/v1/collection/items', {
     method: 'POST',
     body: JSON.stringify({ fateCardId: id, quantity, copyState: 'raw', conditionCode }),
+  });
+  invalidateFateCollectorCache();
+  return data.item;
+}
+
+export async function updateFateCollectorItemQuantity(itemId: string, quantity: number, expectedRevision: number) {
+  const id = itemId.trim();
+  const nextQuantity = Math.trunc(quantity);
+  if (!id) throw new FateCollectorApiError('Choose a collection item first.', 400, 'COLLECTION_ITEM_REQUIRED');
+  if (!Number.isInteger(nextQuantity) || nextQuantity < 1 || nextQuantity > 999) throw new FateCollectorApiError('Quantity must be between 1 and 999.', 400, 'COLLECTION_QUANTITY_INVALID');
+  const { data } = await authenticatedRequest<{ item: FateCollectorItem }>(`/v1/collection/items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ quantity: nextQuantity, expectedRevision }),
   });
   invalidateFateCollectorCache();
   return data.item;

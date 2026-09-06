@@ -178,6 +178,18 @@ export type FatePriceCard = {
   verifiedAt: number | null;
 };
 
+export type FatePriceSet = {
+  id: string;
+  tcgCode: string | null;
+  seriesId: string;
+  seriesName: string | null;
+  name: string;
+  printedTotal: number | null;
+  total: number | null;
+  releasedAt: number | null;
+  verificationStatus: string;
+};
+
 export type FatePriceScope = {
   currencyCode: string | null;
   marketSegmentKey: string;
@@ -395,6 +407,36 @@ export function searchFatePriceCards({
   if (query.trim()) params.push(`q=${encodeURIComponent(query.trim())}`);
   if (setId.trim()) params.push(`setId=${encodeURIComponent(setId.trim())}`);
   return request<{ cards: FatePriceCard[]; count: number }>(`/v1/fate-price/cards?${params.join('&')}`);
+}
+
+export function fetchFatePriceSets({
+  tcgCode = 'pokemon',
+  query = '',
+  seriesId = '',
+  limit = 500,
+}: { tcgCode?: string; query?: string; seriesId?: string; limit?: number } = {}) {
+  const params = [
+    `tcg=${encodeURIComponent(tcgCode.trim() || 'pokemon')}`,
+    `limit=${Math.max(1, Math.min(1000, Math.trunc(limit)))}`,
+  ];
+  if (query.trim()) params.push(`q=${encodeURIComponent(query.trim())}`);
+  if (seriesId.trim()) params.push(`seriesId=${encodeURIComponent(seriesId.trim())}`);
+  return request<{ sets: FatePriceSet[]; count: number }>(`/v1/fate-price/sets?${params.join('&')}`);
+}
+
+export function fetchFatePriceSetCards(setId: string, {
+  query = '',
+  languageCode = 'en',
+  variantCode = 'standard',
+  limit = 500,
+}: { query?: string; languageCode?: string; variantCode?: string; limit?: number } = {}) {
+  const id = setId.trim();
+  if (!id) return Promise.reject(new FateMarketApiError('Choose an exact set first.', 400, 'SET_IDENTITY_REQUIRED'));
+  const params = [`limit=${Math.max(1, Math.min(500, Math.trunc(limit)))}`];
+  if (query.trim()) params.push(`q=${encodeURIComponent(query.trim())}`);
+  if (languageCode.trim()) params.push(`language=${encodeURIComponent(languageCode.trim())}`);
+  if (variantCode.trim()) params.push(`variant=${encodeURIComponent(variantCode.trim())}`);
+  return request<{ set: FatePriceSet; cards: FatePriceCard[]; count: number }>(`/v1/fate-price/sets/${encodeURIComponent(id)}/cards?${params.join('&')}`);
 }
 
 export function fetchFatePriceCard(cardIdentityId: string) {
