@@ -1,0 +1,65 @@
+name: Build FateDrop iOS preview
+
+on:
+  push:
+    branches:
+      - ops/ios-preview-build-2026-09-06
+    paths:
+      - .github/workflows/eas-ios-preview-build.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Check out exact build source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Verify build source
+        run: npm run verify
+
+      - name: Verify repaired production surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://fatedrop-cloud-production.up.railway.app"
+          for path in "/v1/fate-price/sets?tcg=pokemon&limit=1" "/v1/fate-price/cards?q=charizard&limit=1" "/api/signal-summary?days=2"; do
+            status="$(curl --silent --show-error --max-time 20 --output /tmp/fatedrop-response.json --write-out '%{http_code}' -H 'Accept: application/json' "${base}${path}")"
+            if [ "$status" != "200" ]; then
+              echo "Production probe failed for ${path} with HTTP ${status}"
+              cat /tmp/fatedrop-response.json
+              exit 1
+            fi
+            node -e "const p=require('/tmp/fatedrop-response.json'); if (!p || typeof p !== 'object') process.exit(1)"
+            echo "Production probe passed: ${path}"
+          done
+
+      - name: Require Expo build credentials
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "Repository secret EXPO_TOKEN is required for the signed preview build."
+            exit 1
+          fi
+
+      - name: Queue signed iOS internal-distribution build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@23.2.0 build --platform ios --profile preview --non-interactive --no-wait --json
