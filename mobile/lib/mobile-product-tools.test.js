@@ -17,8 +17,10 @@ const fateMatch = read('screens/fatematch-screen-v2.tsx');
 const fateDropId = read('services/fatedrop-id.ts');
 const legacyTruePrice = read('app/true-price.tsx');
 const fatePriceRoute = read('app/fate-price.tsx');
+const fatePriceBuyRoute = read('app/fate-price-buy.tsx');
 const fatePriceEntry = read('screens/fate-price-entry-screen.tsx');
-const fatePrice = read('screens/fate-price-screen.tsx');
+const fatePrice = read('screens/fate-price-flagship-screen.tsx');
+const fatePriceBuy = read('screens/fate-price-buy-screen.tsx');
 
 test('primary navigation is Home, Alerts, FateDrop compass, Fate Market and Profile', () => {
   assert.match(tabs, /name="index"/);
@@ -108,13 +110,24 @@ test('Search remains passive database discovery and hands intelligent work to Fa
   assert.doesNotMatch(search, /saveRemoteFateFind/);
 });
 
-test('legacy True Price deep links resolve into the dedicated exact FatePrice path', () => {
+test('legacy True Price deep links resolve into the flagship exact FatePrice path', () => {
   assert.match(legacyTruePrice, /Redirect/);
   assert.match(legacyTruePrice, /pathname: '\/fate-price'/);
   assert.match(fatePriceRoute, /fate-price-entry-screen/);
-  assert.match(fatePriceEntry, /FatePriceScreen/);
+  assert.match(fatePriceEntry, /FatePriceFlagshipScreen/);
   assert.match(fatePriceEntry, /FatePriceDiscoveryScreen/);
-  assert.match(fatePriceEntry, /cardId \? <FatePriceScreen \/> : <FatePriceDiscoveryScreen \/>/);
+  assert.match(fatePriceEntry, /cardId \? <FatePriceFlagshipScreen \/> : <FatePriceDiscoveryScreen \/>/);
   assert.match(fatePrice, /fetchFatePrice/);
+  assert.match(fatePrice, /fetchFatePriceHistory/);
   assert.doesNotMatch(fatePrice, /\/fatefind/);
+});
+
+test('FatePrice keeps retailer buying on a separate exact-match channel', () => {
+  assert.match(fatePriceBuyRoute, /fate-price-buy-screen/);
+  assert.match(fatePrice, /pathname: '\/fate-price-buy'/);
+  assert.match(fatePrice, /Retailer asking prices never feed back into this market valuation/);
+  assert.match(fatePriceBuy, /Cardmarket-backed market evidence determines FatePrice/);
+  assert.match(fatePriceBuy, /Retailer inventory determines availability/);
+  assert.match(fatePriceBuy, /not inventing offers/);
+  assert.doesNotMatch(fatePriceBuy, /const\s+offers\s*=\s*\[/);
 });
