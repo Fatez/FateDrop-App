@@ -11,6 +11,8 @@ type ApiEnvelope<T> = {
 };
 
 export type FateCollectorPersonalMover = {
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   cardIdentityId: string;
   name: string | null;
   tcgCode: string | null;
@@ -49,6 +51,8 @@ export type FateCollectorSetBinder = {
 };
 
 export type FateCollectorMissingCard = {
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   fateCardId: string;
   printingId: string | null;
   setId: string;
@@ -108,6 +112,8 @@ export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summ
 };
 
 export type FateCollectorCardIdentity = {
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
   fateCardId: string;
   tcgCode: string | null;
   setId: string | null;
@@ -197,6 +203,7 @@ export class FateCollectorApiError extends Error {
 
 let dashboardCache: { token: string; cachedAt: number; data: FateCollectorsDashboardSnapshot } | null = null;
 let dashboardFlight: { token: string; promise: Promise<FateCollectorsDashboardSnapshot> } | null = null;
+let dashboardGeneration = 0;
 
 async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
   const token = await getStoredSessionToken();
@@ -221,6 +228,7 @@ async function authenticatedRequest<T>(path: string, init: RequestInit = {}) {
 }
 
 export function invalidateFateCollectorCache() {
+  dashboardGeneration += 1;
   dashboardCache = null;
   dashboardFlight = null;
   invalidateFateCollectorsSummaryCache();
@@ -231,9 +239,10 @@ export async function fetchFateCollectorDashboard({ force = false }: { force?: b
   if (!token) throw new FateCollectorApiError('Connect your FateDrop ID to view your collection.', 401, 'AUTH_REQUIRED');
   if (!force && dashboardCache?.token === token && Date.now() - dashboardCache.cachedAt < CACHE_TTL_MS) return dashboardCache.data;
   if (dashboardFlight?.token === token) return dashboardFlight.promise;
+  const generation = dashboardGeneration;
   const promise = authenticatedRequest<FateCollectorsDashboardSnapshot>('/v1/collectors/summary?currency=GBP&language=en&variant=standard')
     .then(({ data }) => {
-      dashboardCache = { token, cachedAt: Date.now(), data };
+      if (generation === dashboardGeneration) dashboardCache = { token, cachedAt: Date.now(), data };
       return data;
     })
     .finally(() => {

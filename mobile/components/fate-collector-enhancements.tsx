@@ -8,16 +8,19 @@ import type { FateCollectorsSnapshot } from '@/services/fate-market';
 export function FateCollectorEnhancements({
   data: _data,
   onCollectionChanged: _onCollectionChanged,
-  signedIn: _signedIn,
+  signedIn,
 }: {
   data: FateCollectorsSnapshot | null;
   onCollectionChanged: () => Promise<void>;
   signedIn: boolean;
 }) {
   useEffect(() => {
+    if (!signedIn) return;
     const frame = requestAnimationFrame(() => router.replace('/collections'));
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [signedIn]);
+
+  if (!signedIn) return null;
 
   return (
     <View style={styles.redirecting}>

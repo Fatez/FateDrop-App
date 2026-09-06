@@ -52,10 +52,11 @@ test('Collections dashboard is an overview with three dedicated destinations', (
   assert.doesNotMatch(dashboard, /Import Collection CSV/);
 });
 
-test('Collections dashboard artwork stays collector-specific without redefining lifecycle companions', () => {
-  assert.match(collectorArt, /CollectionStack/);
-  assert.match(collectorArt, /BinderBook/);
-  assert.match(collectorArt, /SlabCase/);
+test('Collections uses the approved three-section artwork without redefining lifecycle companions', () => {
+  for (const name of ['personal', 'binder', 'graded']) {
+    assert.ok(collectorArt.includes(`fate-collections-${name}.png`));
+    assert.ok(fs.existsSync(path.join(root, 'assets/images', `fate-collections-${name}.png`)));
+  }
   assert.doesNotMatch(collectorArt, /\b(?:Oru|Fenn|Koru|Nyxen)\b/);
 });
 
