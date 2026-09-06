@@ -35,7 +35,7 @@ export default function ProfileScreenV3() {
   const activeFinds = snapshot?.fateFinds?.filter((item) => item.enabled !== false).length ?? 0;
   const recentMatches = snapshot?.fateMatches?.length ?? 0;
   const selectedTcgs = snapshot?.tcgPreferences?.selectedTcgCodes?.length ?? 1;
-  const appNotifications = snapshot?.notificationPreferences?.app === true;
+  const appNotifications = snapshot?.notificationPreferences?.push === true;
   const [customisation, setCustomisation] = useState<ProfileCustomisation>(DEFAULT_PROFILE_CUSTOMISATION);
 
   useFocusEffect(useCallback(() => {
@@ -53,7 +53,7 @@ export default function ProfileScreenV3() {
   }, [signOut, signedIn, syncing]);
 
   const controlItems: CommandItem[] = [
-    { icon: 'notifications-outline', title: 'Notifications', detail: 'Choose lifecycle delivery and device surfaces.', status: appNotifications ? 'APP ON' : 'CHECK', color: appNotifications ? FateDropColors.manifested : FateDropColors.echo, path: '/notification-preferences' },
+    { icon: 'notifications-outline', title: 'Notifications', detail: 'Choose lifecycle delivery and device surfaces.', status: appNotifications ? 'PUSH ON' : 'CHECK', color: appNotifications ? FateDropColors.manifested : FateDropColors.echo, path: '/notification-preferences' },
     { icon: 'pulse-outline', title: 'Live Network', detail: 'Open public retailer coverage and monitor health.', status: 'LIVE VIEW', color: FateDropColors.cyan, path: '/(tabs)/network' },
     { icon: 'telescope-outline', title: 'FateFind & FateMatch', detail: 'Manage active hunts and successful matches.', status: `${activeFinds} ACTIVE`, color: FateDropColors.goldBright, path: '/fate-match' },
     { icon: 'bookmark-outline', title: 'Wishlist', detail: 'Saved products kept separate from active hunts.', status: `${snapshot?.wishlist?.length ?? 0} SAVED`, color: FateDropColors.violetLight, path: '/(tabs)/watchlist' },
@@ -95,7 +95,7 @@ export default function ProfileScreenV3() {
 
           <FateMetricStrip items={[
             { icon: signedIn ? 'cloud-done-outline' : 'cloud-offline-outline', value: signedIn ? 'CONNECTED' : 'OFFLINE', label: 'FATEDROP ID', color: signedIn ? FateDropColors.manifested : FateDropColors.echo },
-            { icon: 'notifications-outline', value: appNotifications ? 'ON' : 'CHECK', label: 'APP ALERTS', color: appNotifications ? FateDropColors.manifested : FateDropColors.echo },
+            { icon: 'notifications-outline', value: appNotifications ? 'ON' : 'CHECK', label: 'PUSH ALERTS', color: appNotifications ? FateDropColors.manifested : FateDropColors.echo },
             { icon: 'telescope-outline', value: String(activeFinds), label: 'ACTIVE FINDS', color: FateDropColors.goldBright },
             { icon: 'layers-outline', value: String(selectedTcgs), label: 'TCG INTERESTS', color: FateDropColors.cyan },
           ]} />
