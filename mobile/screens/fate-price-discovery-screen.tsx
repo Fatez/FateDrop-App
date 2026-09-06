@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -67,6 +67,7 @@ export default function FatePriceDiscoveryScreen() {
   const [loadingSets, setLoadingSets] = useState(true);
   const [searching, setSearching] = useState(false);
   const [notice, setNotice] = useState('');
+  const seededSearch = useRef(false);
 
   const loadSets = useCallback(async (tcgCode: string) => {
     setLoadingSets(true);
@@ -114,6 +115,12 @@ export default function FatePriceDiscoveryScreen() {
       setSearching(false);
     }
   }, [query, selectedTcg]);
+
+  useEffect(() => {
+    if (seededSearch.current || initialQuery.length < 2) return;
+    seededSearch.current = true;
+    void runSearch();
+  }, [initialQuery, runSearch]);
 
   const chooseTcg = useCallback((tcgCode: string) => {
     setSelectedTcg(tcgCode);

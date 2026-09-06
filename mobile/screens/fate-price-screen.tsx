@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddToFateCollectorAction } from '@/components/add-to-fate-collector-action';
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FatePriceBackdrop, FatePriceCardGlyph, FatePriceTopBar } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   FateMarketApiError,
@@ -89,6 +89,7 @@ export default function FatePriceScreen() {
     cardId?: string | string[];
     collectorNumber?: string | string[];
     name?: string | string[];
+    printingId?: string | string[];
     query?: string | string[];
     setId?: string | string[];
     setName?: string | string[];
@@ -98,6 +99,7 @@ export default function FatePriceScreen() {
   const routeSetId = first(params.setId)?.trim() || '';
   const routeSetName = first(params.setName)?.trim() || '';
   const routeName = first(params.name)?.trim() || '';
+  const routePrintingId = first(params.printingId)?.trim() || '';
   const routeCollectorNumber = first(params.collectorNumber)?.trim() || '';
   const routeQuery = first(params.query)?.trim() || '';
   const [query, setQuery] = useState(routeSetId ? '' : routeQuery || routeName);
@@ -210,6 +212,7 @@ export default function FatePriceScreen() {
   const selectedTitle = selectedCard?.name || (selectedCardId === routeCardId ? routeName : '') || 'Exact canonical card';
   const selectedSet = selectedCard?.setName || (selectedCardId === routeCardId ? routeSetName : '') || 'Verified identity';
   const selectedNumber = selectedCard?.collectorNumber || (selectedCardId === routeCardId ? routeCollectorNumber : '');
+  const selectedPrintingId = selectedCard?.printingId || routePrintingId;
   const status = priceLoading ? 'READING CLOUD' : price?.available ? 'EVIDENCE LIVE' : selectedCardId ? 'EVIDENCE GATED' : 'CHOOSE A CARD';
   const currency = price?.price?.currencyCode || price?.marketScope?.currencyCode || price?.evidence.availableScopes[0]?.currencyCode || 'EUR';
   const scopeOptions = price?.evidence.availableScopes ?? [];
@@ -222,22 +225,14 @@ export default function FatePriceScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateDropBackground />
-        <Image source={require('../assets/images/fate-market-orbital-theme.webp')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" enforceEarlyResizing recyclingKey="fate-price:orbital-theme" />
-        <View style={styles.themeVeil} />
-        <View style={styles.themeLowerVeil} />
-      </View>
+      <FatePriceBackdrop sceneKey={`detail:${selectedCardId || 'unselected'}`} />
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={priceLoading || historyLoading} onRefresh={() => selectedCardId ? void Promise.all([loadPrice(selectedCardId, price?.marketScope ?? null, true), loadHistory(selectedCardId, price?.marketScope ?? null, historyDays, true)]) : undefined} tintColor={FateDropColors.goldBright} />}
       >
-        <Pressable accessibilityLabel="Back to Fate Market" onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} />
-          <Text style={styles.backText}>Fate Market</Text>
-        </Pressable>
+        <FatePriceTopBar step={4} backLabel="Variants" />
 
         <View style={styles.hero}>
           <View style={styles.heroCopy}>
@@ -254,7 +249,7 @@ export default function FatePriceScreen() {
 
         <MarketConstellation />
 
-        <View style={styles.searchPanel}>
+        {!selectedCardId ? <View style={styles.searchPanel}>
           <View style={styles.searchHeading}>
             <View style={styles.flex}>
               <Text style={styles.sectionEyebrow}>EXACT CARD IDENTITY</Text>
@@ -288,7 +283,13 @@ export default function FatePriceScreen() {
               <Ionicons name="chevron-forward" size={15} color={FateDropColors.muted} />
             </Pressable>
           ))}</View> : null}
-        </View>
+        </View> : null}
+
+        {selectedCardId ? <View style={styles.identityStrip}>
+          <FatePriceCardGlyph collectorNumber={selectedNumber} />
+          <View style={styles.flex}><Text style={styles.identityStripEyebrow}>EXACT CANONICAL IDENTITY</Text><Text style={styles.identityStripTitle}>{selectedTitle}</Text><Text style={styles.identityStripMeta}>{titleDetail || selectedSet}</Text></View>
+          <View style={styles.identityVerified}><Ionicons name="shield-checkmark" size={13} color={FateDropColors.manifested} /><Text style={styles.identityVerifiedText}>VERIFIED</Text></View>
+        </View> : null}
 
         <View style={styles.pricePanel}>
           <View style={styles.panelHeading}>
@@ -311,6 +312,38 @@ export default function FatePriceScreen() {
             <View style={styles.ledgerDivider} />
             <PriceMetric accent={FateDropColors.echo} detail={price?.confidence ? `${price.confidence.sourceCount} source${price.confidence.sourceCount === 1 ? '' : 's'}` : 'Not scored'} label="CONFIDENCE" value={price?.confidence?.level.toUpperCase() || '—'} />
           </View>
+
+          {selectedCardId ? <View style={styles.journeyActions}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={!selectedPrintingId || (!routeSetId && !selectedCard?.setId)}
+              onPress={() => router.push({
+                pathname: '/fate-price-variants',
+                params: {
+                  collectorNumber: selectedNumber,
+                  name: selectedTitle,
+                  printingId: selectedPrintingId,
+                  setId: selectedCard?.setId || routeSetId,
+                  setName: selectedSet,
+                  tcg: selectedCard?.tcgCode || first(params.tcg) || '',
+                },
+              })}
+              style={({ pressed }) => [styles.journeyAction, pressed && styles.pressed]}
+            >
+              <Ionicons name="layers-outline" size={17} color={FateDropColors.goldBright} />
+              <View style={styles.flex}><Text style={styles.journeyActionLabel}>VARIANTS</Text><Text style={styles.journeyActionTitle}>Check another printing</Text></View>
+              <Ionicons name="chevron-forward" size={16} color={FateDropColors.goldBright} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/fate-price-buy', params: { cardId: selectedCardId, collectorNumber: selectedNumber, name: selectedTitle, setName: selectedSet } })}
+              style={({ pressed }) => [styles.journeyAction, styles.journeyActionPrimary, pressed && styles.pressed]}
+            >
+              <Ionicons name="storefront-outline" size={17} color={FateDropColors.ivory} />
+              <View style={styles.flex}><Text style={styles.journeyActionLabel}>RETAILER NETWORK</Text><Text style={styles.journeyActionTitle}>Where to buy</Text></View>
+              <Ionicons name="arrow-forward" size={16} color={FateDropColors.goldBright} />
+            </Pressable>
+          </View> : null}
 
           {selectedCardId ? <AddToFateCollectorAction cardIdentityId={selectedCardId} setName={selectedSet} /> : null}
           {selectedCardId ? <HistoryPanel currencyCode={currency} days={historyDays} history={history} loading={historyLoading} notice={historyNotice} onChooseDays={chooseHistoryDays} /> : null}
@@ -456,6 +489,12 @@ const styles = StyleSheet.create({
   resultGem: { width: 31, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)' },
   resultName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 12.5 },
   resultMeta: { color: FateDropColors.muted, fontSize: 7, marginTop: 3 },
+  identityStrip: { minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 15, padding: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.43)', borderRadius: 15, backgroundColor: 'rgba(4,9,22,.82)' },
+  identityStripEyebrow: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .7 },
+  identityStripTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, marginTop: 4 },
+  identityStripMeta: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 4, textTransform: 'capitalize' },
+  identityVerified: { alignItems: 'center', gap: 4 },
+  identityVerifiedText: { color: FateDropColors.manifested, fontSize: 5.3, fontWeight: '900', letterSpacing: .5 },
   pricePanel: { marginTop: 21 },
   panelHeading: { minHeight: 57, flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 5 },
   panelTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 19, lineHeight: 23, marginTop: 3 },
@@ -473,6 +512,11 @@ const styles = StyleSheet.create({
   metricValue: { maxWidth: '100%', fontFamily: Fonts.serif, fontSize: 17, marginTop: 2, textAlign: 'center' },
   metricDetail: { color: FateDropColors.muted, fontSize: 5.9, marginTop: 2, textAlign: 'center' },
   ledgerDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: 'rgba(226,197,141,.20)' },
+  journeyActions: { flexDirection: 'row', gap: 8, marginTop: 13 },
+  journeyAction: { flex: 1, minWidth: 0, minHeight: 65, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.37)', borderRadius: 12, backgroundColor: 'rgba(4,9,22,.78)' },
+  journeyActionPrimary: { borderColor: 'rgba(124,110,255,.68)', backgroundColor: 'rgba(124,110,255,.14)' },
+  journeyActionLabel: { color: FateDropColors.goldBright, fontSize: 5.2, fontWeight: '900', letterSpacing: .5 },
+  journeyActionTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 10.5, marginTop: 3 },
   historyPanel: { marginTop: 14, paddingHorizontal: 8, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.34)', backgroundColor: 'rgba(3,8,20,.28)' },
   historyHeading: { minHeight: 34, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   historyCopy: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
