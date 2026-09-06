@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
-import { FateDropColors } from '@/constants/theme';
+import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
   fetchFatePulse,
@@ -47,11 +47,11 @@ function movement(value: number | null | undefined) {
 }
 
 function metricValue(value: number | null | undefined) {
-  return value == null || !Number.isFinite(value) ? 'NOT SCORED' : value.toFixed(0);
+  return value == null || !Number.isFinite(value) ? 'NOT SCORED' : `${value.toFixed(0)}/100`;
 }
 
 function conditionLabel(value: FatePulseDirectionPeriod['condition'] | undefined) {
-  if (value === 'broadly_rising') return 'BULLISH';
+  if (value === 'broadly_rising') return 'HEATING';
   if (value === 'broadly_falling') return 'COOLING';
   if (value === 'mixed') return 'MIXED';
   if (value === 'unchanged') return 'STABLE';
@@ -76,6 +76,10 @@ function absMovement(item: FatePulseRankedSet | FatePulseRankedCard) {
   return Math.abs(item.movementPercent ?? 0);
 }
 
+function evidenceDay(data: FatePulseSnapshot | null) {
+  return data?.pulse?.anchorMarketDay || data?.readiness.history.latestMarketDay || '—';
+}
+
 export default function FatePulseScreen() {
   const { snapshot } = useFateDropId();
   const [view, setView] = useState<PulseView>('overview');
@@ -85,6 +89,7 @@ export default function FatePulseScreen() {
   const [loadedScope, setLoadedScope] = useState<MarketScope | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const loadGeneration = useRef(0);
 
   const scopeOptions = useMemo<MarketScope[]>(() => {
     const selected = snapshot?.tcgPreferences.selectedTcgCodes ?? ['pokemon'];
@@ -92,21 +97,27 @@ export default function FatePulseScreen() {
   }, [snapshot?.tcgPreferences.selectedTcgCodes]);
 
   const load = useCallback(async (force = false) => {
+    const generation = ++loadGeneration.current;
     setLoading(true);
     setError('');
     try {
       const next = await fetchFatePulse(scope === 'all' ? undefined : scope, { force });
+      if (generation !== loadGeneration.current) return;
       setPulse(next);
       setLoadedScope(scope);
     } catch {
+      if (generation !== loadGeneration.current) return;
       setError('Verified market evidence is temporarily unavailable.');
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, [scope]);
 
   useFocusEffect(useCallback(() => {
     void load(false);
+    return () => {
+      loadGeneration.current += 1;
+    };
   }, [load]));
 
   const data = loadedScope === scope ? pulse : null;
@@ -135,7 +146,7 @@ export default function FatePulseScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(true)} tintColor={FateDropColors.manifested} />}
       >
         <View style={styles.headerRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to Fate Market" onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to Fate Market" onPress={() => router.replace('/(tabs)/market')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
             <Ionicons name="arrow-back" size={19} color={FateDropColors.goldBright} />
           </Pressable>
           <View style={styles.headerCopy}>
@@ -164,7 +175,7 @@ export default function FatePulseScreen() {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRail}>
           {scopeOptions.map((item) => (
-            <Pressable key={item} onPress={() => setScope(item)} style={[styles.scopeChip, scope === item && styles.scopeChipActive]}>
+            <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: scope === item }} onPress={() => setScope(item)} style={[styles.scopeChip, scope === item && styles.scopeChipActive]}>
               <Text style={[styles.scopeText, scope === item && styles.scopeTextActive]}>{item === 'all' ? 'All TCGs' : scopeLabel(item)}</Text>
             </Pressable>
           ))}
@@ -174,13 +185,13 @@ export default function FatePulseScreen() {
         {loading && !data ? <View style={styles.loadingPanel}><ActivityIndicator color={FateDropColors.manifested} /><Text style={styles.loadingText}>Reading the Cloud evidence boundary…</Text></View> : null}
 
         {view === 'overview' ? <OverviewView data={data} period={period} periodKey={periodKey} onPeriodChange={setPeriodKey} accent={accent} /> : null}
-        {view === 'sets' ? <SetsView data={data} period={period} periodKey={periodKey} onPeriodChange={setPeriodKey} /> : null}
-        {view === 'cards' ? <CardsView data={data} period={period} periodKey={periodKey} onPeriodChange={setPeriodKey} /> : null}
+        {view === 'sets' ? <SetsView period={period} periodKey={periodKey} onPeriodChange={setPeriodKey} /> : null}
+        {view === 'cards' ? <CardsView period={period} periodKey={periodKey} onPeriodChange={setPeriodKey} /> : null}
         {view === 'watchlist' ? <WatchlistView data={data} /> : null}
 
         <View style={styles.truthBar}>
           <Ionicons name="shield-checkmark-outline" size={16} color={FateDropColors.goldBright} />
-          <Text style={styles.truthText}>Cloud owns movement, history, Heat, Volatility and future index calculations. The App never fills a missing signal with a made-up score.</Text>
+          <Text style={styles.truthText}>Cloud owns movement, history, Market Heat, Volatility and the future Market Price Index. Missing evidence stays missing; the App never turns a placeholder into a score.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -194,10 +205,10 @@ function OverviewView({ data, period, periodKey, onPeriodChange, accent }: {
   onPeriodChange: (value: PulsePeriod) => void;
   accent: string;
 }) {
-  const risers = period?.setRisers ?? [];
-  const decliners = period?.setDecliners ?? [];
-  const trending = [...risers, ...decliners].sort((a, b) => absMovement(b) - absMovement(a)).slice(0, 5);
   const is90 = periodKey === 'd90';
+  const heating = (period?.setRisers ?? []).slice(0, 3);
+  const cooling = (period?.setDecliners ?? []).slice(0, 3);
+  const evidenceAvailable = period?.status === 'available';
 
   return (
     <View style={styles.sectionStack}>
@@ -216,12 +227,28 @@ function OverviewView({ data, period, periodKey, onPeriodChange, accent }: {
 
       <PeriodRail value={periodKey} onChange={onPeriodChange} />
 
+      <View style={styles.indexCard}>
+        <View style={styles.indexTop}>
+          <View style={styles.indexIcon}><Ionicons name="pulse-outline" size={17} color={FateDropColors.goldBright} /></View>
+          <View style={styles.indexCopy}>
+            <Text style={styles.smallEyebrow}>MARKET PRICE INDEX</Text>
+            <Text style={styles.indexTitle}>Canonical market index</Text>
+          </View>
+          <Text style={styles.indexValue}>—</Text>
+        </View>
+        <View style={styles.indexStatusRow}>
+          <Text style={styles.indexStatus}>INDEX NOT CONNECTED</Text>
+          <Text style={styles.indexPeriod}>{periodKey.slice(1)}D VIEW</Text>
+        </View>
+        <Text style={styles.indexNote}>The current headline above is the Cloud-owned median return of qualifying set baskets. FatePulse will not relabel that movement statistic as the Market Price Index; the index gets its own value only when Cloud publishes the real index contract.</Text>
+      </View>
+
       {is90 ? (
-        <EvidenceNotice icon="time-outline" text="The visual 90D lane is now reserved, but the current Pulse Cloud contract publishes 1D, 7D and 30D direction only. 90D remains visibly unscored until Cloud owns it." accent={FateDropColors.goldBright} />
+        <EvidenceNotice icon="time-outline" text="The visual 90D lane is reserved, but the current Pulse Cloud contract publishes 1D, 7D and 30D direction only. 90D remains visibly unscored until Cloud owns it." accent={FateDropColors.goldBright} />
       ) : (
         <View style={styles.breadthCard}>
           <View style={styles.cardHeaderRow}>
-            <View>
+            <View style={styles.cardHeaderCopy}>
               <Text style={styles.smallEyebrow}>MARKET BREADTH</Text>
               <Text style={styles.cardTitle}>{period ? `${period.coverage.qualifyingSets} of ${period.coverage.trackedSets} tracked sets qualify` : 'Coverage building'}</Text>
             </View>
@@ -236,24 +263,35 @@ function OverviewView({ data, period, periodKey, onPeriodChange, accent }: {
         </View>
       )}
 
-      <View style={styles.rankingCard}>
+      <View style={styles.evidenceCard}>
         <View style={styles.cardHeaderRow}>
-          <View>
-            <Text style={styles.smallEyebrow}>SETS MOVING NOW</Text>
-            <Text style={styles.cardTitle}>{periodKey.slice(1)}D strongest absolute moves</Text>
+          <View style={styles.cardHeaderCopy}>
+            <Text style={styles.smallEyebrow}>EVIDENCE COVERAGE</Text>
+            <Text style={styles.cardTitle}>{evidenceAvailable ? 'Qualified market evidence' : 'Evidence still building'}</Text>
           </View>
-          <Ionicons name="analytics-outline" size={18} color={FateDropColors.manifested} />
+          <Ionicons name="shield-checkmark-outline" size={18} color={evidenceAvailable ? FateDropColors.manifested : FateDropColors.goldBright} />
         </View>
-        {trending.map((item, index) => <SetRow key={setKey(item)} item={item} rank={index + 1} />)}
-        {!is90 && trending.length === 0 ? <EmptyCopy text="No qualifying set movement is available for this window yet." /> : null}
-        {is90 ? <EmptyCopy text="90D set rankings will appear here once the Cloud Pulse contract publishes them." /> : null}
+        <View style={styles.evidenceGrid}>
+          <EvidenceMetric label="QUALIFYING SETS" value={period ? `${period.coverage.qualifyingSets}/${period.coverage.trackedSets}` : '—'} />
+          <EvidenceMetric label="MAPPED CARDS" value={data ? String(data.readiness.canonical.mappedCards) : '—'} />
+          <EvidenceMetric label="HISTORY" value={data ? `${data.readiness.history.distinctMarketDays} DAYS` : '—'} />
+          <EvidenceMetric label="LAST MARKET DAY" value={evidenceDay(data)} />
+        </View>
+        <Text style={styles.evidenceFoot}>{data ? `${data.readiness.canonical.mappingCoveragePct?.toFixed(1) ?? '—'}% canonical mapping coverage · ${data.pulse?.evidence.currentCardCount ?? 0} current card observations in the Pulse anchor.` : 'Waiting for Cloud readiness evidence.'}</Text>
       </View>
+
+      <View style={styles.movementSplit}>
+        <MovementColumn title="HEATING UP" subtitle="Top qualifying set risers" items={heating} accent={FateDropColors.manifested} />
+        <MovementColumn title="COOLING DOWN" subtitle="Top qualifying set fallers" items={cooling} accent={FateDropColors.vanished} />
+      </View>
+
+      {!is90 && heating.length === 0 && cooling.length === 0 ? <EvidenceNotice icon="analytics-outline" text="No qualifying set movement is available for this window yet. FatePulse will show the rankings as soon as the Cloud evidence boundary qualifies them." accent={FateDropColors.manifested} /> : null}
+      {is90 ? <EvidenceNotice icon="analytics-outline" text="90D heating and cooling rankings will appear here once the Cloud Pulse contract publishes that evidence window." accent={FateDropColors.goldBright} /> : null}
     </View>
   );
 }
 
 function SetsView({ period, periodKey, onPeriodChange }: {
-  data: FatePulseSnapshot | null;
   period: FatePulseDirectionPeriod | undefined;
   periodKey: PulsePeriod;
   onPeriodChange: (value: PulsePeriod) => void;
@@ -283,12 +321,12 @@ function SetsView({ period, periodKey, onPeriodChange }: {
       ]} value={filter} onChange={(value) => setFilter(value as SetFilter)} />
 
       {is90 ? <EvidenceNotice icon="time-outline" text="90D set performance is reserved in the UI but not yet published by the Pulse Cloud contract." accent={FateDropColors.goldBright} /> : null}
-      {unsupported ? <EvidenceNotice icon="eye-outline" text="Global Most Watched rankings need a canonical watch-signal contract. This tab is wired visually, but it stays empty rather than recycling local product wishlists or inventing demand." accent={FateDropColors.manifested} /> : null}
+      {unsupported ? <EvidenceNotice icon="eye-outline" text="Global Most Watched rankings need a canonical watch-signal contract. This tab stays empty rather than recycling local product wishlists or inventing demand." accent={FateDropColors.manifested} /> : null}
 
       {!is90 && !unsupported ? (
         <View style={styles.rankingCard}>
           <View style={styles.cardHeaderRow}>
-            <View>
+            <View style={styles.cardHeaderCopy}>
               <Text style={styles.smallEyebrow}>FATEPULSE · SETS</Text>
               <Text style={styles.cardTitle}>Set performance & rankings</Text>
             </View>
@@ -303,7 +341,6 @@ function SetsView({ period, periodKey, onPeriodChange }: {
 }
 
 function CardsView({ period, periodKey, onPeriodChange }: {
-  data: FatePulseSnapshot | null;
   period: FatePulseDirectionPeriod | undefined;
   periodKey: PulsePeriod;
   onPeriodChange: (value: PulsePeriod) => void;
@@ -334,7 +371,7 @@ function CardsView({ period, periodKey, onPeriodChange }: {
       {!is90 && !unsupported ? (
         <View style={styles.rankingCard}>
           <View style={styles.cardHeaderRow}>
-            <View>
+            <View style={styles.cardHeaderCopy}>
               <Text style={styles.smallEyebrow}>FATEPULSE · CARDS</Text>
               <Text style={styles.cardTitle}>Top {filter === 'fallers' ? 'fallers' : 'risers'} right now</Text>
             </View>
@@ -354,18 +391,53 @@ function WatchlistView({ data }: { data: FatePulseSnapshot | null }) {
       <View style={styles.watchHero}>
         <View style={styles.watchIcon}><Ionicons name="eye-outline" size={27} color={FateDropColors.manifested} /></View>
         <Text style={styles.watchTitle}>Personal lens. Global truth.</Text>
-        <Text style={styles.watchCopy}>This view will show market movement for exact cards and sets you choose to watch. Those watches will never influence the global Pulse score itself.</Text>
+        <Text style={styles.watchCopy}>This view will show verified market movement for exact cards and sets you choose to watch. Those watches will never influence the global Pulse calculation itself.</Text>
       </View>
       <EvidenceNotice icon="construct-outline" text="The exact-card watchlist contract is not connected yet. FateDrop's existing product wishlist is a different feature, so Pulse will not quietly pretend they are the same thing." accent={FateDropColors.goldBright} />
       <View style={styles.readinessCard}>
         <Text style={styles.smallEyebrow}>GLOBAL EVIDENCE READY FOR THE LENS</Text>
         <Text style={styles.cardTitle}>{data?.readiness.canonical.mappedCards ?? 0} mapped cards</Text>
-        <Text style={styles.readinessText}>{data ? `${data.readiness.history.distinctMarketDays} verified market days available for comparison.` : 'Load Pulse evidence to see current readiness.'}</Text>
-        <Pressable onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
+        <Text style={styles.readinessText}>{data ? `${data.readiness.history.distinctMarketDays} verified market days available for comparison · last market day ${evidenceDay(data)}.` : 'Load Pulse evidence to see current readiness.'}</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
           <Ionicons name="pricetag-outline" size={15} color={FateDropColors.text} />
           <Text style={styles.primaryActionText}>FIND AN EXACT CARD IN FATEPRICE</Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+function MovementColumn({ title, subtitle, items, accent }: { title: string; subtitle: string; items: FatePulseRankedSet[]; accent: string }) {
+  return (
+    <View style={[styles.movementColumn, { borderColor: `${accent}38` }]}>
+      <View style={styles.movementColumnHead}>
+        <Text style={[styles.movementTitle, { color: accent }]}>{title}</Text>
+        <Text style={styles.movementSubtitle}>{subtitle}</Text>
+      </View>
+      {items.map((item, index) => <CompactSetRow key={setKey(item)} item={item} rank={index + 1} accent={accent} />)}
+      {items.length === 0 ? <Text style={styles.movementEmpty}>No qualifying movement.</Text> : null}
+    </View>
+  );
+}
+
+function CompactSetRow({ item, rank, accent }: { item: FatePulseRankedSet; rank: number; accent: string }) {
+  return (
+    <View style={styles.compactSetRow}>
+      <Text style={styles.compactRank}>{rank}</Text>
+      <View style={styles.compactSetCopy}>
+        <Text numberOfLines={1} style={styles.compactSetName}>{item.setName || item.setCode || 'Tracked set'}</Text>
+        <Text numberOfLines={1} style={styles.compactSetMeta}>{item.tcgCode?.toUpperCase() || 'TCG'} · {item.pricedCardCount} priced</Text>
+      </View>
+      <Text style={[styles.compactMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
+    </View>
+  );
+}
+
+function EvidenceMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.evidenceMetric}>
+      <Text style={styles.evidenceMetricLabel}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={styles.evidenceMetricValue}>{value}</Text>
     </View>
   );
 }
@@ -417,7 +489,7 @@ function PeriodRail({ value, onChange }: { value: PulsePeriod; onChange: (value:
   return (
     <View style={styles.periodRail}>
       {PERIODS.map((item) => (
-        <Pressable key={item.key} onPress={() => onChange(item.key)} style={[styles.periodButton, value === item.key && styles.periodButtonActive]}>
+        <Pressable key={item.key} accessibilityRole="button" accessibilityState={{ selected: value === item.key }} onPress={() => onChange(item.key)} style={[styles.periodButton, value === item.key && styles.periodButtonActive]}>
           <Text style={[styles.periodText, value === item.key && styles.periodTextActive]}>{item.label}</Text>
         </Pressable>
       ))}
@@ -447,7 +519,7 @@ function FilterRail({ options, value, onChange }: { options: [string, string][];
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRail}>
       {options.map(([key, label]) => (
-        <Pressable key={key} onPress={() => onChange(key)} style={[styles.filterChip, value === key && styles.filterChipActive]}>
+        <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: value === key }} onPress={() => onChange(key)} style={[styles.filterChip, value === key && styles.filterChipActive]}>
           <Text style={[styles.filterText, value === key && styles.filterTextActive]}>{label}</Text>
         </Pressable>
       ))}
@@ -489,12 +561,12 @@ function EmptyCopy({ text }: { text: string }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   veil: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,16,.72)' },
-  content: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 122, gap: 12 },
+  content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 122, gap: 12 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   headerCopy: { flex: 1 },
   iconButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(7,14,24,.86)', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   eyebrow: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: 1.65 },
-  title: { color: FateDropColors.text, fontSize: 22, lineHeight: 25, fontWeight: '900', marginTop: 5 },
+  title: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 23, lineHeight: 27, marginTop: 5 },
   subtitle: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 5 },
   viewTabs: { flexDirection: 'row', borderRadius: 11, borderWidth: 1, borderColor: FateDropColors.border, overflow: 'hidden', backgroundColor: 'rgba(5,10,19,.78)' },
   viewTab: { flex: 1, minHeight: 37, alignItems: 'center', justifyContent: 'center', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: FateDropColors.borderSoft },
@@ -514,7 +586,7 @@ const styles = StyleSheet.create({
   orbitInner: { position: 'absolute', width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(78,164,255,.23)' },
   instrumentCore: { width: 116, height: 116, borderRadius: 58, borderWidth: 1, backgroundColor: 'rgba(13,17,40,.92)', alignItems: 'center', justifyContent: 'center', shadowColor: FateDropColors.manifested, shadowOpacity: .18, shadowRadius: 18 },
   instrumentLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .65 },
-  instrumentValue: { fontSize: 25, fontWeight: '900', marginTop: 4 },
+  instrumentValue: { fontFamily: Fonts.serif, fontSize: 27, marginTop: 4 },
   instrumentTrend: { fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 3 },
   orbMetric: { position: 'absolute', width: 88, minHeight: 58, borderRadius: 29, borderWidth: 1, backgroundColor: 'rgba(7,12,24,.94)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
   orbLeft: { left: 18, top: 90 },
@@ -527,17 +599,46 @@ const styles = StyleSheet.create({
   periodButtonActive: { borderColor: `${FateDropColors.manifested}84`, backgroundColor: 'rgba(91,55,199,.48)' },
   periodText: { color: FateDropColors.muted, fontSize: 9, fontWeight: '900' },
   periodTextActive: { color: FateDropColors.text },
+  indexCard: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(226,197,141,.38)', backgroundColor: 'rgba(21,17,27,.82)', padding: 12 },
+  indexTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  indexIcon: { width: 35, height: 35, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.38)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(226,197,141,.06)' },
+  indexCopy: { flex: 1 },
+  indexTitle: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 14, marginTop: 2 },
+  indexValue: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 26 },
+  indexStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(226,197,141,.2)' },
+  indexStatus: { color: FateDropColors.goldBright, fontSize: 7, fontWeight: '900', letterSpacing: .65 },
+  indexPeriod: { color: FateDropColors.muted, fontSize: 7, fontWeight: '800' },
+  indexNote: { color: FateDropColors.secondary, fontSize: 8.5, lineHeight: 13, marginTop: 7 },
   breadthCard: { borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(7,14,24,.88)', padding: 12 },
   rankingCard: { borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(7,14,24,.9)', padding: 12 },
+  evidenceCard: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(124,110,255,.32)', backgroundColor: 'rgba(7,12,28,.88)', padding: 12 },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 },
+  cardHeaderCopy: { flex: 1, minWidth: 0 },
   smallEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  cardTitle: { color: FateDropColors.text, fontSize: 14, fontWeight: '900', marginTop: 3 },
-  directionNumber: { fontSize: 17, fontWeight: '900' },
+  cardTitle: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 14.5, marginTop: 3 },
+  directionNumber: { fontFamily: Fonts.serif, fontSize: 18 },
   breadthRow: { flexDirection: 'row', gap: 7, marginTop: 7 },
   breadthPill: { flex: 1, minHeight: 59, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,18,.55)' },
-  breadthValue: { fontSize: 18, fontWeight: '900' },
+  breadthValue: { fontFamily: Fonts.serif, fontSize: 18 },
   breadthLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', marginTop: 3 },
   coverageText: { color: FateDropColors.muted, fontSize: 8, lineHeight: 12, marginTop: 9 },
+  evidenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 4 },
+  evidenceMetric: { width: '48.8%', minHeight: 57, borderRadius: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.25)', backgroundColor: 'rgba(3,8,20,.52)', paddingHorizontal: 9, justifyContent: 'center' },
+  evidenceMetricLabel: { color: FateDropColors.muted, fontSize: 6.5, fontWeight: '900', letterSpacing: .45 },
+  evidenceMetricValue: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 13, marginTop: 3 },
+  evidenceFoot: { color: FateDropColors.muted, fontSize: 7.5, lineHeight: 11, marginTop: 9 },
+  movementSplit: { flexDirection: 'row', gap: 8 },
+  movementColumn: { flex: 1, minWidth: 0, borderRadius: 15, borderWidth: 1, backgroundColor: 'rgba(7,14,24,.9)', overflow: 'hidden' },
+  movementColumnHead: { minHeight: 56, paddingHorizontal: 9, paddingTop: 10, paddingBottom: 7 },
+  movementTitle: { fontSize: 8, fontWeight: '900', letterSpacing: .65 },
+  movementSubtitle: { color: FateDropColors.muted, fontSize: 6.8, lineHeight: 10, marginTop: 3 },
+  compactSetRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 7, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: FateDropColors.borderSoft },
+  compactRank: { width: 12, color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 11, textAlign: 'center' },
+  compactSetCopy: { flex: 1, minWidth: 0 },
+  compactSetName: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 8.5 },
+  compactSetMeta: { color: FateDropColors.muted, fontSize: 5.8, marginTop: 2 },
+  compactMovement: { maxWidth: 42, fontSize: 7.5, fontWeight: '900', textAlign: 'right' },
+  movementEmpty: { minHeight: 82, color: FateDropColors.muted, fontSize: 7.5, lineHeight: 11, textAlign: 'center', padding: 12, paddingTop: 23 },
   searchBox: { minHeight: 43, borderRadius: 13, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(5,12,22,.9)', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11 },
   searchInput: { flex: 1, color: FateDropColors.text, fontSize: 10, paddingVertical: 10 },
   filterRail: { gap: 7 },
@@ -547,11 +648,11 @@ const styles = StyleSheet.create({
   filterTextActive: { color: FateDropColors.text },
   resultCount: { minWidth: 27, height: 27, borderRadius: 14, backgroundColor: 'rgba(107,73,223,.22)', color: FateDropColors.manifested, textAlign: 'center', textAlignVertical: 'center', fontSize: 9, fontWeight: '900', paddingTop: 7 },
   rankRow: { minHeight: 62, borderTopWidth: 1, borderTopColor: FateDropColors.borderSoft, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rankNumber: { width: 20, color: FateDropColors.secondary, fontSize: 11, fontWeight: '900', textAlign: 'center' },
+  rankNumber: { width: 20, color: FateDropColors.secondary, fontFamily: Fonts.serif, fontSize: 11, textAlign: 'center' },
   thumb: { width: 38, height: 38, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,20,35,.94)' },
   cardThumb: { width: 34, height: 44, borderRadius: 7, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,20,35,.94)' },
   rankCopy: { flex: 1, minWidth: 0 },
-  rankName: { color: FateDropColors.text, fontSize: 10.5, fontWeight: '900' },
+  rankName: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 10.5 },
   rankMeta: { color: FateDropColors.muted, fontSize: 7.5, marginTop: 3 },
   rankRight: { alignItems: 'flex-end', minWidth: 58 },
   rankMovement: { fontSize: 12, fontWeight: '900' },
@@ -561,7 +662,7 @@ const styles = StyleSheet.create({
   emptyCopy: { color: FateDropColors.muted, fontSize: 9, lineHeight: 14, paddingVertical: 13 },
   watchHero: { minHeight: 174, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(115,78,232,.42)', backgroundColor: 'rgba(31,17,70,.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   watchIcon: { width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(115,78,232,.52)', backgroundColor: 'rgba(74,46,159,.28)', alignItems: 'center', justifyContent: 'center' },
-  watchTitle: { color: FateDropColors.text, fontSize: 17, fontWeight: '900', marginTop: 11 },
+  watchTitle: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 18, marginTop: 11 },
   watchCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 15, textAlign: 'center', marginTop: 6 },
   readinessCard: { borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(7,14,24,.9)', padding: 13 },
   readinessText: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 6 },
