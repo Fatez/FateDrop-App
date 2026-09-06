@@ -94,7 +94,7 @@ export default function FateCollectionsDashboardScreen() {
           <DestinationCard
             art="collection"
             title="Personal Collection"
-            copy="Your ungraded cards and owned copies."
+            copy="Your raw cards and exact owned copies."
             value={String(rawCards ?? '—')}
             valueLabel="cards held"
             onPress={() => router.push('/collection')}
@@ -110,7 +110,7 @@ export default function FateCollectionsDashboardScreen() {
           <DestinationCard
             art="graded"
             title="Graded"
-            copy="Your graded favourites, valued separately."
+            copy="Your slabs, grades and cert-tracked items."
             value={String(gradedCount ?? '—')}
             valueLabel="graded cards"
             onPress={() => router.push('/graded-collection')}
@@ -167,7 +167,7 @@ function Metric({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; 
 function DestinationCard({ art, copy, onPress, title, value, valueLabel }: { art: CollectionArtKind; copy: string; onPress: () => void; title: string; value: string; valueLabel: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.destination, pressed && styles.pressed]}>
-      <FateCollectionsArt kind={art} size={88} />
+      <FateCollectionsArt kind={art} size={64} />
       <View style={styles.destinationTitleRow}><Text style={styles.destinationTitle}>{title}</Text><Ionicons name="chevron-forward" size={16} color={FateDropColors.ivory} /></View>
       <Text style={styles.destinationCopy}>{copy}</Text>
       <View style={styles.destinationDivider} />
@@ -220,26 +220,26 @@ const styles = StyleSheet.create({
   loadingText: { color: FateDropColors.secondary, fontSize: 11 },
   error: { marginTop: 16, flexDirection: 'row', gap: 8, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.vanished}55`, borderRadius: 14 },
   errorText: { flex: 1, color: FateDropColors.secondary, fontSize: 11, lineHeight: 17 },
-  valuePanel: { minHeight: 175, marginTop: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(226,197,141,.58)', borderRadius: 18, backgroundColor: 'rgba(4,8,21,.62)' },
+  valuePanel: { minHeight: 146, marginTop: 14, paddingVertical: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(226,197,141,.58)', borderRadius: 18, backgroundColor: 'rgba(4,8,21,.62)' },
   valueOrbitA: { position: 'absolute', width: 310, height: 130, borderRadius: 155, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.30)' },
   valueOrbitB: { position: 'absolute', width: 225, height: 104, borderRadius: 112, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.35)' },
   valueEyebrow: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.55 },
   valueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 43, lineHeight: 50, marginTop: 5, maxWidth: '90%' },
   valueSub: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
-  metricsRow: { minHeight: 88, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.22)' },
-  metric: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  metricDivider: { width: StyleSheet.hairlineWidth, height: 48, backgroundColor: 'rgba(226,197,141,.25)' },
-  metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 21, marginTop: 4 },
-  metricLabel: { color: FateDropColors.secondary, fontSize: 11, fontWeight: '900', letterSpacing: .75, marginTop: 2, textAlign: 'center' },
-  destinationRow: { flexDirection: 'row', gap: 8, marginTop: 18 },
-  destination: { flex: 1, minHeight: 235, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.40)', borderRadius: 16, backgroundColor: 'rgba(4,8,21,.74)' },
-  destinationTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5, marginTop: 3 },
-  destinationTitle: { flex: 1, color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 15, lineHeight: 17 },
-  destinationCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 7, minHeight: 34 },
-  destinationDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.24)', marginTop: 10, marginBottom: 9 },
-  destinationValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 20 },
-  destinationLabel: { color: FateDropColors.secondary, fontSize: 11, marginTop: 1 },
-  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 22, marginBottom: 12 },
+  metricsRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.30)' },
+  metric: { flex: 1, minWidth: 0, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
+  metricDivider: { width: StyleSheet.hairlineWidth, height: 42, backgroundColor: 'rgba(226,197,141,.42)' },
+  metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 19, lineHeight: 21, marginTop: 2 },
+  metricLabel: { color: FateDropColors.secondary, fontSize: 8.5, lineHeight: 11, fontWeight: '900', letterSpacing: .55, marginTop: 2, textAlign: 'center' },
+  destinationRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  destination: { flex: 1, minHeight: 198, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.40)', borderRadius: 16, backgroundColor: 'rgba(4,8,21,.74)' },
+  destinationTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginTop: 1 },
+  destinationTitle: { flex: 1, color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 14, lineHeight: 16 },
+  destinationCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 14, marginTop: 5 },
+  destinationDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.30)', marginTop: 'auto', marginBottom: 7 },
+  destinationValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 19, lineHeight: 21 },
+  destinationLabel: { color: FateDropColors.secondary, fontSize: 10, marginTop: 1 },
+  sectionHead: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 18, marginBottom: 12, paddingTop: 15, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
   flex: { flex: 1 },
   sectionEyebrow: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.1 },
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 24, lineHeight: 29, marginTop: 4 },

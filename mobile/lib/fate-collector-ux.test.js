@@ -76,17 +76,19 @@ test('exact FatePrice cards can be manually added to the canonical collection', 
   assert.match(service, /fateCardId: id, quantity, copyState: 'raw', conditionCode/);
 });
 
-test('collection import moved to Personal Collection and remains preview-first and confirmed', () => {
-  assert.match(personal, /File\.pickFileAsync/);
-  assert.match(personal, /previewCollectrCsv\(text\)/);
-  assert.match(personal, /SAFE IMPORT PREVIEW/);
-  assert.match(personal, /CONFIRM EXACT IMPORT/);
-  assert.match(personal, /confirmCollectrCsv\(csvText/);
-  assert.match(personal, /ambiguous or unresolved rows remain held/i);
+test('Collectr import belongs to Binders and remains preview-first and confirmed', () => {
+  assert.doesNotMatch(personal, /File\.pickFileAsync|previewCollectrCsv|CONFIRM EXACT IMPORT/);
+  assert.match(binders, /COLLECTR IMPORT/);
+  assert.match(binders, /File\.pickFileAsync/);
+  assert.match(binders, /previewCollectrCsv\(text\)/);
+  assert.match(binders, /SAFE IMPORT PREVIEW/);
+  assert.match(binders, /CONFIRM EXACT IMPORT/);
+  assert.match(binders, /confirmCollectrCsv\(csvText/);
+  assert.match(binders, /ambiguous or unresolved rows stay held/i);
   assert.match(service, /\/v1\/collectors\/import\/collectr\/preview/);
   assert.match(service, /\/v1\/collectors\/import\/collectr\/confirm/);
   assert.match(service, /confirmed: true/);
-  assert.match(personal, /await load\(\)/);
+  assert.match(binders, /await load\(\)/);
   assert.match(service, /invalidateFateCollectorsSummaryCache\(\)/);
 });
 

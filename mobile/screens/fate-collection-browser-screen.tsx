@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { File } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { CollectionsScreen } from '@/components/fate-collections-ui';
@@ -10,12 +9,8 @@ import { useCollectionCardPrice } from '@/hooks/use-collection-card-price';
 import { useCollectionsResource } from '@/hooks/use-collections-resource';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
-  confirmCollectrCsv,
-  FateCollectorApiError,
   fetchFateCollectorCollection,
   fetchFateCollectorDashboard,
-  previewCollectrCsv,
-  type CollectrPreview,
   type FateCollectorItem,
 } from '@/services/fate-collector';
 
@@ -37,11 +32,6 @@ function normalise(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
 
-function importError(error: unknown) {
-  if (error instanceof FateCollectorApiError && error.status === 404 && error.code === 'NOT_FOUND') return 'Collection imports are not available right now.';
-  return error instanceof Error ? error.message.replace(/collectr/gi, 'collection CSV') : 'Fate Collections could not complete that import.';
-}
-
 const readCollection = async () => {
   const [collection, dashboard] = await Promise.all([fetchFateCollectorCollection(), fetchFateCollectorDashboard({ force: true })]);
   return { collection, dashboard };
@@ -51,15 +41,9 @@ export default function FateCollectionBrowserScreen() {
   const { data, loading, error, load } = useCollectionsResource(readCollection);
   const items = useMemo(() => data?.collection.items.filter((item) => item.copyState === 'raw') || [], [data]);
   const dashboard = data?.dashboard;
-  const importLock = useRef(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('set');
-  const [preview, setPreview] = useState<CollectrPreview | null>(null);
-  const [csvText, setCsvText] = useState('');
-  const [importName, setImportName] = useState('');
-  const [importWorking, setImportWorking] = useState(false);
-  const [importMessage, setImportMessage] = useState('');
 
   const filtered = useMemo(() => {
     const q = normalise(query);
@@ -83,53 +67,6 @@ export default function FateCollectionBrowserScreen() {
   const currency = rawValue?.currencyCode || dashboard?.summary.currencyCode || 'GBP';
   const copies = items.reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0)), 0);
   const setsRepresented = new Set(items.map((item) => item.card?.setId).filter(Boolean)).size;
-
-  const chooseCsv = async () => {
-    if (importLock.current) return;
-    importLock.current = true;
-    setPreview(null);
-    setCsvText('');
-    setImportName('');
-    setImportWorking(true);
-    setImportMessage('');
-    try {
-      const picked = await File.pickFileAsync({ multipleFiles: false, mimeTypes: ['text/csv', 'text/plain', 'application/vnd.ms-excel'] });
-      if (picked.canceled) return;
-      const file = picked.result;
-      if (file.size > 2_000_000) throw new Error('That CSV is larger than FateDrop’s 2 MB safe import limit.');
-      const text = await file.text();
-      const next = await previewCollectrCsv(text);
-      setCsvText(text);
-      setImportName(file.name || 'collection export.csv');
-      setPreview(next);
-      setImportMessage('Preview ready. Exact rows can be confirmed; ambiguous or unresolved rows remain held.');
-    } catch (caught) {
-      setImportMessage(importError(caught));
-    } finally {
-      importLock.current = false;
-      setImportWorking(false);
-    }
-  };
-
-  const confirmImport = async () => {
-    if (importLock.current || !preview || !csvText || preview.preview.scale?.mayBeTruncated || !(preview.confirmationToken || preview.preview.confirmationToken)) return;
-    importLock.current = true;
-    setImportWorking(true);
-    setImportMessage('');
-    try {
-      const result = await confirmCollectrCsv(csvText, preview.confirmationToken || preview.preview.confirmationToken || '');
-      setImportMessage(result.duplicate ? 'This exact export was already applied. Nothing was duplicated.' : `Import complete · ${result.summary.created} added · ${result.summary.updated} updated · ${result.summary.held} held.`);
-      setPreview(null);
-      setCsvText('');
-      setImportName('');
-      await load();
-    } catch (caught) {
-      setImportMessage(importError(caught));
-    } finally {
-      importLock.current = false;
-      setImportWorking(false);
-    }
-  };
 
   return (
     <CollectionsScreen>
@@ -179,21 +116,7 @@ export default function FateCollectionBrowserScreen() {
 
         <View style={styles.actionRow}>
           <ActionCard icon="pricetag-outline" title="Add from FatePrice" onPress={() => router.push('/fate-price')} />
-          <ActionCard icon="document-attach-outline" title={importName || 'Import Collection CSV'} loading={importWorking} onPress={() => void chooseCsv()} />
         </View>
-
-        {preview ? (
-          <View style={styles.previewCard}>
-            <View style={styles.previewTop}><Text style={styles.previewTitle}>SAFE IMPORT PREVIEW</Text><Text style={styles.previewCount}>{preview.preview.matched.exact} exact</Text></View>
-            <Text style={styles.previewCopy}>{preview.preview.plan.create} add · {preview.preview.plan.update} update · {preview.preview.plan.hold} held · {preview.preview.matched.ambiguous} ambiguous · {preview.preview.matched.unresolved} unresolved.</Text>
-            {preview.preview.scale?.mayBeTruncated ? <Text style={styles.previewCopy}>This preview is incomplete. Choose a smaller export before confirming.</Text> : null}
-            <Pressable accessibilityRole="button" disabled={importWorking || preview.preview.scale?.mayBeTruncated === true || !(preview.confirmationToken || preview.preview.confirmationToken)} onPress={() => void confirmImport()} style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed]}>
-              {importWorking ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <Ionicons name="checkmark-circle-outline" size={17} color={FateDropColors.background} />}
-              <Text style={styles.confirmText}>CONFIRM EXACT IMPORT</Text>
-            </Pressable>
-          </View>
-        ) : null}
-        {importMessage ? <Text style={styles.importMessage}>{importMessage}</Text> : null}
 
         <View style={styles.listHead}>
           <Text style={styles.listCount}>{filtered.length} {filtered.length === 1 ? 'OWNED ENTRY' : 'OWNED ENTRIES'}</Text>

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { File } from 'expo-file-system';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FateCollectionsArt } from '@/components/fate-collections-art';
@@ -8,7 +9,14 @@ import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { useCollectionsResource } from '@/hooks/use-collections-resource';
 import { isBinderComplete, orderBinders } from '@/lib/fate-collections-view';
 import { FateDropColors, Fonts } from '@/constants/theme';
-import { fetchFateCollectorDashboard, type FateCollectorSetBinder } from '@/services/fate-collector';
+import {
+  confirmCollectrCsv,
+  FateCollectorApiError,
+  fetchFateCollectorDashboard,
+  previewCollectrCsv,
+  type CollectrPreview,
+  type FateCollectorSetBinder,
+} from '@/services/fate-collector';
 
 type BinderFilter = 'all' | 'progress' | 'complete';
 
@@ -23,6 +31,11 @@ function money(value: number | null | undefined, currency: string | null | undef
   catch { return `${value.toFixed(2)} ${currency || 'GBP'}`; }
 }
 
+function importError(error: unknown) {
+  if (error instanceof FateCollectorApiError && error.status === 404 && error.code === 'NOT_FOUND') return 'Collectr imports are not available right now.';
+  return error instanceof Error ? error.message : 'Fate Collections could not complete that import.';
+}
+
 const readDashboard = () => fetchFateCollectorDashboard({ force: true });
 
 export default function FateBindersScreen() {
@@ -30,6 +43,12 @@ export default function FateBindersScreen() {
   const [filter, setFilter] = useState<BinderFilter>('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'progress' | 'name'>('progress');
+  const importLock = useRef(false);
+  const [preview, setPreview] = useState<CollectrPreview | null>(null);
+  const [csvText, setCsvText] = useState('');
+  const [importName, setImportName] = useState('');
+  const [importWorking, setImportWorking] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
 
 
   const allBinders = useMemo(() => orderBinders(data?.summary.sets || []), [data?.summary.sets]);
@@ -39,6 +58,53 @@ export default function FateBindersScreen() {
   const closest = inProgress.find((set) => set.status === 'available' && Number(set.totalCount) > 0 && Number(set.ownedCount) > 0) || null;
   const currency = closest?.value?.currencyCode || data?.summary.currencyCode || 'GBP';
   const topNeeded = closest?.missingCards?.slice(0, 3) || [];
+
+  const chooseCollectrCsv = async () => {
+    if (importLock.current) return;
+    importLock.current = true;
+    setPreview(null);
+    setCsvText('');
+    setImportName('');
+    setImportWorking(true);
+    setImportMessage('');
+    try {
+      const picked = await File.pickFileAsync({ multipleFiles: false, mimeTypes: ['text/csv', 'text/plain', 'application/vnd.ms-excel'] });
+      if (picked.canceled) return;
+      const file = picked.result;
+      if (file.size > 2_000_000) throw new Error('That CSV is larger than FateDrop’s 2 MB safe import limit.');
+      const text = await file.text();
+      const next = await previewCollectrCsv(text);
+      setCsvText(text);
+      setImportName(file.name || 'Collectr export.csv');
+      setPreview(next);
+      setImportMessage('Preview ready. Exact rows can be confirmed; ambiguous or unresolved rows remain held.');
+    } catch (caught) {
+      setImportMessage(importError(caught));
+    } finally {
+      importLock.current = false;
+      setImportWorking(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (importLock.current || !preview || !csvText || preview.preview.scale?.mayBeTruncated || !(preview.confirmationToken || preview.preview.confirmationToken)) return;
+    importLock.current = true;
+    setImportWorking(true);
+    setImportMessage('');
+    try {
+      const result = await confirmCollectrCsv(csvText, preview.confirmationToken || preview.preview.confirmationToken || '');
+      setImportMessage(result.duplicate ? 'This exact export was already applied. Nothing was duplicated.' : `Import complete · ${result.summary.created} added · ${result.summary.updated} updated · ${result.summary.held} held.`);
+      setPreview(null);
+      setCsvText('');
+      setImportName('');
+      await load();
+    } catch (caught) {
+      setImportMessage(importError(caught));
+    } finally {
+      importLock.current = false;
+      setImportWorking(false);
+    }
+  };
 
   return (
     <CollectionsScreen>
@@ -100,6 +166,53 @@ export default function FateBindersScreen() {
             </View>
           </Pressable>
         ) : null}
+
+        <View style={styles.importPanel}>
+          <View style={styles.importHead}>
+            <View style={styles.flex}>
+              <Text style={styles.importEyebrow}>COLLECTR IMPORT</Text>
+              <Text style={styles.importTitle}>Update your binders from a collection CSV</Text>
+              <Text style={styles.importCopy}>Preview a Collectr export before adding exact raw cards. Confirmed cards update their matching set binders; ambiguous or unresolved rows stay held.</Text>
+            </View>
+            {importWorking ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : null}
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose a Collectr CSV to preview"
+            accessibilityState={{ disabled: importWorking, busy: importWorking }}
+            disabled={importWorking}
+            onPress={() => void chooseCollectrCsv()}
+            style={({ pressed }) => [styles.importButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="document-attach-outline" size={20} color={FateDropColors.goldBright} />
+            <View style={styles.flex}>
+              <Text style={styles.importButtonTitle} numberOfLines={1}>{importName || 'CHOOSE COLLECTR CSV'}</Text>
+              <Text style={styles.importButtonCopy}>{importName ? 'Choose a different export' : 'Preview only · no write yet · 2 MB maximum'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={FateDropColors.ivory} />
+          </Pressable>
+
+          {preview ? (
+            <View style={styles.previewCard}>
+              <View style={styles.previewTop}><Text style={styles.previewTitle}>SAFE IMPORT PREVIEW</Text><Text style={styles.previewCount}>{preview.preview.matched.exact} exact</Text></View>
+              <Text style={styles.previewCopy}>{preview.preview.plan.create} add · {preview.preview.plan.update} update · {preview.preview.plan.hold} held · {preview.preview.matched.ambiguous} ambiguous · {preview.preview.matched.unresolved} unresolved.</Text>
+              {preview.preview.scale?.mayBeTruncated ? <Text style={styles.previewWarning}>This preview is incomplete. Choose a smaller export before confirming.</Text> : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Confirm exact Collectr import"
+                accessibilityState={{ disabled: importWorking || preview.preview.scale?.mayBeTruncated === true }}
+                disabled={importWorking || preview.preview.scale?.mayBeTruncated === true || !(preview.confirmationToken || preview.preview.confirmationToken)}
+                onPress={() => void confirmImport()}
+                style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed]}
+              >
+                {importWorking ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <Ionicons name="checkmark-circle-outline" size={17} color={FateDropColors.background} />}
+                <Text style={styles.confirmText}>CONFIRM EXACT IMPORT</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {importMessage ? <View accessibilityLiveRegion="polite" style={styles.importMessageRow}><Ionicons name="information-circle-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.importMessage}>{importMessage}</Text></View> : null}
+        </View>
 
         <TextInput accessibilityLabel="Search binders" value={query} onChangeText={setQuery} placeholder="Search your sets…" placeholderTextColor={FateDropColors.secondary} style={styles.search} autoCorrect={false} />
 
@@ -186,6 +299,24 @@ const styles = StyleSheet.create({
   neededMiniName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 11 },
   neededMiniMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 2 },
   noNeeded: { color: FateDropColors.secondary, fontSize: 11 },
+  importPanel: { marginTop: 16, padding: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', borderRadius: 16, backgroundColor: 'rgba(4,8,21,.74)' },
+  importHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  importEyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1.05 },
+  importTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, lineHeight: 21, marginTop: 3 },
+  importCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  importButton: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11, paddingHorizontal: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)', borderRadius: 12, backgroundColor: 'rgba(226,197,141,.06)' },
+  importButtonTitle: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
+  importButtonCopy: { color: FateDropColors.secondary, fontSize: 9, marginTop: 3 },
+  previewCard: { marginTop: 10, padding: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.48)', borderRadius: 12, backgroundColor: 'rgba(3,7,18,.62)' },
+  previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  previewTitle: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: .7 },
+  previewCount: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13 },
+  previewCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  previewWarning: { color: FateDropColors.vanished, fontSize: 10, lineHeight: 15, marginTop: 6 },
+  confirmButton: { minHeight: 44, marginTop: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: FateDropColors.goldBright },
+  confirmText: { color: FateDropColors.background, fontSize: 10, fontWeight: '900', letterSpacing: .65 },
+  importMessageRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 9 },
+  importMessage: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 15 },
   filterRail: { flexDirection: 'row', marginTop: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)', borderRadius: 20, overflow: 'hidden' },
   filterButton: { flex: 1, minHeight: 43, alignItems: 'center', justifyContent: 'center' },
   filterButtonActive: { backgroundColor: 'rgba(226,197,141,.11)', borderWidth: 1, borderColor: 'rgba(226,197,141,.62)', borderRadius: 20 },
