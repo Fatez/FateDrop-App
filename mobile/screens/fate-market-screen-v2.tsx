@@ -246,7 +246,7 @@ export default function FateMarketScreenV2() {
                 key={key}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
-                onPress={() => key === 'price' ? router.push('/fate-price') : setActiveArea(key)}
+                onPress={() => key === 'pulse' ? router.push('/fate-pulse') : key === 'price' ? router.push('/fate-price') : setActiveArea(key)}
                 style={({ pressed }) => [styles.areaTab, selected && styles.areaTabActive, pressed && styles.pressed]}
               >
                 <Ionicons name={area.icon} size={16} color={selected ? area.accent : FateDropColors.muted} />
