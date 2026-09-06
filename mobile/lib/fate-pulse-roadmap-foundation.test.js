@@ -12,11 +12,14 @@ const pulseRoute = read('app/fate-pulse.tsx');
 const pulseScreen = read('screens/fate-pulse-screen.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
 
-test('Fate Market keeps the approved entry screen', () => {
+test('Fate Market keeps the approved entry screen and only hands FatePulse off to its dedicated route', () => {
   assert.match(marketRoute, /fate-market-screen-v2/);
   assert.match(market, /title: 'FatePulse'/);
   assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Collections'/);
+  assert.match(market, /key === 'pulse' \? router\.push\('\/fate-pulse'\)/);
+  assert.match(market, /key === 'price' \? router\.push\('\/fate-price'\)/);
+  assert.match(market, /: setActiveArea\(key\)/);
 });
 
 test('FatePulse has the locked exploration roadmap', () => {
@@ -29,11 +32,17 @@ test('FatePulse has the locked exploration roadmap', () => {
   assert.match(pulseScreen, /key: 'd7', label: '7D'/);
   assert.match(pulseScreen, /key: 'd30', label: '30D'/);
   assert.match(pulseScreen, /key: 'd90', label: '90D'/);
+  assert.match(pulseScreen, /MARKET PRICE INDEX/);
+  assert.match(pulseScreen, /HEATING UP/);
+  assert.match(pulseScreen, /COOLING DOWN/);
+  assert.match(pulseScreen, /EVIDENCE COVERAGE/);
+  assert.match(pulseScreen, /LAST MARKET DAY/);
 });
 
 test('Pulse stays Cloud-owned and never invents unsupported intelligence', () => {
   assert.match(pulseScreen, /fetchFatePulse/);
   assert.match(pulseScreen, /NOT SCORED/);
+  assert.match(pulseScreen, /INDEX NOT CONNECTED/);
   assert.match(pulseScreen, /90D remains visibly unscored until Cloud owns it/);
   assert.match(pulseScreen, /Most Watched needs a canonical global card-watch signal/);
   assert.match(pulseScreen, /High Volume needs a verified market-liquidity or sales-volume source/);
