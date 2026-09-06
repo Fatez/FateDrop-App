@@ -1,1 +1,1 @@
-export { default } from '@/screens/more-screen-v2';
+export { default } from '@/screens/more-screen-v3';
