@@ -90,7 +90,7 @@ export default function FateGradedCollectionScreen() {
 
         {loading && !slabs.length ? <StateLine loading text="Opening the graded cabinet…" /> : null}
         {error ? <StateLine danger text={error} /> : null}
-        {!loading && !error && !slabs.length ? <StateLine text="No graded cards yet. Import your graded cards from Personal Collection with their grader and grade to see them here." /> : null}
+        {!loading && !error && !slabs.length ? <StateLine text="No graded cards yet. Exact slab records appear here with their card, grader and grade kept separate from raw ownership." /> : null}
 
         </>}
         renderItem={({ item }) => <SlabCard item={item} />}

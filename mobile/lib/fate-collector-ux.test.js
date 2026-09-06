@@ -36,12 +36,16 @@ test('Fate Collections dashboard owns the personal top-three movement overview',
   assert.match(dashboard, /items\.slice\(0, 3\)/);
   assert.match(dashboard, /pulse\?\.risers \|\| \[\]/);
   assert.match(dashboard, /pulse\?\.decliners \|\| \[\]/);
+  assert.match(dashboard, /pulse\?\.setRisers \|\| \[\]/);
+  assert.match(dashboard, /pulse\?\.setDecliners \|\| \[\]/);
+  assert.match(dashboard, /label="CARDS"/);
+  assert.match(dashboard, /label="SETS"/);
   assert.match(dashboard, /label="7D"/);
   assert.match(dashboard, /label="30D"/);
 });
 
 test('Collections dashboard is an overview with three dedicated destinations', () => {
-  assert.match(dashboard, /title="Personal Collection"/);
+  assert.match(dashboard, /title="Collection Intelligence"/);
   assert.match(dashboard, /title="Binders"/);
   assert.match(dashboard, /title="Graded"/);
   assert.match(dashboard, /router\.push\('\/collection'\)/);
@@ -76,6 +80,18 @@ test('exact FatePrice cards can be manually added to the canonical collection', 
   assert.match(service, /fateCardId: id, quantity, copyState: 'raw', conditionCode/);
 });
 
+test('Collection Intelligence aggregates duplicates and offers manual quantity increases', () => {
+  assert.match(personal, /COLLECTION INTELLIGENCE/);
+  assert.match(personal, /Overview/);
+  assert.match(personal, /Cards/);
+  assert.match(personal, /Sets/);
+  assert.match(personal, /TOP 5 UNIQUE CARDS/);
+  assert.match(personal, /updateFateCollectorItemQuantity\(target\.id, target\.quantity \+ 1, target\.revision\)/);
+  assert.match(service, /PATCH/);
+  assert.match(service, /quantity: nextQuantity, expectedRevision/);
+  assert.doesNotMatch(personal, /Import Collection CSV/);
+});
+
 test('Collectr import belongs to Binders and remains preview-first and confirmed', () => {
   assert.doesNotMatch(personal, /File\.pickFileAsync|previewCollectrCsv|CONFIRM EXACT IMPORT/);
   assert.match(binders, /COLLECTR IMPORT/);
@@ -99,6 +115,12 @@ test('Binders owns closest set and set-list organisation', () => {
   assert.match(binders, /label="In progress"/);
   assert.match(binders, /label="Completed"/);
   assert.match(binders, /router\.push\(\{ pathname: '\/binder\/\[setId\]'/);
+  assert.match(binders, /MY BINDERS/);
+  assert.match(binders, /ALL SETS/);
+  assert.match(binders, /Find a set before you own it/);
+  assert.match(binders, /setFateCollectorBinderTracked\(set\.id, true\)/);
+  assert.match(service, /\/v1\/collectors\/binders\/\$\{encodeURIComponent\(id\)\}/);
+  assert.match(binder, /fetchFateCollectorSetProgress\(setId\)/);
 });
 
 test('raw binders and graded pride cards have separate dedicated routes', () => {

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FateCollectionsArt } from '@/components/fate-collections-art';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
@@ -14,11 +14,16 @@ import {
   FateCollectorApiError,
   fetchFateCollectorDashboard,
   previewCollectrCsv,
+  setFateCollectorBinderTracked,
   type CollectrPreview,
   type FateCollectorSetBinder,
 } from '@/services/fate-collector';
+import { fetchFatePriceSets, type FatePriceSet } from '@/services/fate-market';
 
 type BinderFilter = 'all' | 'progress' | 'complete';
+type BinderScope = 'mine' | 'all-sets';
+type TcgFilter = 'all' | 'pokemon' | 'one-piece';
+type BinderListRow = { kind: 'binder'; binder: FateCollectorSetBinder } | { kind: 'set'; set: FatePriceSet };
 
 function pct(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -36,11 +41,20 @@ function importError(error: unknown) {
   return error instanceof Error ? error.message : 'Fate Collections could not complete that import.';
 }
 
-const readDashboard = () => fetchFateCollectorDashboard({ force: true });
+const readBinders = async () => {
+  const [dashboard, pokemon, onePiece] = await Promise.all([
+    fetchFateCollectorDashboard({ force: true }),
+    fetchFatePriceSets({ tcgCode: 'pokemon', limit: 1000 }).catch(() => ({ sets: [], count: 0 })),
+    fetchFatePriceSets({ tcgCode: 'one-piece', limit: 1000 }).catch(() => ({ sets: [], count: 0 })),
+  ]);
+  return { dashboard, sets: [...pokemon.sets, ...onePiece.sets] };
+};
 
 export default function FateBindersScreen() {
-  const { data, loading, error, load } = useCollectionsResource(readDashboard);
+  const { data, loading, error, load } = useCollectionsResource(readBinders);
+  const [scope, setScope] = useState<BinderScope>('mine');
   const [filter, setFilter] = useState<BinderFilter>('all');
+  const [tcgFilter, setTcgFilter] = useState<TcgFilter>('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'progress' | 'name'>('progress');
   const importLock = useRef(false);
@@ -49,15 +63,43 @@ export default function FateBindersScreen() {
   const [importName, setImportName] = useState('');
   const [importWorking, setImportWorking] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [trackingSetId, setTrackingSetId] = useState('');
 
 
-  const allBinders = useMemo(() => orderBinders(data?.summary.sets || []), [data?.summary.sets]);
+  const allBinders = useMemo(() => orderBinders(data?.dashboard.summary.sets || []), [data?.dashboard.summary.sets]);
   const completed = allBinders.filter(isBinderComplete);
   const inProgress = allBinders.filter((set) => !isBinderComplete(set));
   const visible = orderBinders(filter === 'complete' ? completed : filter === 'progress' ? inProgress : allBinders, query, sort);
   const closest = inProgress.find((set) => set.status === 'available' && Number(set.totalCount) > 0 && Number(set.ownedCount) > 0) || null;
-  const currency = closest?.value?.currencyCode || data?.summary.currencyCode || 'GBP';
+  const currency = closest?.value?.currencyCode || data?.dashboard.summary.currencyCode || 'GBP';
   const topNeeded = closest?.missingCards?.slice(0, 3) || [];
+  const binderBySet = useMemo(() => new Map(allBinders.map((binder) => [binder.setId, binder])), [allBinders]);
+  const availableSets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const unique = new Map((data?.sets || []).map((set) => [set.id, set]));
+    return [...unique.values()].filter((set) => {
+      if (q && !`${set.name} ${set.seriesName || ''}`.toLowerCase().includes(q)) return false;
+      if (tcgFilter !== 'all' && set.tcgCode !== tcgFilter) return false;
+      return true;
+    }).sort((left, right) => Number(right.releasedAt || 0) - Number(left.releasedAt || 0) || left.name.localeCompare(right.name));
+  }, [data?.sets, query, tcgFilter]);
+  const listRows: BinderListRow[] = scope === 'mine'
+    ? visible.map((binder) => ({ kind: 'binder', binder }))
+    : availableSets.map((set) => ({ kind: 'set', set }));
+
+  const trackSet = async (set: FatePriceSet) => {
+    if (trackingSetId) return;
+    setTrackingSetId(set.id);
+    try {
+      await setFateCollectorBinderTracked(set.id, true);
+      await load();
+      router.push({ pathname: '/binder/[setId]', params: { setId: set.id, setName: set.name } });
+    } catch (caught) {
+      setImportMessage(caught instanceof Error ? caught.message : 'That binder could not be started.');
+    } finally {
+      setTrackingSetId('');
+    }
+  };
 
   const chooseCollectrCsv = async () => {
     if (importLock.current) return;
@@ -109,7 +151,18 @@ export default function FateBindersScreen() {
   return (
     <CollectionsScreen>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}>
+      <FlatList
+        data={listRows}
+        keyExtractor={(row) => row.kind === 'binder' ? `binder:${row.binder.setId}` : `set:${row.set.id}`}
+        renderItem={({ item }) => item.kind === 'binder' ? <BinderRow binder={item.binder} /> : <CatalogueSetRow set={item.set} binder={binderBySet.get(item.set.id)} working={trackingSetId === item.set.id} onStart={() => void trackSet(item.set)} />}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}
+        ListHeaderComponent={<>
         <View style={styles.headerRow}>
           <Pressable accessibilityRole="button" accessibilityLabel="Back to Fate Collections" onPress={() => router.canGoBack() ? router.back() : router.replace('/collections')} style={styles.back}><Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} /></Pressable>
           <View style={styles.flex}>
@@ -119,18 +172,23 @@ export default function FateBindersScreen() {
           </View>
         </View>
 
-        <View style={styles.summaryRow}>
+        <View style={styles.scopeRail}>
+          <ScopeButton label="MY BINDERS" selected={scope === 'mine'} onPress={() => { setScope('mine'); setQuery(''); }} />
+          <ScopeButton label="ALL SETS" selected={scope === 'all-sets'} onPress={() => { setScope('all-sets'); setQuery(''); }} />
+        </View>
+
+        {scope === 'mine' ? <View style={styles.summaryRow}>
           <SummaryMetric icon="checkmark-done-outline" value={data ? String(completed.length) : '—'} label="SETS COMPLETED" />
           <View style={styles.summaryDivider} />
           <SummaryMetric icon="ellipse-outline" value={data ? String(inProgress.length) : '—'} label="IN PROGRESS" />
           <View style={styles.summaryDivider} />
           <View style={styles.closestSummary}><Ionicons name="locate-outline" size={18} color={FateDropColors.goldBright} /><Text style={styles.closestSummaryName} numberOfLines={2}>{closest?.setName || '—'}</Text><Text style={styles.summaryLabel}>CLOSEST SET</Text></View>
-        </View>
+        </View> : <View style={styles.allSetsIntro}><FateCollectionsArt kind="binders" size={74} /><View style={styles.flex}><Text style={styles.allSetsEyebrow}>VERIFIED SET LIBRARY</Text><Text style={styles.allSetsTitle}>Find a set before you own it.</Text><Text style={styles.allSetsCopy}>Start any verified binder at 0%. It stays separate from ownership until you add exact raw cards.</Text></View></View>}
 
         {loading && !data ? <StateLine icon="time-outline" text="Opening your binders…" loading /> : null}
         {error ? <StateLine icon="alert-circle-outline" text={error} danger /> : null}
 
-        {closest ? (
+        {scope === 'mine' && closest ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Open ${closest.setName || 'closest set'} binder`}
@@ -167,7 +225,7 @@ export default function FateBindersScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.importPanel}>
+        {scope === 'mine' ? <View style={styles.importPanel}>
           <View style={styles.importHead}>
             <View style={styles.flex}>
               <Text style={styles.importEyebrow}>COLLECTR IMPORT</Text>
@@ -212,31 +270,39 @@ export default function FateBindersScreen() {
             </View>
           ) : null}
           {importMessage ? <View accessibilityLiveRegion="polite" style={styles.importMessageRow}><Ionicons name="information-circle-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.importMessage}>{importMessage}</Text></View> : null}
-        </View>
+        </View> : null}
 
-        <TextInput accessibilityLabel="Search binders" value={query} onChangeText={setQuery} placeholder="Search your sets…" placeholderTextColor={FateDropColors.secondary} style={styles.search} autoCorrect={false} />
+        <View style={styles.searchBox}><Ionicons name="search-outline" size={19} color={FateDropColors.secondary} /><TextInput accessibilityLabel={scope === 'mine' ? 'Search binders' : 'Search all sets'} value={query} onChangeText={setQuery} placeholder={scope === 'mine' ? 'Search your binders…' : 'Search every verified set…'} placeholderTextColor={FateDropColors.secondary} style={styles.searchInput} autoCorrect={false} /></View>
 
-        <View style={styles.filterRail}>
+        {scope === 'mine' ? <View style={styles.filterRail}>
           <FilterButton label="All" selected={filter === 'all'} onPress={() => setFilter('all')} />
           <FilterButton label="In progress" selected={filter === 'progress'} onPress={() => setFilter('progress')} />
           <FilterButton label="Completed" selected={filter === 'complete'} onPress={() => setFilter('complete')} />
+        </View> : <View style={styles.filterRail}><FilterButton label="All games" selected={tcgFilter === 'all'} onPress={() => setTcgFilter('all')} /><FilterButton label="Pokémon" selected={tcgFilter === 'pokemon'} onPress={() => setTcgFilter('pokemon')} /><FilterButton label="One Piece" selected={tcgFilter === 'one-piece'} onPress={() => setTcgFilter('one-piece')} /></View>}
+
+        <View style={styles.listHeader}><View style={styles.flex}><Text style={styles.listTitle}>{scope === 'mine' ? 'Your Set Binders' : 'All Verified Sets'}</Text><Text style={styles.listCopy}>{scope === 'mine' ? 'Tap a binder to view needed and owned cards.' : `${availableSets.length} sets available · start tracking with no cards required.`}</Text></View>{scope === 'mine' ? <Pressable accessibilityRole="button" accessibilityLabel={`Sort binders by ${sort === 'progress' ? 'name' : 'progress'}`} onPress={() => setSort(sort === 'progress' ? 'name' : 'progress')} style={styles.sortPill}><Text style={styles.sortText}>Sort: {sort === 'progress' ? 'Progress' : 'Name'}</Text><Ionicons name="swap-vertical" size={14} color={FateDropColors.secondary} /></Pressable> : null}</View>
+
+        </>}
+        ListFooterComponent={<>
+        <View>
+          {!loading && !error && scope === 'mine' && !visible.length ? <StateLine icon="albums-outline" text={query.trim() ? 'No binders match that search.' : filter === 'complete' ? 'No completed binders yet.' : filter === 'progress' ? 'No binders are currently in progress.' : 'Open All Sets to start a binder before you own a card.'} /> : null}
+          {!loading && !error && scope === 'all-sets' && !availableSets.length ? <StateLine icon="search-outline" text={query.trim() ? 'No verified sets match that search.' : 'The verified set catalogue is still building.'} /> : null}
         </View>
 
-        <View style={styles.listHeader}><View style={styles.flex}><Text style={styles.listTitle}>Your Set Binders</Text><Text style={styles.listCopy}>Tap a binder to view your needed and owned cards.</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Sort binders by ${sort === 'progress' ? 'name' : 'progress'}`} onPress={() => setSort(sort === 'progress' ? 'name' : 'progress')} style={styles.sortPill}><Text style={styles.sortText}>Sort: {sort === 'progress' ? 'Progress' : 'Name'}</Text><Ionicons name="swap-vertical" size={14} color={FateDropColors.secondary} /></Pressable></View>
-
-        <View style={styles.list}>
-          {visible.map((binder) => <BinderRow key={binder.setId} binder={binder} />)}
-          {!loading && !error && !visible.length ? <StateLine icon="albums-outline" text={query.trim() ? 'No binders match that search.' : filter === 'complete' ? 'No completed binders yet.' : filter === 'progress' ? 'No binders are currently in progress.' : 'Add an ungraded card from FatePrice to begin a binder.'} /> : null}
-        </View>
-
-        <View style={styles.truth}><Ionicons name="shield-checkmark-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.truthText}>Completion uses verified raw printings only. Graded slabs never fill binder slots, as they are tracked separately.</Text></View>
-      </ScrollView>
+        {importMessage && scope === 'all-sets' ? <View accessibilityLiveRegion="polite" style={styles.importMessageRow}><Ionicons name="information-circle-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.importMessage}>{importMessage}</Text></View> : null}
+        <View style={styles.truth}><Ionicons name="shield-checkmark-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.truthText}>Binders track verified raw set slots and can begin at 0%. Every duplicate adds to raw quantity and value, while matching copies still fill only one binder slot. Graded slabs stay separate.</Text></View>
+        </>}
+      />
     </CollectionsScreen>
   );
 }
 
 function SummaryMetric({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return <View style={styles.summaryMetric}><Ionicons name={icon} size={18} color={FateDropColors.goldBright} /><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryLabel}>{label}</Text></View>;
+}
+
+function ScopeButton({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.scopeButton, selected && styles.scopeButtonActive]}><Text style={[styles.scopeButtonText, selected && styles.scopeButtonTextActive]}>{label}</Text>{selected ? <View style={styles.scopeGem} /> : null}</Pressable>;
 }
 
 function FilterButton({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
@@ -254,12 +320,25 @@ function BinderRow({ binder }: { binder: FateCollectorSetBinder }) {
   );
 }
 
+function CatalogueSetRow({ binder, onStart, set, working }: { binder?: FateCollectorSetBinder; onStart: () => void; set: FatePriceSet; working: boolean }) {
+  const total = set.total ?? set.printedTotal;
+  const open = () => router.push({ pathname: '/binder/[setId]', params: { setId: set.id, setName: set.name } });
+  return <View style={styles.catalogueRow}>
+    <View style={styles.catalogueIcon}><Ionicons name="albums-outline" size={23} color={FateDropColors.goldBright} /></View>
+    <Pressable accessibilityRole="button" disabled={!binder} onPress={open} style={styles.catalogueBody}>
+      <Text style={styles.catalogueName} numberOfLines={1}>{set.name}</Text>
+      <Text style={styles.catalogueMeta} numberOfLines={1}>{set.seriesName || 'Verified series'} · {total ? `${total} cards` : 'checklist building'}</Text>
+      <Text style={[styles.catalogueStatus, binder && styles.catalogueStatusTracked]}>{binder ? `${pct(binder.completionPercent)} · ${binder.ownedCount || 0} owned` : 'NOT STARTED · 0 OWNED'}</Text>
+    </Pressable>
+    {binder ? <Pressable accessibilityRole="button" accessibilityLabel={`Open ${set.name} binder`} onPress={open} style={styles.openSetButton}><Text style={styles.openSetText}>OPEN</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} /></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={`Start ${set.name} binder`} accessibilityState={{ busy: working, disabled: working }} disabled={working} onPress={onStart} style={styles.startSetButton}>{working ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <><Ionicons name="add" size={14} color={FateDropColors.background} /><Text style={styles.startSetText}>START</Text></>}</Pressable>}
+  </View>;
+}
+
 function StateLine({ danger = false, icon, loading = false, text }: { danger?: boolean; icon: keyof typeof Ionicons.glyphMap; loading?: boolean; text: string }) {
   return <View style={styles.stateLine}>{loading ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : <Ionicons name={icon} size={18} color={danger ? FateDropColors.vanished : FateDropColors.muted} />}<Text style={styles.stateText}>{text}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  search: { minHeight: 48, borderWidth: 1, borderColor: 'rgba(226,197,141,.35)', borderRadius: 12, paddingHorizontal: 14, color: FateDropColors.ivory, fontSize: 14, backgroundColor: 'rgba(4,8,21,.82)', marginTop: 18 },
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   veil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,7,18,.58)' },
   content: { width: '100%', maxWidth: 960, alignSelf: 'center', paddingHorizontal: 18, paddingBottom: 140 },
@@ -269,6 +348,16 @@ const styles = StyleSheet.create({
   eyebrow: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 32, lineHeight: 37, marginTop: 5 },
   copy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, marginTop: 6 },
+  scopeRail: { flexDirection: 'row', minHeight: 56, marginTop: 17, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.38)', backgroundColor: 'rgba(3,7,18,.68)' },
+  scopeButton: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  scopeButtonActive: { backgroundColor: 'rgba(124,110,255,.13)' },
+  scopeButtonText: { color: FateDropColors.secondary, fontFamily: Fonts.serif, fontSize: 12, letterSpacing: .4 },
+  scopeButtonTextActive: { color: FateDropColors.ivory },
+  scopeGem: { position: 'absolute', bottom: -4, width: 8, height: 8, transform: [{ rotate: '45deg' }], backgroundColor: FateDropColors.goldBright },
+  allSetsIntro: { minHeight: 112, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 15, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.36)', borderRadius: 16, backgroundColor: 'rgba(4,8,21,.72)' },
+  allSetsEyebrow: { color: FateDropColors.goldBright, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  allSetsTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 19, marginTop: 3 },
+  allSetsCopy: { color: FateDropColors.secondary, fontSize: 10, lineHeight: 15, marginTop: 4 },
   summaryRow: { minHeight: 92, marginTop: 18, flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.31)', backgroundColor: 'rgba(4,8,21,.62)' },
   summaryMetric: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryDivider: { width: StyleSheet.hairlineWidth, height: 56, backgroundColor: 'rgba(226,197,141,.24)' },
@@ -317,6 +406,8 @@ const styles = StyleSheet.create({
   confirmText: { color: FateDropColors.background, fontSize: 10, fontWeight: '900', letterSpacing: .65 },
   importMessageRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 9 },
   importMessage: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 15 },
+  searchBox: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 18, paddingHorizontal: 13, borderWidth: 1, borderColor: 'rgba(226,197,141,.35)', borderRadius: 13, backgroundColor: 'rgba(4,8,21,.82)' },
+  searchInput: { flex: 1, minWidth: 0, paddingVertical: 10, color: FateDropColors.ivory, fontSize: 13 },
   filterRail: { flexDirection: 'row', marginTop: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)', borderRadius: 20, overflow: 'hidden' },
   filterButton: { flex: 1, minHeight: 43, alignItems: 'center', justifyContent: 'center' },
   filterButtonActive: { backgroundColor: 'rgba(226,197,141,.11)', borderWidth: 1, borderColor: 'rgba(226,197,141,.62)', borderRadius: 20 },
@@ -327,8 +418,7 @@ const styles = StyleSheet.create({
   listCopy: { color: FateDropColors.secondary, fontSize: 11, marginTop: 3 },
   sortPill: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5 },
   sortText: { color: FateDropColors.secondary, fontFamily: Fonts.serif, fontSize: 11 },
-  list: { gap: 9 },
-  binderRow: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 12, backgroundColor: 'rgba(4,8,21,.68)' },
+  binderRow: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 8, marginBottom: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 12, backgroundColor: 'rgba(4,8,21,.68)' },
   binderThumb: { width: 64, alignItems: 'center', justifyContent: 'center' },
   binderText: { flex: 1 },
   binderName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 16 },
@@ -336,6 +426,17 @@ const styles = StyleSheet.create({
   rowTrack: { height: 4, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,.10)', marginTop: 7 },
   rowFill: { height: 4, borderRadius: 2, backgroundColor: FateDropColors.goldBright },
   binderPct: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 16 },
+  catalogueRow: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 9, marginBottom: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', borderRadius: 13, backgroundColor: 'rgba(4,8,21,.72)' },
+  catalogueIcon: { width: 48, height: 58, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.52)', borderRadius: 8, backgroundColor: 'rgba(124,110,255,.09)' },
+  catalogueBody: { flex: 1, minWidth: 0 },
+  catalogueName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 15 },
+  catalogueMeta: { color: FateDropColors.secondary, fontSize: 9, marginTop: 3 },
+  catalogueStatus: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .55, marginTop: 6 },
+  catalogueStatusTracked: { color: FateDropColors.manifested },
+  startSetButton: { minWidth: 67, minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 11, backgroundColor: FateDropColors.goldBright },
+  startSetText: { color: FateDropColors.background, fontSize: 9, fontWeight: '900', letterSpacing: .55 },
+  openSetButton: { minWidth: 62, minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', borderRadius: 11 },
+  openSetText: { color: FateDropColors.ivory, fontSize: 9, fontWeight: '900', letterSpacing: .55 },
   stateLine: { minHeight: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20 },
   stateText: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 17, textAlign: 'center' },
   truth: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingTop: 15, marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)' },

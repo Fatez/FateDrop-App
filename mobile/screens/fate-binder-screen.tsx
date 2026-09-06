@@ -13,7 +13,7 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   addExactCardToCollector,
   fetchFateCollectorCollection,
-  fetchFateCollectorDashboard,
+  fetchFateCollectorSetProgress,
   type FateCollectorItem,
   type FateCollectorMissingCard,
 } from '@/services/fate-collector';
@@ -45,8 +45,8 @@ export default function FateBinderScreen() {
   const routeSetName = first(params.setName)?.trim() || '';
   const request = useCallback(async () => {
     if (!setId) throw new Error('This binder does not have a set identity. Open it from Fate Collections.');
-    const [dashboard, collection] = await Promise.all([fetchFateCollectorDashboard({ force: true }), fetchFateCollectorCollection()]);
-    return { binder: dashboard.summary.sets?.find((item) => item.setId === setId) || null, items: collection.items };
+    const [progress, collection] = await Promise.all([fetchFateCollectorSetProgress(setId), fetchFateCollectorCollection()]);
+    return { binder: progress.progress, items: collection.items };
   }, [setId]);
   const { data, loading, error, load } = useCollectionsResource(request, setId);
   const binder = data?.binder;
