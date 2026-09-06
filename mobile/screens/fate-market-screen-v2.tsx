@@ -582,8 +582,8 @@ function MoverEvidence({ currencyCode, item, periodLabel }: { currencyCode: stri
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#030713' },
-  marketGuardians: { position: 'absolute', left: 0, right: 0, top: 0, width: '100%', height: 520, opacity: .4 },
-  marketGuardianVeil: { position: 'absolute', left: 0, top: 0, width: '67%', height: 520, backgroundColor: 'rgba(2,5,15,.58)' },
+  marketGuardians: { display: 'none', position: 'absolute', left: 0, right: 0, top: 0, width: '100%', height: 520, opacity: 0 },
+  marketGuardianVeil: { display: 'none', position: 'absolute', left: 0, top: 0, width: '67%', height: 520, backgroundColor: 'transparent' },
   themeVeil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.48)' },
   themeLowerVeil: { position: 'absolute', left: 0, right: 0, top: '36%', bottom: 0, backgroundColor: 'rgba(3,7,18,.53)' },
   content: { width: '100%', maxWidth: 480, alignSelf: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 124 },
