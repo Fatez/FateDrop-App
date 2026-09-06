@@ -7,8 +7,8 @@ import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
 import { FateDropColors } from '@/constants/theme';
 
 const ROOT_DOCK_PREFIXES = [
-  '/fatefind', '/fate-match', '/fate-trader', '/local-radar', '/encounters', '/retailers/',
-  '/notification-preferences', '/dashboard', '/demo', '/tools',
+  '/fatefind', '/fate-match', '/fate-trader', '/fate-pulse', '/fate-price', '/collection', '/binder/', '/graded-collection',
+  '/local-radar', '/encounters', '/retailers/', '/notification-preferences', '/dashboard', '/demo', '/tools',
 ];
 
 function DockItem({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
