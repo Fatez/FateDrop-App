@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 
-import FateBindersScreen from '@/screens/fate-binders-screen';
+import FateBindersScreen from '@/screens/fate-binders-screen-v2';
 
 export default function BindersRoute() {
   return <>
