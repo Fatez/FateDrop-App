@@ -7,19 +7,16 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const marketRoute = read('app/(tabs)/market.tsx');
+const market = read('screens/fate-market-screen-v2.tsx');
 const pulseRoute = read('app/fate-pulse.tsx');
-const marketHub = read('screens/fate-market-hub-screen.tsx');
 const pulseScreen = read('screens/fate-pulse-screen.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
 
-test('Fate Market routes through the three-area hub', () => {
-  assert.match(marketRoute, /fate-market-hub-screen/);
-  assert.match(marketHub, /FatePulse/);
-  assert.match(marketHub, /FatePrice/);
-  assert.match(marketHub, /Fate Collections/);
-  assert.match(marketHub, /route: '\/fate-pulse'/);
-  assert.match(marketHub, /route: '\/fate-price'/);
-  assert.match(marketHub, /route: '\/collection'/);
+test('Fate Market keeps the approved entry screen', () => {
+  assert.match(marketRoute, /fate-market-screen-v2/);
+  assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'FatePrice'/);
+  assert.match(market, /title: 'Collections'/);
 });
 
 test('FatePulse has the locked exploration roadmap', () => {
