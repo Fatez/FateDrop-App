@@ -20,8 +20,8 @@ test('Home uses one selected wallpaper as the continuous orbital theme', () => {
 });
 
 test('Home previews the approved Pulse and Collections snapshots without inventing figures', () => {
-  assert.match(home, /params: \{ area: 'pulse' \}/);
-  assert.match(home, /params: \{ area: 'collectors' \}/);
+  assert.match(home, /router\.push\('\/fate-pulse'\)/);
+  assert.match(home, /router\.push\('\/collections'\)/);
   assert.match(home, /FatePulse/);
   assert.match(home, /FATE COLLECTIONS/);
   assert.match(home, /period\.status !== 'available'/);
