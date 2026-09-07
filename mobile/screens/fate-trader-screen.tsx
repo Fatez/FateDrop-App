@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +14,8 @@ import {
   fateTraderCardLabel,
   FateTraderApiError,
   fetchTraderBinder,
+  fetchTraderOwnedItems,
+  stageTraderOwnedItem,
   fetchTraderSeries,
   fetchTraderSetCards,
   fetchTraderSets,
@@ -25,6 +27,8 @@ import {
   type FateTraderSeries,
   type FateTraderSet,
 } from '@/services/fate-trader';
+
+import type { FateCollectorItem } from '@/services/fate-collector';
 
 type Mode = 'have' | 'want' | 'find';
 type CopyState = 'raw' | 'graded';
@@ -58,7 +62,53 @@ function titleCase(value: string | null | undefined) {
 }
 
 export default function FateTraderScreen() {
-  const { signedIn } = useFateDropId();
+  const { signedIn, snapshot } = useFateDropId();
+  const accountId = snapshot?.user?.id;
+  const params = useLocalSearchParams<{ cardId?: string }>();
+  const [haveSource, setHaveSource] = useState<'collection' | 'new'>('collection');
+  const [ownedItems, setOwnedItems] = useState<FateCollectorItem[]>([]);
+  const [selectedOwned, setSelectedOwned] = useState<FateCollectorItem | null>(null);
+  const [ownedQuery, setOwnedQuery] = useState('');
+  const [ownedLoading, setOwnedLoading] = useState(false);
+  const [ownedError, setOwnedError] = useState('');
+  const [offeredQuantity, setOfferedQuantity] = useState('1');
+  const ownedGeneration = useRef(0);
+  const saveInFlight = useRef(false);
+  const currentAccount = useRef(accountId);
+  currentAccount.current = accountId;
+  const [cardFilterCleared, setCardFilterCleared] = useState(false);
+  const cardFilter = !cardFilterCleared && typeof params.cardId === 'string' ? params.cardId : '';
+  const visibleOwned = ownedItems.filter((item) => {
+    if (cardFilter && item.fateCardId !== cardFilter) return false;
+    const text = [item.card?.name, item.card?.setName, item.card?.collectorNumber, item.card?.variantCode, item.copyState, item.conditionCode, item.grading?.gradingCompany, item.grading?.gradeLabel].join(' ').toLowerCase();
+    return text.includes(ownedQuery.trim().toLowerCase());
+  });
+
+  const loadOwned = useCallback(async () => {
+    const generation = ++ownedGeneration.current;
+    setSelectedOwned(null);
+    setOwnedItems([]);
+    setOwnedError('');
+    if (!accountId) { setOwnedLoading(false); return; }
+    setOwnedLoading(true);
+    try {
+      const result = await fetchTraderOwnedItems();
+      if (generation !== ownedGeneration.current) return;
+      setOwnedItems(result.items || []);
+    } catch (cause) {
+      if (generation === ownedGeneration.current) setOwnedError(messageFor(cause, 'Could not load your collection.'));
+    } finally {
+      if (generation === ownedGeneration.current) setOwnedLoading(false);
+    }
+  }, [accountId]);
+  useFocusEffect(useCallback(() => {
+    setNotice('');
+    setError('');
+    setBinderCount(0);
+    setWantCount(0);
+    void loadOwned();
+    return () => { ownedGeneration.current += 1; };
+  }, [loadOwned]));
   const [mode, setMode] = useState<Mode>('have');
   const [series, setSeries] = useState<FateTraderSeries[]>([]);
   const [sets, setSets] = useState<FateTraderSet[]>([]);
@@ -97,6 +147,7 @@ export default function FateTraderScreen() {
   const selectedSet = useMemo(() => sets.find((item) => item.id === setId) || null, [sets, setId]);
 
   const loadMine = useCallback(async () => {
+    const accountAtStart = accountId;
     if (!signedIn) {
       setBinderCount(0);
       setWantCount(0);
@@ -104,16 +155,18 @@ export default function FateTraderScreen() {
     }
     try {
       const [binder, wants] = await Promise.all([fetchTraderBinder(), fetchTraderStructuredWants()]);
+      if (currentAccount.current !== accountAtStart) return;
       setBinderCount(binder.items?.length || 0);
       setWantCount(wants.count || wants.wants?.length || 0);
     } catch (cause) {
+      if (currentAccount.current !== accountAtStart) return;
       if (cause instanceof FateTraderApiError && cause.status === 401) {
         setError('Your FateDrop session has expired. Sign in again to use your Trade Binder and Wants.');
         return;
       }
       setError(messageFor(cause, 'Could not read your Fate Trader data.'));
     }
-  }, [signedIn]);
+  }, [signedIn, accountId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -186,7 +239,36 @@ export default function FateTraderScreen() {
   };
 
   const submitHave = async () => {
-    if (!selected || saving) return;
+    if (saving || saveInFlight.current) return;
+    if (haveSource === 'collection') {
+      if (!selectedOwned || !signedIn || ownedLoading) return;
+      const accountAtStart = accountId;
+      saveInFlight.current = true;
+      setSaving(true);
+      setError('');
+      setNotice('');
+      try {
+        const result = await stageTraderOwnedItem(selectedOwned, Number(offeredQuantity), {
+          tradeMode, localTradeAllowed: haveLocal, postalTradeAllowed: havePostal,
+          notes: haveNotes.trim() || undefined,
+        });
+        if (currentAccount.current !== accountAtStart) return;
+        setNotice(result.alreadyPresent
+          ? 'This owned item is already in your Trade Binder. Its existing terms and quantity were kept.'
+          : `${selectedOwned.card?.name || 'Your card'} is staged privately. Your owned quantity is unchanged.`);
+        await loadOwned();
+        await loadMine();
+      } catch (cause) {
+        if (currentAccount.current !== accountAtStart) return;
+        setError(messageFor(cause, 'Could not stage this owned card.'));
+        await loadOwned();
+      } finally {
+        saveInFlight.current = false;
+        setSaving(false);
+      }
+      return;
+    }
+    if (!selected) return;
     if (!signedIn) {
       setError('Sign in to add cards to your Trade Binder.');
       return;
@@ -294,7 +376,7 @@ export default function FateTraderScreen() {
       <FateDropBackground />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { void load(); void loadOwned(); }} tintColor={FateDropColors.gold} />}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -348,7 +430,35 @@ export default function FateTraderScreen() {
               </View>
             ) : null}
 
-            <View style={styles.panel}>
+            {mode === 'have' ? <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Choose where to start</Text>
+              <View style={styles.wrap}>
+                <ChoiceChip active={haveSource === 'collection'} label="From my collection" onPress={() => { if (!saving) { setHaveSource('collection'); setSelected(null); } }} />
+                <ChoiceChip active={haveSource === 'new'} label="Add an unrecorded card" onPress={() => { if (!saving) { setHaveSource('new'); setSelectedOwned(null); } }} />
+              </View>
+            </View> : null}
+
+            {mode === 'have' && haveSource === 'collection' ? <View style={styles.panel}>
+              <Text style={styles.sectionEyebrow}>STEP 1 · YOUR OWNED CARDS</Text>
+              <Text style={styles.sectionTitle}>Choose a card or slab</Text>
+              <Text style={styles.sectionCopy}>Use a saved holding with its exact card, condition and grading details.</Text>
+              <TextInput accessibilityLabel="Search your collection for trading" value={ownedQuery} onChangeText={setOwnedQuery} placeholder="Search owned cards, sets or grades…" placeholderTextColor={FateDropColors.muted} style={styles.searchInput} />
+              {cardFilter ? <ChoiceChip active label="Showing this card · Show all" onPress={() => setCardFilterCleared(true)} /> : null}
+              {ownedLoading ? <ActivityIndicator color={FateDropColors.gold} /> : null}
+              {ownedError ? <Text style={styles.hint}>{ownedError}</Text> : null}
+              <Pressable disabled={saving} onPress={() => void loadOwned()}><Text style={styles.hint}>Refresh collection</Text></Pressable>
+              <ScrollView nestedScrollEnabled style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
+                {visibleOwned.map((item) => <Pressable key={item.id} disabled={saving || !item.card} onPress={() => { setSelectedOwned(item); setOfferedQuantity(String(item.tradeQuantity || 1)); setNotice(''); }} style={[styles.cardResult, selectedOwned?.id === item.id && styles.cardResultSelected, !item.card && styles.disabled]}>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardName}>{item.card?.name || 'Card identity needs verification'}</Text>
+                    <Text style={styles.cardMeta}>{item.card?.setName} · #{item.card?.collectorNumber} · {item.card?.variantCode} · {item.card?.languageCode?.toUpperCase()}</Text>
+                    <Text style={styles.cardMeta}>{item.copyState === 'graded' ? `${item.grading?.gradingCompany} ${item.grading?.gradeLabel}` : titleCase(item.conditionCode)} · {item.quantity} owned</Text>
+                  </View>
+                </Pressable>)}
+              </ScrollView>
+              {!ownedLoading && !ownedError && !visibleOwned.length ? <Text style={styles.emptyText}>{signedIn ? 'No owned cards match. If you have not recorded this card yet, choose Add an unrecorded card.' : 'Sign in to see your collection.'}</Text> : null}
+              {ownedItems.length >= 2000 ? <Text style={styles.hint}>Showing the 2,000 most recently updated holdings.</Text> : null}
+            </View> : <View style={styles.panel}>
               <Text style={styles.sectionEyebrow}>STEP 1 · VERIFIED CARD IDENTITY</Text>
               <Text style={styles.sectionTitle}>Find the exact card</Text>
               <Text style={styles.sectionCopy}>Search directly, or narrow Pokémon by era/series and set. Free-text cards cannot become Trade Binder or Want identities.</Text>
@@ -397,25 +507,32 @@ export default function FateTraderScreen() {
                 ))}
                 {!loading && !cards.length ? <Text style={styles.emptyText}>No verified cards match this view yet.</Text> : null}
               </View>
-            </View>
+            </View>}
 
             <View style={styles.panel}>
               <Text style={styles.sectionEyebrow}>STEP 2 · TRADE CONDITIONS</Text>
               <Text style={styles.sectionTitle}>{mode === 'have' ? 'Tell FateDrop what you have' : 'Tell FateDrop what you want'}</Text>
               <Text style={styles.sectionCopy}>Only the information needed for this trade. You do not need to upload your whole collection.</Text>
 
-              {!selected ? (
+              {!(mode === 'have' && haveSource === 'collection' ? selectedOwned : selected) ? (
                 <View style={styles.selectPrompt}><Ionicons name="arrow-up-outline" size={21} color={FateDropColors.gold} /><Text style={styles.selectPromptTitle}>Select a verified card above</Text><Text style={styles.selectPromptCopy}>Your conditions will attach to that exact printing, variant and language.</Text></View>
               ) : <>
-                <View style={styles.selectedCard}>
+                {mode === 'have' && haveSource === 'collection' && selectedOwned ? <View style={styles.selectedCard}>
+                  <Text style={styles.selectedEyebrow}>FROM YOUR COLLECTION</Text>
+                  <Text style={styles.selectedTitle}>{selectedOwned.card?.name} · #{selectedOwned.card?.collectorNumber}</Text>
+                  <Text style={styles.selectedMeta}>{selectedOwned.card?.setName} · {selectedOwned.card?.variantCode} · {selectedOwned.card?.languageCode?.toUpperCase()}</Text>
+                  <Text style={styles.selectedMeta}>{selectedOwned.copyState === 'graded' ? `${selectedOwned.grading?.gradingCompany} ${selectedOwned.grading?.gradeLabel} · Cert ${selectedOwned.grading?.certificationNumber || 'not recorded'}` : titleCase(selectedOwned.conditionCode)}</Text>
+                  <TextField label={`COPIES TO OFFER · ${selectedOwned.quantity} OWNED`} value={offeredQuantity} onChangeText={setOfferedQuantity} placeholder="1" keyboardType="decimal-pad" />
+                  <Text style={styles.footnote}>Offering copies keeps them in your collection. Saved condition and grading details are preserved.</Text>
+                </View> : selected ? <View style={styles.selectedCard}>
                   <Text style={styles.selectedEyebrow}>SELECTED</Text>
                   <Text style={styles.selectedTitle}>{fateTraderCardLabel(selected)}</Text>
                   <Text style={styles.selectedMeta}>{selected.seriesName || 'Pokémon'} · {selected.setName || 'Unknown set'} · {selected.languageCode.toUpperCase()}</Text>
-                </View>
+                </View> : null}
 
                 {mode === 'have' ? <>
-                  <FieldGroup label="CARD TYPE"><View style={styles.wrap}><ChoiceChip active={copyState === 'raw'} label="Raw card" onPress={() => setCopyState('raw')} /><ChoiceChip active={copyState === 'graded'} label="Graded slab" onPress={() => setCopyState('graded')} /></View></FieldGroup>
-                  {copyState === 'raw' ? <FieldGroup label="CONDITION"><View style={styles.wrap}>{CONDITIONS.map(([value, label]) => <ChoiceChip key={value} active={conditionCode === value} label={label} onPress={() => setConditionCode(value)} />)}</View></FieldGroup> : <View style={styles.twoCol}><TextField label="GRADING COMPANY" value={gradingCompany} onChangeText={setGradingCompany} placeholder="PSA" /><TextField label="GRADE" value={gradeLabel} onChangeText={setGradeLabel} placeholder="10" keyboardType="decimal-pad" /></View>}
+                  {haveSource === 'new' ? <><Text style={styles.footnote}>This records one new owned copy and stages it for trade. Use From my collection if you already recorded it.</Text><FieldGroup label="CARD TYPE"><View style={styles.wrap}><ChoiceChip active={copyState === 'raw'} label="Raw card" onPress={() => setCopyState('raw')} /><ChoiceChip active={copyState === 'graded'} label="Graded slab" onPress={() => setCopyState('graded')} /></View></FieldGroup>
+                  {copyState === 'raw' ? <FieldGroup label="CONDITION"><View style={styles.wrap}>{CONDITIONS.map(([value, label]) => <ChoiceChip key={value} active={conditionCode === value} label={label} onPress={() => setConditionCode(value)} />)}</View></FieldGroup> : <View style={styles.twoCol}><TextField label="GRADING COMPANY" value={gradingCompany} onChangeText={setGradingCompany} placeholder="PSA" /><TextField label="GRADE" value={gradeLabel} onChangeText={setGradeLabel} placeholder="10" keyboardType="decimal-pad" /></View>}</> : null}
                   <FieldGroup label="WHAT ARE YOU OPEN TO?"><View style={styles.wrap}>{TRADE_MODES.map(([value, label]) => <ChoiceChip key={value} active={tradeMode === value} label={label} onPress={() => setTradeMode(value)} />)}</View></FieldGroup>
                   <TradeMethods local={haveLocal} postal={havePostal} onLocal={setHaveLocal} onPostal={setHavePostal} />
                   <TextField label="OPTIONAL NOTE" value={haveNotes} onChangeText={setHaveNotes} placeholder="Anything another collector should know…" multiline />
