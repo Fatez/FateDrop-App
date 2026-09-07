@@ -1,5 +1,5 @@
-import FatePulseScreenV2 from '@/screens/fate-pulse-screen-v2';
+import MyPulseInvestorScreen from '@/screens/my-pulse-investor-screen';
 
 export default function MyPulseRoute() {
-  return <FatePulseScreenV2 initialView="watchlist" />;
+  return <MyPulseInvestorScreen />;
 }
