@@ -1,1 +1,1 @@
-export { default } from '@/screens/profile-screen-v2';
+export { default } from '@/screens/profile-screen-v3';
