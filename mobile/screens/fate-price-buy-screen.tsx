@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
+import { FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 import {
@@ -143,7 +145,7 @@ export default function FatePriceBuyScreen() {
       </View>
 
       <View style={styles.cardPanel}>
-        <FatePriceCardGlyph collectorNumber={collectorNumber} />
+        <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={collectorNumber} width={54} height={76} />
         <View style={styles.cardCopy}><Text style={styles.cardName}>{title}</Text><Text style={styles.cardMeta}>{setName} · #{collectorNumber || '—'}</Text><Text style={styles.cardVariant}>{pretty(card?.variantCode)} · {(card?.languageCode || '—').toUpperCase()} · {card?.rarity || 'Rarity not supplied'}</Text></View>
         <View style={styles.priceBlock}><Text style={styles.priceLabel}>FATEPRICE</Text><Text style={styles.priceValue}>{money(price?.price?.amount)}</Text><Text style={styles.fairRange}>{price?.price ? `${money(price.price.fairLow)}–${money(price.price.fairHigh)}` : 'Fair range unknown'}</Text></View>
       </View>
