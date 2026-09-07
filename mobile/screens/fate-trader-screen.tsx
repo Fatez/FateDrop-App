@@ -14,14 +14,17 @@ import {
   fateTraderCardLabel,
   FateTraderApiError,
   fetchTraderBinder,
+  fetchTraderFinder,
   fetchTraderSeries,
   fetchTraderSetCards,
   fetchTraderSets,
   fetchTraderStructuredWants,
+  patchTraderBinderSettings,
   putTraderExactWant,
   putTraderStructuredWant,
   searchTraderCards,
   type FateTraderCard,
+  type FateTraderOpportunity,
   type FateTraderSeries,
   type FateTraderSet,
 } from '@/services/fate-trader';
@@ -29,6 +32,7 @@ import {
 type Mode = 'have' | 'want' | 'find';
 type CopyState = 'raw' | 'graded';
 type WantCopyState = 'any' | 'raw' | 'graded';
+type FinderState = 'idle' | 'loading' | 'dark' | 'ready' | 'error';
 
 const CONDITIONS = [
   ['mint', 'Mint'],
@@ -75,6 +79,12 @@ export default function FateTraderScreen() {
   const [binderCount, setBinderCount] = useState(0);
   const [wantCount, setWantCount] = useState(0);
 
+  const [finderState, setFinderState] = useState<FinderState>('idle');
+  const [finderMessage, setFinderMessage] = useState('');
+  const [finderOpportunities, setFinderOpportunities] = useState<FateTraderOpportunity[]>([]);
+  const [finderSearchedWants, setFinderSearchedWants] = useState(0);
+  const [finderOffersConsidered, setFinderOffersConsidered] = useState(0);
+
   const [copyState, setCopyState] = useState<CopyState>('raw');
   const [conditionCode, setConditionCode] = useState('near_mint');
   const [gradingCompany, setGradingCompany] = useState('PSA');
@@ -83,6 +93,7 @@ export default function FateTraderScreen() {
   const [haveLocal, setHaveLocal] = useState(true);
   const [havePostal, setHavePostal] = useState(true);
   const [haveNotes, setHaveNotes] = useState('');
+  const [shareToNetwork, setShareToNetwork] = useState(false);
 
   const [wantCopyState, setWantCopyState] = useState<WantCopyState>('any');
   const [minimumCondition, setMinimumCondition] = useState('near_mint');
@@ -112,6 +123,38 @@ export default function FateTraderScreen() {
         return;
       }
       setError(messageFor(cause, 'Could not read your Fate Trader data.'));
+    }
+  }, [signedIn]);
+
+  const loadFinder = useCallback(async () => {
+    setFinderMessage('');
+    setFinderOpportunities([]);
+    setFinderSearchedWants(0);
+    setFinderOffersConsidered(0);
+    if (!signedIn) {
+      setFinderState('idle');
+      return;
+    }
+    setFinderState('loading');
+    try {
+      const result = await fetchTraderFinder(50);
+      setFinderOpportunities(result.opportunities || []);
+      setFinderSearchedWants(result.searchedWants || 0);
+      setFinderOffersConsidered(result.networkOffersConsidered || 0);
+      setFinderState('ready');
+    } catch (cause) {
+      if (cause instanceof FateTraderApiError && cause.status === 404 && cause.code === 'NOT_FOUND') {
+        setFinderState('dark');
+        setFinderMessage('Trade Network matching is currently gated. FateDrop will not show synthetic or unverified collector matches.');
+        return;
+      }
+      if (cause instanceof FateTraderApiError && cause.status === 401) {
+        setFinderState('error');
+        setFinderMessage('Your FateDrop session has expired. Sign in again to use Fate Trade Finder.');
+        return;
+      }
+      setFinderState('error');
+      setFinderMessage(messageFor(cause, 'Fate Trade Finder could not load verified opportunities.'));
     }
   }, [signedIn]);
 
@@ -216,10 +259,18 @@ export default function FateTraderScreen() {
     try {
       const created = await createTraderCollectionItem(itemBody);
       try {
+        if (shareToNetwork) {
+          await patchTraderBinderSettings({
+            visibility: 'network',
+            status: 'active',
+            localTradeAllowed: haveLocal,
+            postalTradeAllowed: havePostal,
+          });
+        }
         await createTraderBinderItem({
           collectionItemId: created.item.id,
           tradeMode,
-          visibility: 'private',
+          visibility: shareToNetwork ? 'network' : 'private',
           localTradeAllowed: haveLocal,
           postalTradeAllowed: havePostal,
           notes: haveNotes.trim() || undefined,
@@ -228,13 +279,16 @@ export default function FateTraderScreen() {
         try {
           await deleteTraderCollectionItem(created.item.id, created.item.revision);
         } catch {
-          // Preserve the primary Binder error. The collection entry remains owned
-          // by the user and is not equivalent to a public trade listing.
+          // Preserve the primary Binder error. A retained Collection row does not
+          // become network-visible without a valid Binder item.
         }
         throw binderError;
       }
-      setNotice(`${fateTraderCardLabel(selected)} is staged in your private Trade Binder. It is not a public listing yet.`);
+      setNotice(shareToNetwork
+        ? `${fateTraderCardLabel(selected)} is live for privacy-safe Trade Network matching.`
+        : `${fateTraderCardLabel(selected)} is staged in your private Trade Binder.`);
       await loadMine();
+      if (shareToNetwork && mode === 'find') await loadFinder();
     } catch (cause) {
       setError(messageFor(cause, 'Could not add this card to your Trade Binder.'));
     } finally {
@@ -289,12 +343,19 @@ export default function FateTraderScreen() {
     }
   };
 
+  const openFinder = () => {
+    setMode('find');
+    setNotice('');
+    setError('');
+    void loadFinder();
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FateDropBackground />
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.gold} />}
+        refreshControl={<RefreshControl refreshing={mode === 'find' ? finderState === 'loading' : loading} onRefresh={() => void (mode === 'find' ? loadFinder() : load())} tintColor={FateDropColors.gold} />}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -312,7 +373,7 @@ export default function FateTraderScreen() {
           <View style={styles.heroStats}>
             <Stat value={String(binderCount)} label="MY TRADE ITEMS" />
             <Stat value={String(wantCount)} label="MY WANTS" />
-            <Stat value="—" label="FINDER NEXT" />
+            <Stat value={finderState === 'ready' ? String(finderOpportunities.length) : '—'} label="FINDER MATCHES" />
           </View>
         </View>
 
@@ -325,18 +386,39 @@ export default function FateTraderScreen() {
         <View style={styles.modeGrid}>
           <ModeButton active={mode === 'have'} icon="albums-outline" title="I HAVE" copy="Put a card or slab forward." onPress={() => { setMode('have'); setNotice(''); }} />
           <ModeButton active={mode === 'want'} icon="search-outline" title="I WANT" copy="Set an exact card Want." onPress={() => { setMode('want'); setNotice(''); }} />
-          <ModeButton active={mode === 'find'} icon="git-compare-outline" title="FIND" copy="Verified opportunities only." onPress={() => { setMode('find'); setNotice(''); }} />
+          <ModeButton active={mode === 'find'} icon="git-compare-outline" title="FIND" copy="Verified opportunities only." onPress={openFinder} />
         </View>
 
         {mode === 'find' ? (
           <View style={styles.finderCard}>
             <Text style={styles.sectionEyebrow}>FATE TRADE FINDER</Text>
-            <Text style={styles.finderTitle}>Finder stays honest until network matching is exposed.</Text>
-            <Text style={styles.finderCopy}>The compatibility engine is being built around real collector intentions, but the live matching route is not exposed yet. FateDrop will not invent example matches and present them as real collectors.</Text>
-            <FinderStep number="1" text="Add exact cards you genuinely have available to trade." />
-            <FinderStep number="2" text="Add exact Wants and the raw / graded conditions you accept." />
-            <FinderStep number="3" text="The Trade Network will revalidate both sides before surfacing compatibility." />
-            <FinderStep number="4" text="Only strict reciprocal evidence can become FATE TRADE FOUND." />
+            {!signedIn ? <>
+              <Text style={styles.finderTitle}>Sign in to find compatible trades.</Text>
+              <Text style={styles.finderCopy}>Finder uses your exact Wants privately against active Trade Network offers. It does not expose your account identity or notes in match results.</Text>
+              <Pressable onPress={() => router.push('/account')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>SIGN IN</Text></Pressable>
+            </> : finderState === 'loading' ? (
+              <View style={styles.finderLoading}><ActivityIndicator color={FateDropColors.gold} /><Text style={styles.finderCopy}>Checking verified network intentions…</Text></View>
+            ) : finderState === 'dark' ? <>
+              <Text style={styles.finderTitle}>Finder is safely gated.</Text>
+              <Text style={styles.finderCopy}>{finderMessage}</Text>
+              <FinderStep number="1" text="Your Binder and Wants remain usable while matching is gated." />
+              <FinderStep number="2" text="No demo or fabricated collectors are substituted for real network evidence." />
+            </> : finderState === 'error' ? <>
+              <Text style={styles.finderTitle}>Finder needs attention.</Text>
+              <Text style={styles.finderCopy}>{finderMessage}</Text>
+              <Pressable onPress={() => void loadFinder()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>TRY AGAIN</Text></Pressable>
+            </> : finderState === 'ready' && finderOpportunities.length === 0 ? <>
+              <Text style={styles.finderTitle}>No verified opportunities yet.</Text>
+              <Text style={styles.finderCopy}>FateDrop checked your active Wants against currently eligible network trade items and found no compatible evidence to surface.</Text>
+              <View style={styles.finderMetaRow}><FinderMeta value={finderSearchedWants} label="WANTS CHECKED" /><FinderMeta value={finderOffersConsidered} label="OFFERS CONSIDERED" /></View>
+              <FinderStep number="1" text="Add exact Wants with the conditions you genuinely accept." />
+              <FinderStep number="2" text="Share only the HAVE items you want eligible for Trade Network matching." />
+            </> : <>
+              <Text style={styles.finderTitle}>Verified trade opportunities.</Text>
+              <Text style={styles.finderCopy}>Ranked from structured collector intentions only. Compatibility is evidence, not a price or fairness judgement.</Text>
+              <View style={styles.finderMetaRow}><FinderMeta value={finderSearchedWants} label="WANTS CHECKED" /><FinderMeta value={finderOffersConsidered} label="OFFERS CONSIDERED" /></View>
+              <View style={styles.finderResults}>{finderOpportunities.map((opportunity) => <FinderOpportunityCard key={opportunity.id} opportunity={opportunity} />)}</View>
+            </>}
           </View>
         ) : (
           <>
@@ -418,9 +500,11 @@ export default function FateTraderScreen() {
                   {copyState === 'raw' ? <FieldGroup label="CONDITION"><View style={styles.wrap}>{CONDITIONS.map(([value, label]) => <ChoiceChip key={value} active={conditionCode === value} label={label} onPress={() => setConditionCode(value)} />)}</View></FieldGroup> : <View style={styles.twoCol}><TextField label="GRADING COMPANY" value={gradingCompany} onChangeText={setGradingCompany} placeholder="PSA" /><TextField label="GRADE" value={gradeLabel} onChangeText={setGradeLabel} placeholder="10" keyboardType="decimal-pad" /></View>}
                   <FieldGroup label="WHAT ARE YOU OPEN TO?"><View style={styles.wrap}>{TRADE_MODES.map(([value, label]) => <ChoiceChip key={value} active={tradeMode === value} label={label} onPress={() => setTradeMode(value)} />)}</View></FieldGroup>
                   <TradeMethods local={haveLocal} postal={havePostal} onLocal={setHaveLocal} onPostal={setHavePostal} />
+                  <FieldGroup label="TRADE NETWORK VISIBILITY"><View style={styles.wrap}><ChoiceChip active={!shareToNetwork} label="Keep private" onPress={() => setShareToNetwork(false)} /><ChoiceChip active={shareToNetwork} label="Share to Trade Network" onPress={() => setShareToNetwork(true)} /></View></FieldGroup>
+                  <Text style={styles.footnote}>Network sharing is optional and off by default. It makes this structured trade item eligible for matching; Finder does not return your account ID or private note.</Text>
                   <TextField label="OPTIONAL NOTE" value={haveNotes} onChangeText={setHaveNotes} placeholder="Anything another collector should know…" multiline />
                   <Pressable disabled={saving || !signedIn} onPress={() => void submitHave()} style={[styles.primaryButton, (saving || !signedIn) && styles.disabled]}>{saving ? <ActivityIndicator color={FateDropColors.background} /> : <Text style={styles.primaryButtonText}>ADD TO MY TRADE ITEMS</Text>}</Pressable>
-                  <Text style={styles.footnote}>This is staged privately in your Trade Binder. It is not a public listing until the authoritative Trade Network phase is enabled.</Text>
+                  <Text style={styles.footnote}>{shareToNetwork ? 'This item will be eligible for verified Trade Network matching.' : 'This item will remain private in your Trade Binder.'}</Text>
                 </> : <>
                   <FieldGroup label="WHAT COPY WOULD YOU ACCEPT?"><View style={styles.wrap}><ChoiceChip active={wantCopyState === 'any'} label="Raw or graded" onPress={() => setWantCopyState('any')} /><ChoiceChip active={wantCopyState === 'raw'} label="Raw only" onPress={() => setWantCopyState('raw')} /><ChoiceChip active={wantCopyState === 'graded'} label="Graded only" onPress={() => setWantCopyState('graded')} /></View></FieldGroup>
                   {wantCopyState === 'raw' ? <FieldGroup label="MINIMUM CONDITION"><View style={styles.wrap}>{CONDITIONS.map(([value, label]) => <ChoiceChip key={value} active={minimumCondition === value} label={label} onPress={() => setMinimumCondition(value)} />)}</View></FieldGroup> : null}
@@ -436,7 +520,7 @@ export default function FateTraderScreen() {
 
         <View style={styles.safetyCard}>
           <Ionicons name="shield-checkmark-outline" size={21} color={FateDropColors.gold} />
-          <View style={styles.flex}><Text style={styles.safetyTitle}>Compatibility is not valuation</Text><Text style={styles.safetyCopy}>Fate Trader will connect stated trade intentions. It does not decide financial fairness, authenticity or card condition for you. Exact identity and trade conditions remain explicit.</Text></View>
+          <View style={styles.flex}><Text style={styles.safetyTitle}>Compatibility is not valuation</Text><Text style={styles.safetyCopy}>Fate Trader connects stated trade intentions. It does not decide financial fairness, authenticity or card condition for you. Exact identity and trade conditions remain explicit.</Text></View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -469,6 +553,26 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function FinderStep({ number, text }: { number: string; text: string }) {
   return <View style={styles.finderStep}><View style={styles.finderNumber}><Text style={styles.finderNumberText}>{number}</Text></View><Text style={styles.finderStepText}>{text}</Text></View>;
+}
+
+function FinderMeta({ value, label }: { value: number; label: string }) {
+  return <View style={styles.finderMeta}><Text style={styles.finderMetaValue}>{value}</Text><Text style={styles.finderMetaLabel}>{label}</Text></View>;
+}
+
+function FinderOpportunityCard({ opportunity }: { opportunity: FateTraderOpportunity }) {
+  const card = opportunity.card;
+  const cardTitle = card?.name || 'Verified card';
+  const cardMeta = [card?.setName, card?.collectorNumber ? `#${card.collectorNumber}` : null, card?.variantCode ? titleCase(card.variantCode) : null].filter(Boolean).join(' · ');
+  const methods = (opportunity.commonTradeMethods || []).map(titleCase).join(' + ');
+  return <View style={styles.finderOpportunity}>
+    <View style={styles.finderOpportunityTop}>
+      <View style={styles.flex}><Text style={styles.finderOpportunityClass}>{opportunity.fateTradeFoundEligible ? 'FATE TRADE FOUND' : titleCase(opportunity.opportunityClass)}</Text><Text style={styles.finderOpportunityTitle}>{cardTitle}</Text><Text style={styles.finderOpportunityMeta}>{cardMeta || 'Canonical FateDrop identity'}</Text></View>
+      <View style={styles.finderScore}><Text style={styles.finderScoreValue}>{Math.round(opportunity.score || 0)}</Text><Text style={styles.finderScoreLabel}>MATCH</Text></View>
+    </View>
+    <Text style={styles.finderHeadline}>{opportunity.headline}</Text>
+    {methods ? <Text style={styles.finderEvidence}>Trade method: {methods}</Text> : null}
+    {(opportunity.evidence || []).slice(0, 3).map((evidence) => <Text key={evidence} style={styles.finderEvidence}>• {titleCase(evidence)}</Text>)}
+  </View>;
 }
 
 function Notice({ tone, title, copy }: { tone: 'warning' | 'error' | 'success'; title: string; copy: string }) {
@@ -546,11 +650,29 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 78, paddingTop: 10, textAlignVertical: 'top' },
   primaryButton: { minHeight: 47, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: FateDropColors.goldBright, marginTop: 15 },
   primaryButtonText: { color: FateDropColors.background, fontSize: 10, fontWeight: '900', letterSpacing: .7 },
+  secondaryButton: { minHeight: 43, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}66`, backgroundColor: `${FateDropColors.gold}0D`, marginTop: 8 },
+  secondaryButtonText: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .6 },
   disabled: { opacity: .45 },
   footnote: { color: FateDropColors.muted, fontSize: 9, lineHeight: 13, marginTop: 7 },
   finderCard: { padding: 19, borderRadius: 21, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: FateDropColors.surface, marginBottom: 12 },
   finderTitle: { color: FateDropColors.ivory, fontFamily: Fonts?.serif, fontSize: 24, lineHeight: 28, fontWeight: '700', marginTop: 5 },
   finderCopy: { color: FateDropColors.secondary, fontSize: 12, lineHeight: 18, marginTop: 7, marginBottom: 14 },
+  finderLoading: { alignItems: 'center', paddingVertical: 24 },
+  finderMetaRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  finderMeta: { flex: 1, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: FateDropColors.borderSoft, backgroundColor: FateDropColors.card },
+  finderMetaValue: { color: FateDropColors.ivory, fontSize: 17, fontWeight: '900' },
+  finderMetaLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .5, marginTop: 2 },
+  finderResults: { gap: 8 },
+  finderOpportunity: { padding: 13, borderRadius: 15, borderWidth: 1, borderColor: `${FateDropColors.gold}44`, backgroundColor: FateDropColors.card },
+  finderOpportunityTop: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  finderOpportunityClass: { color: FateDropColors.gold, fontSize: 8, fontWeight: '900', letterSpacing: .8 },
+  finderOpportunityTitle: { color: FateDropColors.ivory, fontSize: 14, fontWeight: '900', marginTop: 3 },
+  finderOpportunityMeta: { color: FateDropColors.secondary, fontSize: 10, marginTop: 2 },
+  finderScore: { minWidth: 48, alignItems: 'center', justifyContent: 'center', padding: 7, borderRadius: 11, backgroundColor: `${FateDropColors.gold}10`, borderWidth: 1, borderColor: `${FateDropColors.gold}44` },
+  finderScoreValue: { color: FateDropColors.goldBright, fontSize: 16, fontWeight: '900' },
+  finderScoreLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', marginTop: 1 },
+  finderHeadline: { color: FateDropColors.ivory, fontSize: 11, fontWeight: '800', lineHeight: 16, marginTop: 9 },
+  finderEvidence: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, marginTop: 3 },
   finderStep: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   finderNumber: { width: 29, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${FateDropColors.gold}55`, backgroundColor: `${FateDropColors.gold}0D` },
   finderNumberText: { color: FateDropColors.goldBright, fontSize: 11, fontWeight: '900' },
