@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FatePriceCardGlyph } from '@/components/fate-price-chrome';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
@@ -591,7 +592,7 @@ function FollowedCardRow({ follow, rank, currentPrice, currency, movementPercent
   return (
     <View style={styles.marketRow}>
       <Text style={styles.rank}>{rank}</Text>
-      <FatePriceCardGlyph collectorNumber={follow.collectorNumber} />
+      <CanonicalThumbnail kind="card" setId={follow.setId} collectorNumber={follow.collectorNumber} width={48} height={67} />
       <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: follow.cardIdentityId, name: follow.name, setName: follow.setName, collectorNumber: follow.collectorNumber, printingId: follow.printingId, tcg: follow.tcgCode || '' } })} style={({ pressed }) => [styles.rowMain, pressed && styles.rowMainPressed]}>
         <View style={styles.rowCopy}><Text numberOfLines={1} style={styles.rowTitle}>{follow.name}</Text><Text numberOfLines={1} style={styles.rowMeta}>{follow.setName}{follow.collectorNumber ? ` · #${follow.collectorNumber}` : ''}</Text></View>
         <View style={styles.rowNumbers}><Text style={styles.rowPrice}>{formatMoney(currentPrice, currency)}</Text><Text style={[styles.rowMovement, { color: movementAccent(movementPercent) }]}>{movement(movementPercent)}</Text></View>
