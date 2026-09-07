@@ -61,6 +61,12 @@ export type FateCollectorSetBinder = {
   totalCount: number | null;
   missingCount: number | null;
   completionPercent: number | null;
+  exactOwnedCount?: number | null;
+  userConfirmedCount?: number | null;
+  exactIdentityConfirmationNeededCount?: number | null;
+  hasUserCompletionAssertion?: boolean;
+  ownershipPolicy?: 'exact_identity_or_user_confirmed_printing';
+  valuationPolicy?: 'exact_identity_only';
   explicitlyTracked?: boolean;
   missingCards?: FateCollectorMissingCard[];
   topMissingCards?: FateCollectorMissingCard[];
@@ -165,6 +171,39 @@ export type FateCollectorSetProgressSnapshot = {
   };
 };
 
+export type FateCollectorSetCompletionPreview = {
+  contractVersion: 1;
+  mode: 'preview_only';
+  set: { id: string; name: string | null; tcgCode: string | null };
+  progress: FateCollectorSetBinder;
+  action: {
+    printingCount: number;
+    createsExactCardItems: false;
+    changesCollectionValue: false;
+    defaultQuantity: 1;
+    copyState: 'raw';
+    exactFinish: null;
+    conditionCode: null;
+  };
+  requiresUserConfirmation: boolean;
+  confirmationToken: string;
+  truth: {
+    ownershipScope: 'verified_printing_checklist';
+    valuationPolicy: 'exact_identity_only';
+    message: string;
+  };
+};
+
+export type FateCollectorSetCompletionResult = {
+  contractVersion: 1;
+  mode: 'confirmed_set_completion';
+  confirmed: true;
+  duplicate: boolean;
+  writesPerformed: boolean;
+  newlyConfirmedPrintingCount: number;
+  progress: FateCollectorSetBinder;
+};
+
 export type FateCollectorMissingCard = {
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
@@ -230,7 +269,9 @@ export type FateCollectorsDashboardSnapshot = Omit<FateCollectorsSnapshot, 'summ
   evidence: FateCollectorsSnapshot['evidence'] & {
     personalPulseConnected?: boolean;
     gradedCollectionValuesConnected?: boolean;
-    binderOwnershipPolicy?: 'raw_only';
+    binderOwnershipPolicy?: 'raw_only' | 'raw_exact_or_user_confirmed_printing';
+    assertedPrintingValuationPolicy?: 'excluded_until_exact_identity_confirmed';
+    exactIdentityConfirmationNeededCount?: number;
     personalMovementPolicy?: 'raw_only';
   };
 };
@@ -408,6 +449,38 @@ export async function fetchFateCollectorSetProgress(setId: string) {
   const id = setId.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
   const { data } = await authenticatedRequest<FateCollectorSetProgressSnapshot>(`/v1/collectors/sets/${encodeURIComponent(id)}/progress?currency=GBP&language=en&variant=standard`);
+  return data;
+}
+
+export async function previewFateCollectorSetCompletion(setId: string) {
+  const id = setId.trim();
+  if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
+  const { data } = await authenticatedRequest<FateCollectorSetCompletionPreview>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete/preview?language=en&variant=standard`, {
+    method: 'POST',
+  });
+  return data;
+}
+
+export async function confirmFateCollectorSetCompletion(setId: string, confirmationToken: string) {
+  const id = setId.trim();
+  const token = confirmationToken.trim();
+  if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
+  if (!token) throw new FateCollectorApiError('Preview this set before confirming it.', 400, 'SET_COMPLETION_TOKEN_REQUIRED');
+  const { data } = await authenticatedRequest<FateCollectorSetCompletionResult>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmationToken: token, confirmed: true, preferredLanguageCode: 'en', preferredVariantCode: 'standard' }),
+  });
+  invalidateFateCollectorCache();
+  return data;
+}
+
+export async function removeFateCollectorSetCompletion(setId: string) {
+  const id = setId.trim();
+  if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
+  const { data } = await authenticatedRequest<{ contractVersion: 1; removed: boolean; progress: FateCollectorSetBinder }>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete`, {
+    method: 'DELETE',
+  });
+  invalidateFateCollectorCache();
   return data;
 }
 

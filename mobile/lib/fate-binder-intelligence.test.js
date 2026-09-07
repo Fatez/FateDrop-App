@@ -30,3 +30,20 @@ test('Binder is ready for exact Cloud-ranked top missing cards', () => {
   assert.match(binder, /Highest-priced known cards left/);
   assert.match(binder, /binder\?\.topMissingCards\?\.slice\(0, 3\)/);
 });
+
+test('Binder completion is previewed, explicitly confirmed and kept outside exact value', () => {
+  assert.match(service, /\/complete\/preview\?language=en&variant=standard/);
+  assert.match(service, /\/complete\/confirm/);
+  assert.match(service, /createsExactCardItems: false/);
+  assert.match(service, /changesCollectionValue: false/);
+  assert.match(binder, /MARK CHECKLIST COMPLETE/);
+  assert.match(binder, /No finish, condition or price will be invented/);
+  assert.match(binder, /confirmFateCollectorSetCompletion/);
+  assert.match(binder, /removeFateCollectorSetCompletion/);
+});
+
+test('a missing binder card opens the universal exact-card retailer comparison', () => {
+  assert.match(binder, /pathname: '\/fate-price-buy'/);
+  assert.match(binder, /BUY THIS CARD/);
+  assert.match(binder, /cardId: card\.fateCardId/);
+});

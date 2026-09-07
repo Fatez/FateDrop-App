@@ -42,6 +42,10 @@ test('Where to Buy consumes Cloud-owned delivered-price verdicts and safe retail
   assert.match(buy, /offer\.comparison\.status/);
   assert.match(buy, /DELIVERED TOTAL/);
   assert.match(buy, /safeExternalHttpsUrl\(offer\.url\)/);
+  assert.match(buy, /openTrackedRetailerLink/);
+  assert.match(buy, /placement: 'fate-price-buy'/);
+  assert.match(buy, /LOWEST VERIFIED TOTAL/);
+  assert.match(buy, /Unknown postage stays unknown and cannot be labelled the lowest total/);
   assert.match(buy, /Retail listings stay a separate live availability signal/);
   assert.doesNotMatch(buy, /function\s+(?:calculate|classify|score).*(?:price|offer|verdict)/i);
 });

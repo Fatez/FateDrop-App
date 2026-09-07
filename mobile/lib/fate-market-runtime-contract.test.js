@@ -39,6 +39,9 @@ test('Collection Intelligence and zero-owned binders consume Cloud-owned contrac
   assert.match(collectorService, /\/v1\/collectors\/intelligence\?currency=GBP/);
   assert.match(collectorService, /\/v1\/collectors\/sets\/\$\{encodeURIComponent\(id\)\}\/progress/);
   assert.match(collectorService, /\/v1\/collectors\/binders\/\$\{encodeURIComponent\(id\)\}/);
+  assert.match(collectorService, /\/v1\/collectors\/sets\/\$\{encodeURIComponent\(id\)\}\/complete\/preview/);
+  assert.match(collectorService, /\/v1\/collectors\/sets\/\$\{encodeURIComponent\(id\)\}\/complete\/confirm/);
+  assert.match(collectorService, /assertedPrintingValuationPolicy/);
   assert.match(intelligence, /same cards and quantities are compared at both dates/i);
   assert.match(intelligence, /Duplicate copies stay one card identity/i);
   assert.doesNotMatch(intelligence, /function\s+(?:calculate|score).*(?:price|market movement)/i);
