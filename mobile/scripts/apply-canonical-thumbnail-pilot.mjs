@@ -2,10 +2,10 @@ import fs from 'node:fs';
 
 function patch(path, replacements) {
   let text = fs.readFileSync(path, 'utf8');
-  for (const [from, to] of replacements) {
+  for (const [from, to, expected = 1] of replacements) {
     const count = text.split(from).length - 1;
-    if (count !== 1) throw new Error(`${path}: expected exactly one match, found ${count}: ${from.slice(0, 80)}`);
-    text = text.replace(from, to);
+    if (count !== expected) throw new Error(`${path}: expected exactly ${expected} match${expected === 1 ? '' : 'es'}, found ${count}: ${from.slice(0, 80)}`);
+    text = text.split(from).join(to);
   }
   fs.writeFileSync(path, text);
 }
@@ -51,11 +51,8 @@ patch('mobile/screens/fate-collection-browser-screen.tsx', [
   ],
   [
     '{art ? <Image source={{ uri: art }} style={styles.cardArt} contentFit="contain" cachePolicy="memory-disk" /> : <CardPlaceholder />}',
-    '<CanonicalThumbnail kind="card" setId={card.setId} collectorNumber={card.collectorNumber} sourceUrl={art} width={48} height={68} />',
-  ],
-  [
-    '{art ? <Image source={{ uri: art }} style={styles.cardArt} contentFit="contain" cachePolicy="memory-disk" /> : <CardPlaceholder />}',
     '<CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={48} height={68} />',
+    2,
   ],
   [
     '<View style={styles.setIcon}><Ionicons name="albums-outline" size={24} color={FateDropColors.goldBright} /></View>',
