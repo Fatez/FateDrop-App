@@ -35,12 +35,13 @@ test('binder failure preserves holding and describes partial success', async () 
   await assert.rejects(stageOwnedTrade({ item, tradeQuantity: 1, terms }, api), /Trade availability may have been saved/);
   assert.deepEqual(calls, [['patch', item.id, { tradeQuantity: 1, expectedRevision: 7 }]]);
 });
-test('an already tradeable slab needs no ownership update', async () => {
+test('an already tradeable slab checks its revision without changing ownership', async () => {
   const slab = { ...item, quantity: 1, tradeQuantity: 1, copyState: 'graded', grading: { certificationNumber: '123', certificationStatus: 'verified' } };
   const { calls, api } = setup();
   await stageOwnedTrade({ item: slab, tradeQuantity: 1, terms }, api);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0][0], 'binder');
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], ['patch', item.id, { tradeQuantity: 1, expectedRevision: 7 }]);
+  assert.equal(calls[1][0], 'binder');
   assert.equal(slab.grading.certificationStatus, 'verified');
 });
 

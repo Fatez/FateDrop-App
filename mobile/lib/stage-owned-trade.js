@@ -5,9 +5,8 @@ async function stageOwnedTrade({ item, tradeQuantity, terms }, api) {
   if (!terms.localTradeAllowed && !terms.postalTradeAllowed) throw new Error('Choose a local or postal trade method.');
   const binder = await api.fetchBinder(item.card.tcgCode);
   if (binder.items?.some((entry) => entry.collectionItemId === item.id)) return { alreadyPresent: true };
-  if (tradeQuantity !== item.tradeQuantity) {
-    await api.updateTradeQuantity(item.id, { tradeQuantity, expectedRevision: item.revision });
-  }
+  // Check the revision even when the offered quantity appears unchanged locally.
+  await api.updateTradeQuantity(item.id, { tradeQuantity, expectedRevision: item.revision });
   try {
     await api.createBinder({ ...terms, collectionItemId: item.id, visibility: 'private' });
   } catch (cause) {
