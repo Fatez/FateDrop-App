@@ -337,7 +337,7 @@ export default function FatePriceScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/fate-price-buy', params: { cardId: selectedCardId, collectorNumber: selectedNumber, name: selectedTitle, setName: selectedSet } })}
+              onPress={() => router.push({ pathname: '/fate-price-buy', params: { cardId: selectedCardId, collectorNumber: selectedNumber, name: selectedTitle, setName: selectedSet, setId: selectedCard?.setId || routeSetId, printingId: selectedPrintingId, tcg: selectedCard?.tcgCode || first(params.tcg) || '' } })}
               style={({ pressed }) => [styles.journeyAction, styles.journeyActionPrimary, pressed && styles.pressed]}
             >
               <Ionicons name="storefront-outline" size={17} color={FateDropColors.ivory} />
