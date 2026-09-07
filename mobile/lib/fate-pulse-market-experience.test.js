@@ -47,10 +47,11 @@ test('FatePrice and Fate Collections are explicitly interlinked without routing 
   assert.doesNotMatch(screen, /CHOOSE AN EXACT CARD IN FATEFIND/);
 });
 
-test('Fate Market uses one decode-light orbital theme and selectable TCG scope', () => {
+test('Fate Market shares the home atmosphere and preserves selectable TCG scope', () => {
   assert.equal(fs.existsSync(marketTheme), true);
   assert.ok(fs.statSync(marketTheme).size < 200_000, 'market theme must remain decode-friendly');
-  assert.match(screen, /fate-market-orbital-theme\.webp/);
+  assert.match(screen, /FateMarketBackground/);
+  assert.match(read('components/fate-market-brand.tsx'), /home-living-stage-v2\.png/);
   assert.match(screen, /fetchFatePulse\(tcgCode, \{ force \}\)/);
   assert.match(screen, /loadedPulseScope === selectedScope/);
 });

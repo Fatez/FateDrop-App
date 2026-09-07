@@ -68,7 +68,7 @@ export default function FateCollectionsDashboardScreen() {
         </View>
 
         <View style={styles.marketTabs}>
-          <MarketTab label="FatePulse" icon="pulse-outline" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
+          <MarketTab label="FatePulse" icon="pulse-outline" onPress={() => router.navigate('/fate-pulse')} />
           <MarketTab label="FatePrice" icon="pricetag-outline" onPress={() => router.push('/fate-price')} />
           <MarketTab label="Fate Collections" icon="albums-outline" active onPress={() => undefined} />
         </View>

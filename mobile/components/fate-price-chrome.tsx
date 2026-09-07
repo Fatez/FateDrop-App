@@ -1,48 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FateMarketBackground } from '@/components/fate-market-brand';
 import { FateDropColors, Fonts } from '@/constants/theme';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export function FatePriceScreenBackground({ sceneKey }: { sceneKey: string }) {
-  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-    <Image
-      source={require('../assets/images/fate-market-orbital-theme.webp')}
-      style={StyleSheet.absoluteFill}
-      contentFit="cover"
-      contentPosition="top center"
-      cachePolicy="disk"
-      enforceEarlyResizing
-      recyclingKey={`fate-price:${sceneKey}:cosmos`}
-    />
-    <Image
-      source={require('../assets/images/fate-market-guardian-wayfinder.webp')}
-      style={styles.guardian}
-      contentFit="contain"
-      contentPosition="top right"
-      cachePolicy="disk"
-      enforceEarlyResizing
-      recyclingKey={`fate-price:${sceneKey}:wayfinder`}
-    />
-    <Constellation />
-    <View style={styles.topVeil} />
-    <View style={styles.copyVeil} />
-    <View style={styles.lowerVeil} />
-  </View>;
+  return <FateMarketBackground key={sceneKey} />;
 }
 
 export function FatePriceTopBar({ step, backLabel = 'Fate Market' }: { step: Step; backLabel?: string }) {
   return <View style={styles.topBar}>
     <Pressable
-      accessibilityLabel={`Back to ${backLabel}`}
-      onPress={() => router.back()}
+      accessibilityLabel="Go back"
+      accessibilityHint="Returns to the previous page."
+      accessibilityRole="button"
+      onPress={() => router.canGoBack() ? router.back() : router.replace(step === 1 ? '/(tabs)/market' : '/fate-price')}
       style={({ pressed }) => [styles.back, pressed && styles.pressed]}
     >
       <Ionicons name="chevron-back" size={21} color={FateDropColors.goldBright} />
-      <Text style={styles.backText}>{backLabel}</Text>
+      <Text style={styles.backText}>Back</Text>
     </Pressable>
     <View style={styles.brandLockup}>
       <View style={styles.brandGem}><Ionicons name="sparkles" size={11} color={FateDropColors.goldBright} /></View>
@@ -56,7 +35,7 @@ export function FatePriceTopBar({ step, backLabel = 'Fate Market' }: { step: Ste
 
 export function FatePriceAreaRail() {
   return <View accessibilityRole="tablist" style={styles.areaRail}>
-    <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} style={styles.areaTab}>
+    <Pressable accessibilityRole="tab" onPress={() => router.navigate('/fate-pulse')} style={styles.areaTab}>
       <Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} />
       <Text style={styles.areaTitle}>FatePulse</Text>
     </Pressable>
@@ -65,7 +44,7 @@ export function FatePriceAreaRail() {
       <Text style={[styles.areaTitle, styles.areaTitleActive]}>FatePrice</Text>
       <View style={styles.areaActiveGem} />
     </View>
-    <Pressable accessibilityRole="tab" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} style={styles.areaTab}>
+    <Pressable accessibilityRole="tab" onPress={() => router.navigate('/collections')} style={styles.areaTab}>
       <Ionicons name="albums-outline" size={16} color={FateDropColors.muted} />
       <Text style={styles.areaTitle}>Collections</Text>
     </Pressable>
@@ -88,20 +67,6 @@ export function FatePriceTruth({ title, children }: { title: string; children: R
       <Text style={styles.truthTitle}>{title}</Text>
       <Text style={styles.truthCopy}>{children}</Text>
     </View>
-  </View>;
-}
-
-function Constellation() {
-  return <View style={StyleSheet.absoluteFill}>
-    <View style={[styles.star, { left: '8%', top: 188 }]} />
-    <View style={[styles.star, styles.starBright, { left: '38%', top: 118 }]} />
-    <View style={[styles.star, { right: '10%', top: 286 }]} />
-    <View style={[styles.star, { left: '18%', top: 388 }]} />
-    <View style={[styles.line, { left: '8%', top: 190, width: '33%', transform: [{ rotate: '-14deg' }] }]} />
-    <View style={[styles.line, { left: '39%', top: 120, width: '50%', transform: [{ rotate: '20deg' }] }]} />
-    <View style={[styles.line, { left: '17%', top: 388, width: '29%', transform: [{ rotate: '-55deg' }] }]} />
-    <View style={styles.orbitOne} />
-    <View style={styles.orbitTwo} />
   </View>;
 }
 

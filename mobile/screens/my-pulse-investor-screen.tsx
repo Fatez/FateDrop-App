@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { storedPeriodMovement } from '@/lib/history-period';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -155,8 +155,8 @@ export default function MyPulseInvestorScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateDropBackground />
-        <View style={styles.backgroundVeil} />
+        <FateMarketBackground />
+
         <View style={styles.cosmicHorizon} />
         <View style={styles.cosmicArc} />
         <View style={styles.cosmicArcInner} />
@@ -167,18 +167,7 @@ export default function MyPulseInvestorScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <View style={styles.topBar}>
-          <Pressable accessibilityLabel="Back to Fate Market" onPress={() => router.replace('/(tabs)/market')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="arrow-back" size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-          <View style={styles.brandCopy}>
-            <Text style={styles.brandTitle}>FatePulse</Text>
-            <Text style={styles.brandSubtitle}>TCG MARKET INTELLIGENCE</Text>
-          </View>
-          <Pressable accessibilityLabel="Add a card to My Pulse" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="add" size={20} color={FateDropColors.goldBright} />
-          </Pressable>
-        </View>
+        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" accessibilityLabel="Search any exact card or set" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.globalSearch, pressed && styles.pressed]}>
           <Ionicons name="search-outline" size={18} color={FateDropColors.secondary} />

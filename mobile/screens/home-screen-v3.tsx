@@ -242,6 +242,7 @@ export default function HomeScreenV3() {
           />
           <View style={styles.lifecycleBelowHub}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
+            <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/market')} style={({ pressed }) => [styles.marketExplore, pressed && styles.pressed]}><Text style={styles.marketExploreText}>Explore Fate Market</Text><Text style={styles.marketExploreDetail}>Pulse · Price · Collections</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.goldBright} /></Pressable>
           </View>
         </Animated.View>
 
@@ -719,6 +720,9 @@ const styles = StyleSheet.create({
   themeAccent: { ...StyleSheet.absoluteFill },
   themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
   lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
+  marketExplore: { minHeight: 44, marginHorizontal: 21, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
+  marketExploreText: { color: FateDropColors.goldBright, fontSize: 12, fontWeight: '700' },
+  marketExploreDetail: { flex: 1, color: FateDropColors.secondary, fontSize: 10 },
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
   hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
