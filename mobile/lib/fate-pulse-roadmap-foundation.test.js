@@ -27,7 +27,7 @@ test('FatePulse has the locked exploration roadmap', () => {
   assert.match(pulseScreen, /key: 'overview', label: 'Overview'/);
   assert.match(pulseScreen, /key: 'sets', label: 'Sets'/);
   assert.match(pulseScreen, /key: 'cards', label: 'Cards'/);
-  assert.match(pulseScreen, /key: 'watchlist', label: 'Watchlist'/);
+  assert.match(pulseScreen, /key: 'watchlist', label: 'My Pulse'/);
   assert.match(pulseScreen, /key: 'd1', label: '1D'/);
   assert.match(pulseScreen, /key: 'd7', label: '7D'/);
   assert.match(pulseScreen, /key: 'd30', label: '30D'/);
@@ -46,6 +46,7 @@ test('Pulse stays Cloud-owned and never invents unsupported intelligence', () =>
   assert.match(pulseScreen, /90D remains visibly unscored until Cloud owns it/);
   assert.match(pulseScreen, /Most Watched needs a canonical global card-watch signal/);
   assert.match(pulseScreen, /High Volume needs a verified market-liquidity or sales-volume source/);
+  assert.match(pulseScreen, /Wishlist remains separate: it saves retail products/);
   assert.doesNotMatch(pulseScreen, /Math\.random|mock data|demo data/i);
 });
 

@@ -27,7 +27,7 @@ const VIEWS: { key: PulseView; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'sets', label: 'Sets' },
   { key: 'cards', label: 'Cards' },
-  { key: 'watchlist', label: 'Watchlist' },
+  { key: 'watchlist', label: 'My Pulse' },
 ];
 const PERIODS: { key: PulsePeriod; label: string }[] = [
   { key: 'd1', label: '1D' },
@@ -151,8 +151,8 @@ export default function FatePulseScreen() {
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>FATEPULSE</Text>
-            <Text style={styles.title}>{view === 'overview' ? 'The market, in real time.' : view === 'sets' ? 'Set performance, at a glance.' : view === 'cards' ? "What's moving right now." : 'Your watchlist, in market context.'}</Text>
-            <Text style={styles.subtitle}>{view === 'overview' ? 'Price movement, breadth and canonical history across tracked TCGs.' : view === 'sets' ? 'Compare qualifying set baskets and see what is heating up or cooling down.' : view === 'cards' ? 'Track the biggest verified card movers and drill into exact FatePrice evidence.' : 'A personal lens over global market data — never part of the global Pulse calculation.'}</Text>
+            <Text style={styles.title}>{view === 'overview' ? 'The market, in real time.' : view === 'sets' ? 'Set performance, at a glance.' : view === 'cards' ? "What's moving right now." : 'Your cards and sets, in market context.'}</Text>
+            <Text style={styles.subtitle}>{view === 'overview' ? 'Price movement, breadth and canonical history across tracked TCGs.' : view === 'sets' ? 'Compare qualifying set baskets and see what is heating up or cooling down.' : view === 'cards' ? 'Track the biggest verified card movers and drill into exact FatePrice evidence.' : 'Follow exact cards and sets without changing the global Pulse calculation.'}</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Open Fate Market" onPress={() => router.replace('/(tabs)/market')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
             <Ionicons name="diamond-outline" size={18} color={FateDropColors.manifested} />
@@ -391,9 +391,9 @@ function WatchlistView({ data }: { data: FatePulseSnapshot | null }) {
       <View style={styles.watchHero}>
         <View style={styles.watchIcon}><Ionicons name="eye-outline" size={27} color={FateDropColors.manifested} /></View>
         <Text style={styles.watchTitle}>Personal lens. Global truth.</Text>
-        <Text style={styles.watchCopy}>This view will show verified market movement for exact cards and sets you choose to watch. Those watches will never influence the global Pulse calculation itself.</Text>
+        <Text style={styles.watchCopy}>My Pulse will show verified market movement for exact cards and sets you follow. Your choices never influence the global Pulse calculation itself.</Text>
       </View>
-      <EvidenceNotice icon="construct-outline" text="The exact-card watchlist contract is not connected yet. FateDrop's existing product wishlist is a different feature, so Pulse will not quietly pretend they are the same thing." accent={FateDropColors.goldBright} />
+      <EvidenceNotice icon="construct-outline" text="My Pulse is being connected to an exact-card and exact-set follow contract. Wishlist remains separate: it saves retail products and powers stock watching and FateFind hunts." accent={FateDropColors.goldBright} />
       <View style={styles.readinessCard}>
         <Text style={styles.smallEyebrow}>GLOBAL EVIDENCE READY FOR THE LENS</Text>
         <Text style={styles.cardTitle}>{data?.readiness.canonical.mappedCards ?? 0} mapped cards</Text>
