@@ -47,7 +47,7 @@ test('FatePulse Overview is the simple investor dashboard', () => {
 test('FatePulse keeps routed Sets, Cards and My Pulse depth', () => {
   assert.match(pulseSetsRoute, /initialView="sets"/);
   assert.match(pulseCardsRoute, /initialView="cards"/);
-  assert.match(myPulseRoute, /initialView="watchlist"/);
+  assert.match(myPulseRoute, /MyPulseInvestorScreen/);
   assert.match(pulseScreen, /'\/fate-pulse\/sets'/);
   assert.match(pulseScreen, /'\/fate-pulse\/cards'/);
   assert.match(pulseScreen, /'\/fate-pulse\/my-pulse'/);
