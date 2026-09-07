@@ -1,4 +1,6 @@
 import { FATEDROP_WEB_URL } from '@/constants/api';
+import { stageOwnedTrade } from '@/lib/stage-owned-trade';
+import { invalidateFateCollectorCache, type FateCollectorItem } from '@/services/fate-collector';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
 export type FateTraderSeries = {
@@ -43,6 +45,7 @@ export type FateTraderBinderSnapshot = {
   items?: Array<{
     id: string;
     fateCardId: string;
+    collectionItemId?: string;
     status: string;
     effectiveAvailable?: boolean;
     tradeMode?: string;
@@ -99,8 +102,8 @@ function traderUrl(path: string) {
   return `${FATEDROP_WEB_URL.replace(/\/+$/, '')}/api/trader/${path.replace(/^\/+/, '')}`;
 }
 
-async function traderRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await getStoredSessionToken();
+async function traderRequest<T>(path: string, init?: RequestInit, sessionToken?: string): Promise<T> {
+  const token = sessionToken ?? await getStoredSessionToken();
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (init?.body) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -209,4 +212,24 @@ export function fateTraderCardLabel(card: FateTraderCard) {
     ? ` · ${card.variantCode.replaceAll('-', ' ')}`
     : '';
   return `${name}${number}${variant}`;
+}
+
+export function fetchTraderOwnedItems() {
+  return traderRequest<{ items: FateCollectorItem[] }>('collection?limit=2000');
+}
+
+export async function stageTraderOwnedItem(item: FateCollectorItem, tradeQuantity: number, terms: {
+  tradeMode: string; localTradeAllowed: boolean; postalTradeAllowed: boolean; notes?: string;
+}) {
+  const token = await getStoredSessionToken();
+  if (!token) throw new FateTraderApiError('Sign in to use your collection.', { status: 401, code: 'AUTH_REQUIRED' });
+  try {
+    return await stageOwnedTrade({ item, tradeQuantity, terms }, {
+      fetchBinder: (tcg) => traderRequest<FateTraderBinderSnapshot>(`binder?tcg=${encodeURIComponent(tcg || 'pokemon')}`, undefined, token),
+      updateTradeQuantity: (id, patch) => traderRequest(`collection/items/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }, token),
+      createBinder: (input) => traderRequest('binder/items', { method: 'POST', body: JSON.stringify(input) }, token),
+    });
+  } finally {
+    invalidateFateCollectorCache();
+  }
 }

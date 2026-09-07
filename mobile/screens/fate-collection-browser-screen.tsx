@@ -267,12 +267,18 @@ function QuantityControl({ cardIdentityId, items, quantity, onChanged }: { cardI
   return <View style={styles.quantityWrap}><View style={styles.quantityControl}><Text style={styles.quantityText}>Qty {quantity}</Text><Pressable accessibilityRole="button" accessibilityLabel="Increase owned quantity" disabled={saving} onPress={(event) => { event.stopPropagation(); void increase(); }} style={({ pressed }) => [styles.quantityAdd, pressed && styles.pressed]}>{saving ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <Ionicons name="add" size={15} color={FateDropColors.background} />}</Pressable></View>{error ? <Text accessibilityLiveRegion="polite" numberOfLines={2} style={styles.quantityError}>{error}</Text> : null}</View>;
 }
 
+function TradeOwnedAction({ cardId }: { cardId: string }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel="Choose owned copies for Fate Trader" onPress={(event) => { event.stopPropagation(); router.push({ pathname: '/fate-trader', params: { cardId } }); }} style={{ paddingVertical: 8 }}>
+    <Text style={{ color: FateDropColors.goldBright, fontSize: 10, fontWeight: '800' }}>TRADE THIS CARD</Text>
+  </Pressable>;
+}
+
 function IntelligenceCardRow({ card, currency, items, onChanged }: { card: FateCollectorIntelligenceCard; currency: string; items: FateCollectorItem[]; onChanged: () => void | Promise<void> }) {
   const art = card.thumbnailUrl || card.imageUrl;
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open FatePrice for ${card.name || 'owned card'}`} onPress={() => openFatePrice(card)} style={({ pressed }) => [styles.cardRow, pressed && styles.pressed]}>
     <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={48} height={68} />
     <View style={styles.cardText}><Text style={styles.cardName} numberOfLines={1}>{card.name || 'Verified card'}</Text><Text style={styles.cardSet} numberOfLines={1}>{card.setName || 'Verified set'}</Text><Text style={styles.cardMeta}>#{card.collectorNumber || '—'} · {card.rarity || card.variantCode || 'exact printing'}</Text></View>
-    <View style={styles.cardRight}><Text style={styles.cardPrice}>{money(card.currentKnownValue, currency)}</Text>{card.quantity > 1 && card.currentUnitPrice != null ? <Text style={styles.eachPrice}>{money(card.currentUnitPrice, currency)} each</Text> : null}<QuantityControl cardIdentityId={card.cardIdentityId} items={items} quantity={card.quantity} onChanged={onChanged} /></View>
+    <View style={styles.cardRight}><Text style={styles.cardPrice}>{money(card.currentKnownValue, currency)}</Text>{card.quantity > 1 && card.currentUnitPrice != null ? <Text style={styles.eachPrice}>{money(card.currentUnitPrice, currency)} each</Text> : null}<QuantityControl cardIdentityId={card.cardIdentityId} items={items} quantity={card.quantity} onChanged={onChanged} /><TradeOwnedAction cardId={card.cardIdentityId} /></View>
     <Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
   </Pressable>;
 }
@@ -284,7 +290,7 @@ function LegacyCardRow({ item, items, refreshKey, onChanged }: { item: FateColle
   return <Pressable accessibilityRole="button" onPress={() => openFatePrice({ cardIdentityId: item.fateCardId, name: card?.name || null, collectorNumber: card?.collectorNumber || null, setId: card?.setId || null, setName: card?.setName || null, tcgCode: card?.tcgCode || null })} style={({ pressed }) => [styles.cardRow, pressed && styles.pressed]}>
     <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={48} height={68} />
     <View style={styles.cardText}><Text style={styles.cardName} numberOfLines={1}>{card?.name || 'Verified card'}</Text><Text style={styles.cardSet} numberOfLines={1}>{card?.setName || 'Verified set'}</Text><Text style={styles.cardMeta}>#{card?.collectorNumber || '—'} · {card?.rarity || card?.variantCode || 'exact printing'}</Text></View>
-    <View style={styles.cardRight}><Text style={styles.cardPrice}>{price ? money(price.amount * items.reduce((sum, owned) => sum + owned.quantity, 0), price.currencyCode) : 'FatePrice'}</Text><QuantityControl cardIdentityId={item.fateCardId} items={items} quantity={items.reduce((sum, owned) => sum + owned.quantity, 0)} onChanged={onChanged} /></View><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
+    <View style={styles.cardRight}><Text style={styles.cardPrice}>{price ? money(price.amount * items.reduce((sum, owned) => sum + owned.quantity, 0), price.currencyCode) : 'FatePrice'}</Text><QuantityControl cardIdentityId={item.fateCardId} items={items} quantity={items.reduce((sum, owned) => sum + owned.quantity, 0)} onChanged={onChanged} /><TradeOwnedAction cardId={item.fateCardId} /></View><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
   </Pressable>;
 }
 
