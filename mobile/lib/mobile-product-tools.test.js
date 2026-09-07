@@ -114,7 +114,9 @@ test('legacy True Price deep links resolve into the dedicated exact FatePrice pa
   assert.match(fatePriceRoute, /fate-price-entry-screen/);
   assert.match(fatePriceEntry, /FatePriceScreen/);
   assert.match(fatePriceEntry, /FatePriceDiscoveryScreen/);
-  assert.match(fatePriceEntry, /cardId \? <FatePriceScreen \/> : <FatePriceDiscoveryScreen \/>/);
+  assert.match(fatePriceEntry, /if \(!cardId\) return <FatePriceDiscoveryScreen \/>;/);
+  assert.match(fatePriceEntry, /<FatePriceScreen \/>/);
+  assert.match(fatePriceEntry, /FatePulseFollowAction/);
   assert.match(fatePrice, /fetchFatePrice/);
   assert.doesNotMatch(fatePrice, /\/fatefind/);
 });
