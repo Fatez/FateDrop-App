@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -434,6 +435,7 @@ function CompactSetRow({ item, rank, accent }: { item: FatePulseRankedSet; rank:
   return (
     <View style={styles.compactSetRow}>
       <Text style={styles.compactRank}>{rank}</Text>
+      <CanonicalThumbnail kind="set" setId={item.setCode} width={28} height={28} />
       <View style={styles.compactSetCopy}>
         <Text numberOfLines={1} style={styles.compactSetName}>{item.setName || item.setCode || 'Tracked set'}</Text>
         <Text numberOfLines={1} style={styles.compactSetMeta}>{item.tcgCode?.toUpperCase() || 'TCG'} · {item.pricedCardCount} priced</Text>
@@ -458,7 +460,7 @@ function SetRow({ item, rank }: { item: FatePulseRankedSet; rank: number }) {
   return (
     <View style={styles.rankRow}>
       <Text style={styles.rankNumber}>{rank}</Text>
-      <View style={[styles.thumb, { borderColor: `${accent}54` }]}><Ionicons name="layers-outline" size={17} color={accent} /></View>
+      <CanonicalThumbnail kind="set" setId={item.setCode} width={38} height={38} />
       <View style={styles.rankCopy}>
         <Text numberOfLines={1} style={styles.rankName}>{item.setName || item.setCode || 'Tracked set'}</Text>
         <Text style={styles.rankMeta}>{item.tcgCode?.toUpperCase() || 'TCG'} · {item.pricedCardCount} priced · {item.baselineCardCount} baseline</Text>
@@ -482,7 +484,7 @@ function CardRow({ item, rank }: { item: FatePulseRankedCard; rank: number }) {
       style={({ pressed }) => [styles.rankRow, pressed && styles.pressed]}
     >
       <Text style={styles.rankNumber}>{rank}</Text>
-      <View style={[styles.cardThumb, { borderColor: `${accent}54` }]}><Ionicons name="sparkles-outline" size={16} color={accent} /></View>
+      <CanonicalThumbnail kind="card" setId={item.setCode} collectorNumber={item.collectorNumber} width={34} height={44} />
       <View style={styles.rankCopy}>
         <Text numberOfLines={1} style={styles.rankName}>{item.name || 'Verified card'}</Text>
         <Text numberOfLines={1} style={styles.rankMeta}>{item.setName || item.setCode || 'Set'}{item.collectorNumber ? ` · #${item.collectorNumber}` : ''}</Text>

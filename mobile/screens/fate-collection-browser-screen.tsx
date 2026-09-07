@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useCollectionCardPrice } from '@/hooks/use-collection-card-price';
@@ -270,7 +271,7 @@ function QuantityControl({ cardIdentityId, items, quantity, onChanged }: { cardI
 function IntelligenceCardRow({ card, currency, items, onChanged }: { card: FateCollectorIntelligenceCard; currency: string; items: FateCollectorItem[]; onChanged: () => void | Promise<void> }) {
   const art = card.thumbnailUrl || card.imageUrl;
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open FatePrice for ${card.name || 'owned card'}`} onPress={() => openFatePrice(card)} style={({ pressed }) => [styles.cardRow, pressed && styles.pressed]}>
-    {art ? <Image source={{ uri: art }} style={styles.cardArt} contentFit="contain" cachePolicy="memory-disk" /> : <CardPlaceholder />}
+    <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={48} height={68} />
     <View style={styles.cardText}><Text style={styles.cardName} numberOfLines={1}>{card.name || 'Verified card'}</Text><Text style={styles.cardSet} numberOfLines={1}>{card.setName || 'Verified set'}</Text><Text style={styles.cardMeta}>#{card.collectorNumber || '—'} · {card.rarity || card.variantCode || 'exact printing'}</Text></View>
     <View style={styles.cardRight}><Text style={styles.cardPrice}>{money(card.currentKnownValue, currency)}</Text>{card.quantity > 1 && card.currentUnitPrice != null ? <Text style={styles.eachPrice}>{money(card.currentUnitPrice, currency)} each</Text> : null}<QuantityControl cardIdentityId={card.cardIdentityId} items={items} quantity={card.quantity} onChanged={onChanged} /></View>
     <Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
@@ -282,7 +283,7 @@ function LegacyCardRow({ item, items, refreshKey, onChanged }: { item: FateColle
   const card = item.card;
   const art = card?.thumbnailUrl || card?.imageUrl;
   return <Pressable accessibilityRole="button" onPress={() => openFatePrice({ cardIdentityId: item.fateCardId, name: card?.name || null, collectorNumber: card?.collectorNumber || null, setId: card?.setId || null, setName: card?.setName || null, tcgCode: card?.tcgCode || null })} style={({ pressed }) => [styles.cardRow, pressed && styles.pressed]}>
-    {art ? <Image source={{ uri: art }} style={styles.cardArt} contentFit="contain" cachePolicy="memory-disk" /> : <CardPlaceholder />}
+    <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={48} height={68} />
     <View style={styles.cardText}><Text style={styles.cardName} numberOfLines={1}>{card?.name || 'Verified card'}</Text><Text style={styles.cardSet} numberOfLines={1}>{card?.setName || 'Verified set'}</Text><Text style={styles.cardMeta}>#{card?.collectorNumber || '—'} · {card?.rarity || card?.variantCode || 'exact printing'}</Text></View>
     <View style={styles.cardRight}><Text style={styles.cardPrice}>{price ? money(price.amount * items.reduce((sum, owned) => sum + owned.quantity, 0), price.currencyCode) : 'FatePrice'}</Text><QuantityControl cardIdentityId={item.fateCardId} items={items} quantity={items.reduce((sum, owned) => sum + owned.quantity, 0)} onChanged={onChanged} /></View><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
   </Pressable>;
@@ -294,7 +295,7 @@ function OwnedSetRow({ currency, period, set }: { currency: string; period: Peri
   const movement = set[period];
   const movementColor = Number(movement.movementPercent) < 0 ? FateDropColors.vanished : FateDropColors.manifested;
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${set.setName || 'set'} binder`} disabled={!set.setId} onPress={() => set.setId && router.push({ pathname: '/binder/[setId]', params: { setId: set.setId, setName: set.setName || undefined } })} style={({ pressed }) => [styles.setRow, pressed && styles.pressed]}>
-    <View style={styles.setIcon}><Ionicons name="albums-outline" size={24} color={FateDropColors.goldBright} /></View>
+    <CanonicalThumbnail kind="set" setId={set.setId} width={48} height={48} />
     <View style={styles.setBody}><Text style={styles.setName} numberOfLines={1}>{set.setName || 'Verified set'}</Text><Text style={styles.setMeta}>{set.uniqueCards} unique cards · {set.totalCopies} copies · {set.collectionSharePercent.toFixed(1)}% share</Text><View style={styles.setBar}><View style={[styles.setBarFill, { width: `${Math.max(2, Math.min(100, set.collectionSharePercent))}%` }]} /></View></View>
     <View style={styles.setValue}><Text style={styles.setMoney}>{money(set.currentKnownValue, currency)}</Text><Text style={[styles.setMovement, { color: movementColor }]}>{movement.status === 'available' ? percent(movement.movementPercent) : 'BUILDING'}</Text></View><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
   </Pressable>;

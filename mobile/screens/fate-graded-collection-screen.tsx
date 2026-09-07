@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateCollectionsArt } from '@/components/fate-collections-art';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { useCollectionsResource } from '@/hooks/use-collections-resource';
@@ -128,7 +129,7 @@ function SlabCard({ item }: { item: FateCollectorItem }) {
   return (
     <View style={styles.slab}>
       <View style={styles.slabArtFrame}>
-        {art ? <Image source={{ uri: art }} style={styles.slabArt} contentFit="contain" cachePolicy="memory-disk" /> : <View style={styles.slabArtPlaceholder}><Ionicons name="diamond-outline" size={22} color={FateDropColors.echo} /></View>}
+        <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={card?.collectorNumber} sourceUrl={art} width={54} height={79} />
       </View>
       <View style={styles.slabText}>
         <View style={styles.gradeRow}>
