@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateCollectionsArt } from '@/components/fate-collections-art';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { useCollectionsResource } from '@/hooks/use-collections-resource';
@@ -196,7 +197,7 @@ export default function FateBindersScreen() {
             style={({ pressed }) => [styles.closestCard, pressed && styles.pressed]}
           >
             <View style={styles.closestTop}>
-              <FateCollectionsArt kind="binders" size={104} />
+              <CanonicalThumbnail kind="set" setId={closest.setId} width={104} height={104} />
               <View style={styles.closestMain}>
                 <Text style={styles.closestEyebrow}>CLOSEST TO COMPLETION</Text>
                 <Text style={styles.closestName}>{closest.setName || 'Verified set'}</Text>
@@ -216,7 +217,7 @@ export default function FateBindersScreen() {
               <View style={styles.topNeededRow}>
                 {topNeeded.length ? topNeeded.map((card) => (
                   <View key={card.fateCardId} style={styles.neededMini}>
-                    <View style={styles.neededMiniArt}><Ionicons name="sparkles-outline" size={14} color={FateDropColors.echo} /></View>
+                    <CanonicalThumbnail kind="card" setId={card.setId} collectorNumber={card.collectorNumber} sourceUrl={card.thumbnailUrl || card.imageUrl} width={28} height={39} />
                     <View style={styles.flex}><Text style={styles.neededMiniName} numberOfLines={1}>{card.name || 'Verified card'}</Text><Text style={styles.neededMiniMeta}>#{card.collectorNumber || '—'}</Text></View>
                   </View>
                 )) : <Text style={styles.noNeeded}>No verified missing-card detail yet.</Text>}

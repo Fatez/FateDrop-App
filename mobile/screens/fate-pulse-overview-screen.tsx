@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
@@ -223,7 +224,7 @@ function SectionHeader({ title, icon, accent, onPress }: { title: string; icon: 
 function CardMoverRow({ item, currencyCode, accent }: { item: FatePulseRankedCard; currencyCode: string | undefined; accent: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: item.cardIdentityId } })} style={({ pressed }) => [styles.moverRow, pressed && styles.pressed]}>
-      <View style={[styles.cardThumb, { borderColor: `${accent}45` }]}><Ionicons name="card-outline" size={18} color={accent} /></View>
+      <CanonicalThumbnail kind="card" setId={item.setCode} collectorNumber={item.collectorNumber} width={36} height={50} />
       <View style={styles.moverCopy}>
         <Text numberOfLines={1} style={styles.moverName}>{item.name || 'Verified card'}</Text>
         <Text numberOfLines={1} style={styles.moverMeta}>{item.setName || item.setCode || 'Tracked set'}{item.collectorNumber ? ` · #${item.collectorNumber}` : ''}</Text>
@@ -240,7 +241,7 @@ function CardMoverRow({ item, currencyCode, accent }: { item: FatePulseRankedCar
 function SetMoverCard({ item }: { item: FatePulseRankedSet }) {
   return (
     <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse/sets')} style={({ pressed }) => [styles.setCard, pressed && styles.pressed]}>
-      <View style={styles.setIcon}><Ionicons name="layers-outline" size={19} color={FateDropColors.goldBright} /></View>
+      <CanonicalThumbnail kind="set" setId={item.setCode} width={44} height={44} />
       <Text numberOfLines={2} style={styles.setName}>{item.setName || item.setCode || 'Tracked set'}</Text>
       <Text style={styles.setMovement}>{movement(item.movementPercent)}</Text>
       <Text style={styles.setMeta}>{item.pricedCardCount} priced cards</Text>
