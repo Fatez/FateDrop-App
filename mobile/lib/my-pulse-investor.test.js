@@ -16,9 +16,9 @@ test('My Pulse uses exact canonical thumbnails and verified FatePrice history', 
   assert.match(screen, /fetchFatePrice\(/);
   assert.match(screen, /fetchFatePriceHistory\(/);
   assert.match(screen, /days: 90/);
-  assert.match(screen, /7D MOVE/);
-  assert.match(screen, /30D MOVE/);
-  assert.match(screen, /90D MOVE/);
+  assert.match(screen, /MoveMetric label="7D"/);
+  assert.match(screen, /MoveMetric label="30D"/);
+  assert.match(screen, /MoveMetric label="90D"/);
   assert.match(screen, /stored market days only/i);
   assert.doesNotMatch(screen, /interpolat(e|ed).*point/i);
 });
