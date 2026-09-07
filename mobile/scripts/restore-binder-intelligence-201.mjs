@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-shot guarded port for the Binder regression on PR #201.
 function replaceExact(path, from, to, expected = 1) {
   let text = fs.readFileSync(path, 'utf8');
   const count = text.split(from).length - 1;
