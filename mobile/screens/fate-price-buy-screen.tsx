@@ -3,12 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
+import { openTrackedRetailerLink } from '@/services/outbound-links';
 import {
   FateMarketApiError,
   fetchFatePrice,
@@ -103,7 +104,7 @@ export default function FatePriceBuyScreen() {
   }, [cardId]);
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(() => load());
   }, [load]);
 
   const retailerOptions = useMemo(() => [...new Set((retail?.offers || []).map((offer) => offer.retailerName))].sort(), [retail?.offers]);
@@ -112,6 +113,8 @@ export default function FatePriceBuyScreen() {
     (retailer === 'all' || offer.retailerName === retailer)
     && (condition === 'all' || offer.conditionCode === condition)
   )), [condition, retail?.offers, retailer]);
+  const visibleRetailerCount = useMemo(() => new Set(offers.map((offer) => offer.retailerId)).size, [offers]);
+  const lowestVerifiedDeliveredOfferId = offers.find((offer) => offer.deliveryKnown && offer.deliveredPrice != null)?.offerId || null;
   const title = card?.name || routeName;
   const setName = card?.setName || routeSetName;
   const collectorNumber = card?.collectorNumber || routeNumber;
@@ -122,7 +125,11 @@ export default function FatePriceBuyScreen() {
       setNotice('This retailer link did not pass FateDrop’s safe-link check.');
       return;
     }
-    await Linking.openURL(url);
+    try {
+      await openTrackedRetailerLink({ destinationUrl: url, retailerId: offer.retailerId, offerId: offer.offerId, placement: 'fate-price-buy' });
+    } catch {
+      setNotice('This verified retailer page could not be opened just now.');
+    }
   }, []);
 
   const openExactPrice = useCallback(() => {
@@ -156,7 +163,7 @@ export default function FatePriceBuyScreen() {
         <Pressable onPress={openExactPrice} style={styles.tab}><Text style={styles.tabText}>MARKET DATA</Text></Pressable>
       </View>
 
-      <View style={styles.filterHeader}><Text style={styles.filterEyebrow}>LIVE VERIFIED OFFERS</Text><Text style={styles.offerCount}>{offers.length} FOUND</Text></View>
+      <View style={styles.filterHeader}><Text style={styles.filterEyebrow}>LIVE VERIFIED OFFERS</Text><Text style={styles.offerCount}>{offers.length} OFFER{offers.length === 1 ? '' : 'S'} · {visibleRetailerCount} RETAILER{visibleRetailerCount === 1 ? '' : 'S'}</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRail}>
         <FilterChip label="All retailers" active={retailer === 'all'} onPress={() => setRetailer('all')} />
         {retailerOptions.map((value) => <FilterChip key={value} label={value} active={retailer === value} onPress={() => setRetailer(value)} />)}
@@ -174,16 +181,17 @@ export default function FatePriceBuyScreen() {
         <Text style={styles.emptyCopy}>FateDrop found no fresh, exact-identity retailer mapping that passed stock and retailer-health checks. Similar-looking cards are deliberately excluded.</Text>
         <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fatefind', params: { query: title } })} style={styles.findButton}><Ionicons name="compass-outline" size={16} color="#080B14" /><Text style={styles.findButtonText}>OPEN FATEFIND</Text></Pressable>
       </View> : null}
-      {offers.length ? <View style={styles.offerStack}>{offers.map((offer) => <OfferCard key={offer.offerId} offer={offer} onOpen={() => void openOffer(offer)} />)}</View> : null}
+      {offers.length ? <><View style={styles.rankingTruth}><Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.rankingTruthText}>Cloud-ranked by verified delivered total. Unknown postage stays unknown and cannot be labelled the lowest total.</Text></View><View style={styles.offerStack}>{offers.map((offer) => <OfferCard key={offer.offerId} lowestVerifiedDelivered={offer.offerId === lowestVerifiedDeliveredOfferId} offer={offer} onOpen={() => void openOffer(offer)} />)}</View></> : null}
 
       <FatePriceTruth title="Asking price is not market truth.">Retail listings stay a separate live availability signal. FatePrice comes from verified market evidence; the Cloud compares each delivered retailer total without feeding that shop price back into valuation.</FatePriceTruth>
     </ScrollView>
   </SafeAreaView>;
 }
 
-function OfferCard({ offer, onOpen }: { offer: FatePriceRetailOffer; onOpen: () => void }) {
+function OfferCard({ lowestVerifiedDelivered, offer, onOpen }: { lowestVerifiedDelivered: boolean; offer: FatePriceRetailOffer; onOpen: () => void }) {
   const accent = comparisonAccent(offer.comparison.status);
   return <View style={styles.offerCard}>
+    {lowestVerifiedDelivered ? <View style={styles.lowestBadge}><Ionicons name="sparkles" size={10} color={FateDropColors.background} /><Text style={styles.lowestBadgeText}>LOWEST VERIFIED TOTAL</Text></View> : null}
     <View style={styles.offerTop}>
       <View style={styles.retailerMark}><Ionicons name="storefront-outline" size={19} color={FateDropColors.goldBright} /></View>
       <View style={styles.offerTitleWrap}><Text style={styles.retailerName}>{offer.retailerName}</Text><Text numberOfLines={2} style={styles.offerTitle}>{offer.title}</Text></View>
@@ -253,8 +261,12 @@ const styles = StyleSheet.create({
   emptyCopy: { color: FateDropColors.secondary, fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 7 },
   findButton: { minHeight: 39, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, paddingHorizontal: 17, borderRadius: 999, backgroundColor: FateDropColors.goldBright },
   findButtonText: { color: '#080B14', fontSize: 7, fontWeight: '900', letterSpacing: .7 },
+  rankingTruth: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)', borderRadius: 12, backgroundColor: 'rgba(226,197,141,.05)' },
+  rankingTruthText: { flex: 1, color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11 },
   offerStack: { gap: 10, marginTop: 13 },
-  offerCard: { padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.37)', borderRadius: 15, backgroundColor: 'rgba(4,9,22,.86)' },
+  offerCard: { position: 'relative', padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.37)', borderRadius: 15, backgroundColor: 'rgba(4,9,22,.86)' },
+  lowestBadge: { alignSelf: 'flex-start', minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 9, paddingHorizontal: 8, borderRadius: 999, backgroundColor: FateDropColors.goldBright },
+  lowestBadgeText: { color: FateDropColors.background, fontSize: 5.7, fontWeight: '900', letterSpacing: .55 },
   offerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   retailerMark: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.43)', backgroundColor: 'rgba(124,110,255,.1)' },
   offerTitleWrap: { flex: 1, minWidth: 0 },

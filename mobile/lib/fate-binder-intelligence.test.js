@@ -41,3 +41,9 @@ test('Binder completion is previewed, explicitly confirmed and kept outside exac
   assert.match(binder, /confirmFateCollectorSetCompletion/);
   assert.match(binder, /removeFateCollectorSetCompletion/);
 });
+
+test('a missing binder card opens the universal exact-card retailer comparison', () => {
+  assert.match(binder, /pathname: '\/fate-price-buy'/);
+  assert.match(binder, /BUY THIS CARD/);
+  assert.match(binder, /cardId: card\.fateCardId/);
+});
