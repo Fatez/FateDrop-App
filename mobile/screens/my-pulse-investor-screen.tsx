@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { storedPeriodMovement } from '@/lib/history-period';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateDropBackground } from '@/components/fatedrop-ui';
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -53,15 +54,6 @@ function move(value: number | null | undefined) {
 function moveAccent(value: number | null | undefined) {
   if (value == null || value === 0) return FateDropColors.goldBright;
   return value > 0 ? FateDropColors.manifested : FateDropColors.vanished;
-}
-
-function historyMove(history: FatePriceHistorySnapshot | null | undefined) {
-  const points = history?.available ? history.points : [];
-  if (points.length < 2) return null;
-  const first = points[0]?.amount;
-  const last = points[points.length - 1]?.amount;
-  if (!Number.isFinite(first) || !Number.isFinite(last) || !first) return null;
-  return ((last - first) / first) * 100;
 }
 
 function filteredPoints(history: FatePriceHistorySnapshot | null | undefined, days: ChartWindow) {
@@ -289,7 +281,7 @@ function WatchedCard({ follow, intel, chartWindow, onRemove }: { follow: FatePul
   const currency = price?.price?.currencyCode || price?.marketScope?.currencyCode || history?.points[history.points.length - 1]?.currencyCode || 'GBP';
   const move7 = price?.movement.d7.available ? price.movement.d7.percent ?? null : null;
   const move30 = price?.movement.d30.available ? price.movement.d30.percent ?? null : null;
-  const move90 = historyMove(history);
+  const move90 = history?.available ? storedPeriodMovement(history.points, 90) : null;
   const current = price?.price?.amount ?? history?.points[history.points.length - 1]?.amount ?? null;
 
   return <View style={styles.cardPanel}>
