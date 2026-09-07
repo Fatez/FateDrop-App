@@ -15,9 +15,10 @@ test('Binder needed and owned rows use the shared canonical thumbnail boundary',
   assert.match(binder, /kind="card" setId=\{card\?\.setId \|\| setId\} collectorNumber=\{card\?\.collectorNumber\}/);
 });
 
-test('Binder exposes verified finish-cost coverage without estimating unknown prices', () => {
-  assert.match(binder, /COST TO FINISH/);
-  assert.match(binder, /KNOWN REMAINDER/);
+test('Binder exposes verified missing-card market value without estimating unknown prices', () => {
+  assert.match(binder, /MISSING-CARD VALUE/);
+  assert.match(binder, /KNOWN MISSING VALUE/);
+  assert.match(binder, /retailer prices and postage may differ/);
   assert.match(binder, /missingPricedCount/);
   assert.match(binder, /missingUnpricedCount/);
   assert.match(binder, /does not estimate the rest/);
