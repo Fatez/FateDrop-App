@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 const marketRoute = read('app/(tabs)/market.tsx');
 const market = read('screens/fate-market-screen-v2.tsx');
-const pulseRoute = read('app/fate-pulse.tsx');
+const pulseRoute = read('app/fate-pulse/index.tsx');
 const pulseSetsRoute = read('app/fate-pulse/sets.tsx');
 const pulseCardsRoute = read('app/fate-pulse/cards.tsx');
 const myPulseRoute = read('app/fate-pulse/my-pulse.tsx');
