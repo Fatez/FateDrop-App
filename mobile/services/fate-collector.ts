@@ -63,6 +63,7 @@ export type FateCollectorSetBinder = {
   completionPercent: number | null;
   explicitlyTracked?: boolean;
   missingCards?: FateCollectorMissingCard[];
+  topMissingCards?: FateCollectorMissingCard[];
   value?: FateCollectorBinderValue | null;
 };
 
@@ -177,6 +178,9 @@ export type FateCollectorMissingCard = {
   rarity: string | null;
   variantCode: string | null;
   languageCode: string | null;
+  currentPrice?: number | null;
+  currencyCode?: string | null;
+  priceObservedAt?: number | null;
 };
 
 export type FateCollectorValueCoverage = {
@@ -195,6 +199,11 @@ export type FateCollectorBinderValue = {
   fullSetValue: number | null;
   ownedValue: number | null;
   missingValue: number | null;
+  knownMissingValue?: number | null;
+  missingExpectedCount?: number | null;
+  missingPricedCount?: number | null;
+  missingUnpricedCount?: number | null;
+  missingPriceCoveragePercent?: number | null;
   currencyCode: string;
   status?: string;
   reason?: string | null;

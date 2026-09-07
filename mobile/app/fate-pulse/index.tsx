@@ -1,1 +1,1 @@
-export { default } from '@/screens/fate-pulse-screen';
+export { default } from '@/screens/fate-pulse-overview-screen';
