@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
@@ -288,8 +287,6 @@ function LegacyCardRow({ item, items, refreshKey, onChanged }: { item: FateColle
     <View style={styles.cardRight}><Text style={styles.cardPrice}>{price ? money(price.amount * items.reduce((sum, owned) => sum + owned.quantity, 0), price.currencyCode) : 'FatePrice'}</Text><QuantityControl cardIdentityId={item.fateCardId} items={items} quantity={items.reduce((sum, owned) => sum + owned.quantity, 0)} onChanged={onChanged} /></View><Ionicons name="chevron-forward" size={14} color={FateDropColors.ivory} />
   </Pressable>;
 }
-
-function CardPlaceholder() { return <View style={styles.cardArtPlaceholder}><Ionicons name="sparkles-outline" size={18} color={FateDropColors.echo} /></View>; }
 
 function OwnedSetRow({ currency, period, set }: { currency: string; period: PeriodKey; set: FateCollectorIntelligenceSet }) {
   const movement = set[period];
