@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
+import { FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { FateMarketApiError, fetchFatePriceSetCards, type FatePriceCard, type FatePriceSet } from '@/services/fate-market';
 
@@ -139,7 +141,7 @@ export default function FatePriceSetScreen() {
       </View>
 
       <View style={styles.setPanel}>
-        <View style={styles.setMark}><Ionicons name="albums-outline" size={26} color={FateDropColors.goldBright} /><View style={styles.setOrbit} /></View>
+        <View style={styles.setMark}><CanonicalThumbnail kind="set" setId={setId} width={51} height={51} /></View>
         <View style={styles.flex}><Text style={styles.setName}>{setName}</Text><Text style={styles.setMeta}>{set?.seriesName || 'Verified series'} · {set?.total || set?.printedTotal || groups.length || '—'} cards</Text></View>
         <View style={styles.verified}><Ionicons name="shield-checkmark" size={12} color={FateDropColors.manifested} /><Text style={styles.verifiedText}>VERIFIED</Text></View>
       </View>
@@ -162,7 +164,7 @@ export default function FatePriceSetScreen() {
       {loading ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Reading exact set identities…</Text></View> : null}
       {!loading && notice ? <View style={styles.empty}><Ionicons name="telescope-outline" size={27} color={FateDropColors.goldBright} /><Text style={styles.emptyTitle}>The path stops here for now.</Text><Text style={styles.emptyCopy}>{notice}</Text></View> : null}
       {!loading && !notice ? <View style={styles.cardGrid}>{groups.map((group) => <Pressable key={group.printingId} accessibilityRole="button" onPress={() => openVariants(group)} style={({ pressed }) => [styles.cardTile, pressed && styles.pressed]}>
-        <View style={styles.glyphWrap}><FatePriceCardGlyph collectorNumber={group.collectorNumber} large /></View>
+        <View style={styles.glyphWrap}><CanonicalThumbnail kind="card" setId={group.cards[0]?.setId || setId} collectorNumber={group.collectorNumber} width={84} height={118} /></View>
         <Text numberOfLines={2} style={styles.cardName}>{group.name}</Text>
         <Text style={styles.cardMeta}>#{group.collectorNumber} · {group.rarity || group.supertype || 'Verified card'}</Text>
         <View style={styles.identityLine}><Text style={styles.identityText}>{group.cards.length} EXACT {group.cards.length === 1 ? 'IDENTITY' : 'IDENTITIES'}</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.goldBright} /></View>

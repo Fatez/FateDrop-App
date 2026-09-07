@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
+import { FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { FateMarketApiError, fetchFatePriceSetCards, type FatePriceCard } from '@/services/fate-market';
 
@@ -107,7 +109,7 @@ export default function FatePriceVariantsScreen() {
       </View>
 
       <View style={styles.identityPanel}>
-        <FatePriceCardGlyph collectorNumber={collectorNumber} large />
+        <CanonicalThumbnail kind="card" setId={anchor?.setId || setId} collectorNumber={collectorNumber} width={94} height={132} />
         <View style={styles.identityCopy}>
           <Text style={styles.identityName}>{title}</Text>
           <Text style={styles.identitySet}>{setName}</Text>
@@ -131,6 +133,7 @@ export default function FatePriceVariantsScreen() {
       {!loading && notice ? <View style={styles.empty}><Ionicons name="diamond-outline" size={28} color={FateDropColors.goldBright} /><Text style={styles.emptyTitle}>No exact path yet.</Text><Text style={styles.emptyCopy}>{notice}</Text></View> : null}
       {!loading && !notice ? <View style={styles.variantStack}>{variants.map((card, index) => <Pressable key={card.id} accessibilityRole="button" accessibilityLabel={`Open FatePrice for ${title}, ${pretty(card.variantCode)}, ${card.languageCode.toUpperCase()}`} onPress={() => openExact(card)} style={({ pressed }) => [styles.variantCard, index === 0 && styles.variantCardFirst, pressed && styles.pressed]}>
         <View style={styles.variantIndex}><Text style={styles.variantIndexText}>{String(index + 1).padStart(2, '0')}</Text><View style={styles.variantLine} /></View>
+        <CanonicalThumbnail kind="card" setId={card.setId} collectorNumber={card.collectorNumber} width={52} height={73} />
         <View style={styles.variantMain}>
           <View style={styles.variantTop}><Text style={styles.variantFinish}>{pretty(card.variantCode)}</Text><View style={styles.verified}><Ionicons name="shield-checkmark" size={11} color={FateDropColors.manifested} /><Text style={styles.verifiedText}>EXACT</Text></View></View>
           <View style={styles.fieldGrid}>

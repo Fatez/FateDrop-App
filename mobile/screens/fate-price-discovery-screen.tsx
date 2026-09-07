@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -7,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   FatePriceAreaRail,
   FatePriceScreenBackground,
-  FatePriceCardGlyph,
   FatePriceTopBar,
   FatePriceTruth,
 } from '@/components/fate-price-chrome';
@@ -223,7 +224,7 @@ export default function FatePriceDiscoveryScreen() {
         {loadingSets ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Reading canonical sets…</Text></View> : null}
         {!loadingSets && verifiedSets.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.setRail}>
           {verifiedSets.map((set) => <Pressable key={set.id} accessibilityRole="button" onPress={() => openSet(set)} style={({ pressed }) => [styles.setCard, pressed && styles.pressed]}>
-            <View style={styles.setArt}><View style={styles.setOrbit} /><Ionicons name="albums-outline" size={26} color={FateDropColors.goldBright} /></View>
+            <View style={styles.setArt}><CanonicalThumbnail kind="set" setId={set.id} width={58} height={58} /></View>
             <Text numberOfLines={2} style={styles.setName}>{set.name}</Text>
             <Text numberOfLines={1} style={styles.setSeries}>{set.seriesName || 'Verified series'}</Text>
             <Text style={styles.setRelease}>{releaseLabel(set.releasedAt)}</Text>
@@ -245,7 +246,7 @@ function SectionHeading({ eyebrow, title, detail }: { eyebrow: string; title: st
 
 function SetResult({ set, onPress }: { set: FatePriceSet; onPress: () => void }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
-    <View style={styles.resultIcon}><Ionicons name="albums-outline" size={19} color={FateDropColors.goldBright} /></View>
+    <CanonicalThumbnail kind="set" setId={set.id} width={38} height={38} />
     <View style={styles.flex}><Text style={styles.resultTitle}>{set.name}</Text><Text style={styles.resultMeta}>SET · {set.seriesName || 'Verified series'} · {set.total || set.printedTotal || '—'} cards</Text></View>
     <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
   </Pressable>;
@@ -253,7 +254,7 @@ function SetResult({ set, onPress }: { set: FatePriceSet; onPress: () => void })
 
 function PrintingResultRow({ card, identityCount, onPress }: { card: FatePriceCard; identityCount: number; onPress: () => void }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
-    <FatePriceCardGlyph collectorNumber={card.collectorNumber} />
+    <CanonicalThumbnail kind="card" setId={card.setId} collectorNumber={card.collectorNumber} width={36} height={50} />
     <View style={styles.flex}><Text style={styles.resultTitle}>{card.name || 'Unknown card'}</Text><Text style={styles.resultMeta}>{card.setName || 'Verified set'} · #{card.collectorNumber}</Text><Text style={styles.resultVariant}>{identityCount} exact finish/language identit{identityCount === 1 ? 'y' : 'ies'}</Text></View>
     <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
   </Pressable>;

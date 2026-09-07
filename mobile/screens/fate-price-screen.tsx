@@ -6,7 +6,8 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddToFateCollectorAction } from '@/components/add-to-fate-collector-action';
-import { FatePriceCardGlyph, FatePriceScreenBackground, FatePriceTopBar } from '@/components/fate-price-chrome';
+import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
+import { FatePriceScreenBackground, FatePriceTopBar } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   FateMarketApiError,
@@ -278,7 +279,7 @@ export default function FatePriceScreen() {
           {searchNotice ? <Text style={styles.searchNotice}>{searchNotice}</Text> : null}
           {results.length ? <View style={styles.results}>{results.map((card) => (
             <Pressable key={card.id} accessibilityRole="button" accessibilityLabel={`Read FatePrice for ${cardLabel(card)}`} onPress={() => selectCard(card)} style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}>
-              <View style={styles.resultGem}><Ionicons name="diamond-outline" size={15} color={FateDropColors.goldBright} /></View>
+              <CanonicalThumbnail kind="card" setId={card.setId} collectorNumber={card.collectorNumber} width={36} height={50} />
               <View style={styles.flex}><Text style={styles.resultName}>{cardLabel(card)}</Text><Text style={styles.resultMeta}>{card.setName || 'Verified set'} · {card.languageCode.toUpperCase()}</Text></View>
               <Ionicons name="chevron-forward" size={15} color={FateDropColors.muted} />
             </Pressable>
@@ -286,7 +287,7 @@ export default function FatePriceScreen() {
         </View> : null}
 
         {selectedCardId ? <View style={styles.identityStrip}>
-          <FatePriceCardGlyph collectorNumber={selectedNumber} />
+          <CanonicalThumbnail kind="card" setId={selectedCard?.setId || routeSetId} collectorNumber={selectedNumber} width={50} height={70} />
           <View style={styles.flex}><Text style={styles.identityStripEyebrow}>EXACT CANONICAL IDENTITY</Text><Text style={styles.identityStripTitle}>{selectedTitle}</Text><Text style={styles.identityStripMeta}>{titleDetail || selectedSet}</Text></View>
           <View style={styles.identityVerified}><Ionicons name="shield-checkmark" size={13} color={FateDropColors.manifested} /><Text style={styles.identityVerifiedText}>VERIFIED</Text></View>
         </View> : null}
