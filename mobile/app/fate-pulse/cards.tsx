@@ -1,5 +1,5 @@
-import FatePulseScreen from '@/screens/fate-pulse-screen';
+import FatePulseScreenV2 from '@/screens/fate-pulse-screen-v2';
 
 export default function FatePulseCardsRoute() {
-  return <FatePulseScreen initialView="cards" />;
+  return <FatePulseScreenV2 initialView="cards" />;
 }
