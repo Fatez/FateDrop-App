@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FatePriceScreenBackground, FatePriceTopBar, FatePriceTruth } from '@/components/fate-price-chrome';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { retailOfferViewState } from '@/lib/retail-offer-view-state';
 import { safeExternalHttpsUrl } from '@/lib/external-url-security';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
 import {
@@ -66,11 +67,15 @@ export default function FatePriceBuyScreen() {
     collectorNumber?: string | string[];
     name?: string | string[];
     setName?: string | string[];
+    setId?: string | string[];
+    printingId?: string | string[];
+    tcg?: string | string[];
   }>();
   const cardId = first(params.cardId)?.trim() || '';
   const routeName = first(params.name)?.trim() || 'Exact card';
   const routeSetName = first(params.setName)?.trim() || 'Verified set';
   const routeNumber = first(params.collectorNumber)?.trim() || '';
+  const requestGeneration = useRef(0);
   const [card, setCard] = useState<FatePriceCard | null>(null);
   const [retail, setRetail] = useState<FatePriceRetailSnapshot | null>(null);
   const [price, setPrice] = useState<FatePriceSnapshot | null>(null);
@@ -80,6 +85,7 @@ export default function FatePriceBuyScreen() {
   const [notice, setNotice] = useState('');
 
   const load = useCallback(async (force = false) => {
+    const generation = ++requestGeneration.current;
     if (!cardId) {
       setNotice('Choose an exact card before checking retailers.');
       setLoading(false);
@@ -87,10 +93,14 @@ export default function FatePriceBuyScreen() {
     }
     setLoading(true);
     setNotice('');
+    setRetail(null);
+    setPrice(null);
+    setCard(null);
     const [retailResult, priceResult] = await Promise.allSettled([
       fetchFatePriceRetailOffers(cardId, { force }),
       fetchFatePrice(cardId, { force }),
     ]);
+    if (generation !== requestGeneration.current) return;
     if (retailResult.status === 'fulfilled') {
       setCard(retailResult.value.card);
       setRetail(retailResult.value.retail);
@@ -104,7 +114,9 @@ export default function FatePriceBuyScreen() {
   }, [cardId]);
 
   useEffect(() => {
-    void Promise.resolve().then(() => load());
+    let active = true;
+    void Promise.resolve().then(() => { if (active) void load(); });
+    return () => { active = false; requestGeneration.current += 1; };
   }, [load]);
 
   const retailerOptions = useMemo(() => [...new Set((retail?.offers || []).map((offer) => offer.retailerName))].sort(), [retail?.offers]);
@@ -119,22 +131,33 @@ export default function FatePriceBuyScreen() {
   const setName = card?.setName || routeSetName;
   const collectorNumber = card?.collectorNumber || routeNumber;
 
+  const exactParams = {
+    cardId, collectorNumber, name: title, setName,
+    setId: card?.setId || first(params.setId) || '',
+    printingId: card?.printingId || first(params.printingId) || '',
+    tcg: card?.tcgCode || first(params.tcg) || '',
+  };
+  const offerState = retailOfferViewState({ loading, status: retail?.status, visibleCount: offers.length });
+  const clearFilters = () => { setRetailer('all'); setCondition('all'); };
+
   const openOffer = useCallback(async (offer: FatePriceRetailOffer) => {
     const url = safeExternalHttpsUrl(offer.url);
     if (!url) {
       setNotice('This retailer link did not pass FateDrop’s safe-link check.');
       return;
     }
+    const generation = requestGeneration.current;
     try {
       await openTrackedRetailerLink({ destinationUrl: url, retailerId: offer.retailerId, offerId: offer.offerId, placement: 'fate-price-buy' });
+      if (generation === requestGeneration.current) await load(true);
     } catch {
-      setNotice('This verified retailer page could not be opened just now.');
+      if (generation === requestGeneration.current) setNotice('This verified retailer page could not be opened just now.');
     }
-  }, []);
+  }, [load]);
 
-  const openExactPrice = useCallback(() => {
-    router.push({ pathname: '/fate-price', params: { cardId, collectorNumber, name: title, setName } });
-  }, [cardId, collectorNumber, setName, title]);
+  const openExactPrice = () => {
+    if (cardId) router.push({ pathname: '/fate-price', params: exactParams });
+  };
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <FatePriceScreenBackground sceneKey={`buy:${cardId}`} />
@@ -152,7 +175,7 @@ export default function FatePriceBuyScreen() {
       </View>
 
       <View style={styles.cardPanel}>
-        <CanonicalThumbnail kind="card" setId={card?.setId} collectorNumber={collectorNumber} width={54} height={76} />
+        <CanonicalThumbnail kind="card" setId={exactParams.setId} collectorNumber={collectorNumber} width={54} height={76} />
         <View style={styles.cardCopy}><Text style={styles.cardName}>{title}</Text><Text style={styles.cardMeta}>{setName} · #{collectorNumber || '—'}</Text><Text style={styles.cardVariant}>{pretty(card?.variantCode)} · {(card?.languageCode || '—').toUpperCase()} · {card?.rarity || 'Rarity not supplied'}</Text></View>
         <View style={styles.priceBlock}><Text style={styles.priceLabel}>FATEPRICE</Text><Text style={styles.priceValue}>{money(price?.price?.amount)}</Text><Text style={styles.fairRange}>{price?.price ? `${money(price.price.fairLow)}–${money(price.price.fairHigh)}` : 'Fair range unknown'}</Text></View>
       </View>
@@ -175,11 +198,21 @@ export default function FatePriceBuyScreen() {
 
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       {loading && !retail ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Checking monitored retailers…</Text></View> : null}
-      {!loading && retail?.status !== 'available' ? <View style={styles.empty}>
+      {offerState === 'unavailable' ? <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>Retailer check unavailable.</Text>
+        <Text style={styles.emptyCopy}>We could not confirm availability for this card. Please try again.</Text>
+        <Pressable accessibilityRole="button" onPress={() => void load(true)} style={styles.findButton}><Text style={styles.findButtonText}>RETRY RETAILER CHECK</Text></Pressable>
+      </View> : null}
+      {offerState === 'filtered' ? <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>No offers match these filters.</Text>
+        <Text style={styles.emptyCopy}>View all verified offers for this exact card.</Text>
+        <Pressable accessibilityRole="button" onPress={clearFilters} style={styles.findButton}><Text style={styles.findButtonText}>CLEAR FILTERS</Text></Pressable>
+      </View> : null}
+      {offerState === 'empty' ? <View style={styles.empty}>
         <View style={styles.emptyOrbit}><Ionicons name="storefront-outline" size={30} color={FateDropColors.goldBright} /></View>
         <Text style={styles.emptyTitle}>No verified live single right now.</Text>
-        <Text style={styles.emptyCopy}>FateDrop found no fresh, exact-identity retailer mapping that passed stock and retailer-health checks. Similar-looking cards are deliberately excluded.</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fatefind', params: { query: title } })} style={styles.findButton}><Ionicons name="compass-outline" size={16} color="#080B14" /><Text style={styles.findButtonText}>OPEN FATEFIND</Text></Pressable>
+        <Text style={styles.emptyCopy}>No current verified retailer offers were found for this exact card. You can review its market history in FatePrice and add it to My Pulse to track price movement.</Text>
+        <Pressable accessibilityRole="button" onPress={openExactPrice} style={styles.findButton}><Ionicons name="analytics-outline" size={16} color="#080B14" /><Text style={styles.findButtonText}>VIEW THIS CARD IN FATEPRICE</Text></Pressable>
       </View> : null}
       {offers.length ? <><View style={styles.rankingTruth}><Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.rankingTruthText}>Cloud-ranked by verified delivered total. Unknown postage stays unknown and cannot be labelled the lowest total.</Text></View><View style={styles.offerStack}>{offers.map((offer) => <OfferCard key={offer.offerId} lowestVerifiedDelivered={offer.offerId === lowestVerifiedDeliveredOfferId} offer={offer} onOpen={() => void openOffer(offer)} />)}</View></> : null}
 
