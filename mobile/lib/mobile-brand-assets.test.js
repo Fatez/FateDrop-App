@@ -129,7 +129,7 @@ test('every rendered mobile page keeps the shared FateDrop background', () => {
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
     if (!source.includes('SafeAreaView')) continue;
-    if (!source.includes('FateDropBackground') && !source.includes('ScreenBackground')) {
+    if (!source.includes('FateDropBackground') && !source.includes('ScreenBackground') && !source.includes('FateMarketBackground')) {
       missing.push(path.relative(root, file));
     }
   }

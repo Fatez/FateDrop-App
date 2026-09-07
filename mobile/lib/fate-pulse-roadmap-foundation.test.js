@@ -17,14 +17,16 @@ const pulseScreen = read('screens/fate-pulse-screen.tsx');
 const home = read('screens/home-screen-v3.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
 
-test('Fate Market keeps the approved entry screen and only hands FatePulse off to its dedicated route', () => {
+test('Fate Market uses consistent overview tabs with explicit routes into deeper tools', () => {
   assert.match(marketRoute, /fate-market-screen-v2/);
   assert.match(market, /title: 'FatePulse'/);
   assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Collections'/);
-  assert.match(market, /key === 'pulse' \? router\.push\('\/fate-pulse'\)/);
-  assert.match(market, /key === 'price' \? router\.push\('\/fate-price'\)/);
-  assert.match(market, /: setActiveArea\(key\)/);
+  assert.match(market, /setActiveArea\(key\); router\.setParams\(\{ area: key \}\)/);
+  assert.match(market, /EXPLORE FATEPULSE/);
+  assert.match(market, /router\.push\('\/fate-pulse'\)/);
+  assert.match(market, /OPEN FATEPRICE/);
+  assert.match(market, /router\.push\('\/fate-price'\)/);
 });
 
 test('FatePulse Overview is the simple investor dashboard', () => {

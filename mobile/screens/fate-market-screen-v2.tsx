@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FateCollectorEnhancements } from '@/components/fate-collector-enhancements';
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FateMarketBackground } from '@/components/fate-market-brand';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -202,30 +202,7 @@ export default function FateMarketScreenV2() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateDropBackground />
-        <Image
-          source={require('../assets/images/fate-market-orbital-theme.webp')}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          contentPosition="top center"
-          cachePolicy="disk"
-          enforceEarlyResizing
-          recyclingKey="fate-market:orbital-theme"
-        />
-        <Image
-          source={require('../assets/images/fate-market-guardians-gateway.webp')}
-          style={styles.marketGuardians}
-          contentFit="cover"
-          contentPosition="top center"
-          cachePolicy="disk"
-          enforceEarlyResizing
-          recyclingKey="fate-market:guardian-gateway"
-        />
-        <View style={styles.marketGuardianVeil} />
-        <View style={styles.themeVeil} />
-        <View style={styles.themeLowerVeil} />
-      </View>
+      <FateMarketBackground />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -236,7 +213,7 @@ export default function FateMarketScreenV2() {
           <View style={styles.heroCopy}>
             <Text style={styles.eyebrow}>FATE MARKET</Text>
             <Text style={styles.title}>Read the market. Know your position.</Text>
-            <Text style={styles.copy}>Market direction, exact value and your collection—one evidence boundary, three useful views.</Text>
+            <Text style={styles.copy}>Explore the market, research a card or see how your collection is growing.</Text>
           </View>
           <View accessibilityLabel={loading ? 'Refreshing Fate Market' : 'Fate Market evidence ready'} style={styles.marketMark}>
             <View style={styles.marketMarkOuter} />
@@ -256,7 +233,7 @@ export default function FateMarketScreenV2() {
                 key={key}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
-                onPress={() => key === 'pulse' ? router.push('/fate-pulse') : key === 'price' ? router.push('/fate-price') : setActiveArea(key)}
+                onPress={() => { setActiveArea(key); router.setParams({ area: key }); }}
                 style={({ pressed }) => [styles.areaTab, selected && styles.areaTabActive, pressed && styles.pressed]}
               >
                 <Ionicons name={area.icon} size={16} color={selected ? area.accent : FateDropColors.muted} />
@@ -279,7 +256,7 @@ export default function FateMarketScreenV2() {
 
         <View style={styles.truthLedger}>
           <Ionicons name="shield-checkmark-outline" size={17} color={FateDropColors.goldBright} />
-          <Text style={styles.truthCopy}>Cloud owns identity, history and calculations. Missing evidence stays unknown; the App never fills gaps with synthetic scores or values.</Text>
+          <Text style={styles.truthCopy}>Values use verified card identities and dated market evidence. Where evidence is missing, the value stays unknown.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -328,6 +305,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
         ))}
       </View>
 
+      <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Ionicons name="pulse-outline" size={17} color={FateDropColors.goldBright} /><Text style={styles.orbitalActionText}>EXPLORE FATEPULSE</Text><Ionicons name="arrow-forward" size={16} color={FateDropColors.goldBright} /></Pressable>
       <View style={styles.pulseInstrument}>
         <View pointerEvents="none" style={[styles.pulseOrbitOuter, { borderColor: `${accent}54` }]} />
         <View pointerEvents="none" style={styles.pulseOrbitMiddle} />
@@ -487,7 +465,7 @@ function CollectorsPanel({ data, error, loading, onRefresh, signedIn }: { data: 
         </View> : null}
       </View>
       {summary?.closestSet ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`Open ${summary.closestSet.setName || 'closest set'} binder`} onPress={() => router.push({ pathname: '/binder/[setId]', params: { setId: summary.closestSet?.setId, setName: summary.closestSet?.setName || undefined } })} style={({ pressed }) => [styles.closestSetCard, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Open ${summary.closestSet.setName || 'closest set'} binder`} onPress={() => { if (summary.closestSet) router.push({ pathname: '/binder/[setId]', params: { setId: summary.closestSet.setId, setName: summary.closestSet.setName || undefined } }); }} style={({ pressed }) => [styles.closestSetCard, pressed && styles.pressed]}>
           <View style={styles.closestSetTop}>
             <View style={styles.flex}><Text style={styles.closestSetEyebrow}>CLOSEST SET</Text><Text style={styles.closestSetName}>{summary.closestSet.setName || 'Verified set'}</Text></View>
             <Text style={styles.closestSetPercent}>{concisePercent(summary.closestSet.completionPercent)}</Text>
@@ -604,25 +582,25 @@ const styles = StyleSheet.create({
   areaTitle: { color: FateDropColors.muted, fontFamily: Fonts.serif, fontSize: 10.5 },
   areaActiveGem: { position: 'absolute', width: 5, height: 5, bottom: -3, transform: [{ rotate: '45deg' }] },
   areaContext: { alignItems: 'center', minHeight: 42, paddingTop: 10, paddingHorizontal: 12 },
-  areaContextEyebrow: { color: FateDropColors.gold, fontSize: 6.5, fontWeight: '900', letterSpacing: 1.1 },
-  areaContextCopy: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12, marginTop: 3, textAlign: 'center' },
+  areaContextEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  areaContextCopy: { color: FateDropColors.muted, fontSize: 10, lineHeight: 12, marginTop: 3, textAlign: 'center' },
   panel: { marginTop: 7, paddingTop: 8, paddingBottom: 2 },
   panelHeading: { minHeight: 54, flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 5 },
-  panelEyebrow: { fontSize: 7.5, fontWeight: '900', letterSpacing: 1.2 },
+  panelEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   panelTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 19, lineHeight: 23, marginTop: 3 },
   statusPill: { maxWidth: 112, borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: 'rgba(3,8,20,.42)' },
-  statusText: { fontSize: 6.3, fontWeight: '900', letterSpacing: 0.55, textAlign: 'center' },
+  statusText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.55, textAlign: 'center' },
   scopeRail: { gap: 8, paddingHorizontal: 3, paddingVertical: 9, paddingRight: 18 },
   scopeButton: { minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)', backgroundColor: 'rgba(3,8,20,.38)' },
   scopeButtonActive: { borderColor: 'rgba(226,197,141,.74)', backgroundColor: 'rgba(226,197,141,.08)' },
   scopeDot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: FateDropColors.muted },
   scopeDotActive: { borderColor: FateDropColors.manifested, backgroundColor: FateDropColors.manifested },
-  scopeButtonText: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: .55 },
+  scopeButtonText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
   scopeButtonTextActive: { color: FateDropColors.ivory },
   periodRail: { width: 186, alignSelf: 'center', flexDirection: 'row', marginTop: 3, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
   periodButton: { flex: 1, alignItems: 'center', paddingVertical: 8 },
   periodButtonActive: { borderBottomWidth: 1, borderBottomColor: FateDropColors.manifested },
-  periodButtonText: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900' },
+  periodButtonText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' },
   periodButtonTextActive: { color: FateDropColors.ivory },
   pulseInstrument: { height: 260, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   pulseOrbitOuter: { position: 'absolute', width: 222, height: 222, borderRadius: 111, borderWidth: StyleSheet.hairlineWidth },
@@ -631,105 +609,105 @@ const styles = StyleSheet.create({
   pulseAxisHorizontal: { position: 'absolute', left: 23, right: 23, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.23)' },
   pulseAxisVertical: { position: 'absolute', top: 13, bottom: 11, width: StyleSheet.hairlineWidth, backgroundColor: 'rgba(226,197,141,.22)' },
   pulseCore: { width: 142, height: 142, borderRadius: 71, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', zIndex: 3 },
-  pulseCoreEyebrow: { color: FateDropColors.muted, fontSize: 5.3, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
-  pulseCoreScope: { color: FateDropColors.gold, fontSize: 5.8, fontWeight: '900', letterSpacing: .7, marginTop: 3 },
+  pulseCoreEyebrow: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
+  pulseCoreScope: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: .7, marginTop: 3 },
   pulseCoreValue: { fontFamily: Fonts.serif, fontSize: 32, lineHeight: 38, marginTop: 1 },
   pulseCoreCondition: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 10.5 },
-  pulseCorePeriod: { color: FateDropColors.muted, fontSize: 5.6, fontWeight: '800', letterSpacing: .4, marginTop: 3 },
+  pulseCorePeriod: { color: FateDropColors.muted, fontSize: 10, fontWeight: '800', letterSpacing: .4, marginTop: 3 },
   breadthOrbital: { position: 'absolute', width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(3,8,20,.50)', zIndex: 4 },
   breadthLeft: { left: 0, top: 86 },
   breadthRight: { right: 0, top: 86 },
   breadthBottom: { bottom: 0 },
   breadthRing: { ...StyleSheet.absoluteFill, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },
   breadthValue: { fontFamily: Fonts.serif, fontSize: 18, lineHeight: 21 },
-  breadthLabel: { color: FateDropColors.muted, fontSize: 5.8, fontWeight: '900', letterSpacing: .5, marginTop: 2 },
+  breadthLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .5, marginTop: 2 },
   coverageLedger: { marginTop: 4, paddingHorizontal: 7, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.30)', backgroundColor: 'rgba(3,8,20,.18)' },
   coverageTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  coverageEyebrow: { color: FateDropColors.gold, fontSize: 6.2, fontWeight: '900', letterSpacing: .8 },
+  coverageEyebrow: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: .8 },
   coverageTitle: { color: FateDropColors.ivory, fontSize: 10.5, fontWeight: '700', marginTop: 3 },
   coverageThreshold: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 13 },
   coverageTrack: { height: 2, borderRadius: 1, backgroundColor: 'rgba(255,255,255,.08)', marginTop: 10, overflow: 'hidden' },
   coverageFill: { height: 2, borderRadius: 1 },
   coverageFacts: { flexDirection: 'row', justifyContent: 'space-between', gap: 7, marginTop: 7 },
-  coverageCopy: { color: FateDropColors.muted, fontSize: 6.8 },
+  coverageCopy: { color: FateDropColors.muted, fontSize: 10 },
   readinessLine: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingHorizontal: 7, paddingVertical: 12 },
-  readinessCopy: { flex: 1, color: FateDropColors.secondary, fontSize: 8.5, lineHeight: 13 },
+  readinessCopy: { flex: 1, color: FateDropColors.secondary, fontSize: 10, lineHeight: 13 },
   calibrationLedger: { minHeight: 58, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.22)' },
   calibrationMetric: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  calibrationLabel: { color: FateDropColors.muted, fontSize: 6.5, fontWeight: '900', letterSpacing: .55 },
+  calibrationLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
   calibrationValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13, marginTop: 3 },
-  calibrationDetail: { color: FateDropColors.muted, fontSize: 6.2, marginTop: 1 },
+  calibrationDetail: { color: FateDropColors.muted, fontSize: 10, marginTop: 1 },
   ledgerDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: 'rgba(226,197,141,.20)' },
   moversHead: { minHeight: 70, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 14, paddingHorizontal: 4 },
-  moversEyebrow: { color: FateDropColors.manifested, fontSize: 7.5, fontWeight: '900', letterSpacing: .95 },
+  moversEyebrow: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: .95 },
   moversTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, marginTop: 3 },
   segmentedRow: { width: 118, flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
   segmentButton: { flex: 1, alignItems: 'center', paddingVertical: 8 },
   segmentButtonActive: { borderBottomWidth: 1, borderBottomColor: FateDropColors.manifested },
-  segmentButtonText: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900' },
+  segmentButtonText: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' },
   segmentButtonTextActive: { color: FateDropColors.ivory },
-  moverColumns: { flexDirection: 'row', gap: 9 },
+  moverColumns: { gap: 14 },
   moverColumn: { flex: 1, minWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.25)' },
   moverColumnHead: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 5 },
-  moverColumnLabel: { fontSize: 7, fontWeight: '900', letterSpacing: .65 },
-  moverColumnLimit: { marginLeft: 'auto', color: FateDropColors.muted, fontSize: 5.7, fontWeight: '800' },
+  moverColumnLabel: { fontSize: 10, fontWeight: '900', letterSpacing: .65 },
+  moverColumnLimit: { marginLeft: 'auto', color: FateDropColors.muted, fontSize: 10, fontWeight: '800' },
   moverRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(226,197,141,.14)', borderLeftWidth: 1, borderLeftColor: 'transparent' },
   moverRank: { width: 12, color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 13 },
   moverIdentity: { flex: 1, minWidth: 0 },
-  moverName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 9.8, lineHeight: 12 },
-  moverMeta: { color: FateDropColors.muted, fontSize: 5.8, marginTop: 3 },
-  moverValue: { maxWidth: 43, fontSize: 8.2, fontWeight: '900', textAlign: 'right' },
-  moverEmpty: { minHeight: 112, color: FateDropColors.muted, fontSize: 7.5, lineHeight: 12, textAlign: 'center', paddingHorizontal: 8, paddingTop: 22 },
+  moverName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 14, lineHeight: 19 },
+  moverMeta: { color: FateDropColors.secondary, fontSize: 10, marginTop: 3 },
+  moverValue: { minWidth: 64, fontSize: 12, fontWeight: '900', textAlign: 'right' },
+  moverEmpty: { minHeight: 112, color: FateDropColors.muted, fontSize: 10, lineHeight: 12, textAlign: 'center', paddingHorizontal: 8, paddingTop: 22 },
   moverEvidence: { marginTop: 9, paddingHorizontal: 10, paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.42)', backgroundColor: 'rgba(124,110,255,.06)' },
-  moverEvidenceEyebrow: { color: FateDropColors.manifested, fontSize: 6.2, fontWeight: '900', letterSpacing: .7 },
+  moverEvidenceEyebrow: { color: FateDropColors.manifested, fontSize: 10, fontWeight: '900', letterSpacing: .7 },
   moverEvidenceTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 15, marginTop: 3 },
   moverEvidenceFacts: { flexDirection: 'row', gap: 9, marginTop: 9 },
   moverEvidenceFact: { flex: 1, minWidth: 0 },
-  moverEvidenceLabel: { color: FateDropColors.muted, fontSize: 5.6, fontWeight: '900' },
-  moverEvidenceValue: { color: FateDropColors.ivory, fontSize: 8.5, lineHeight: 11, marginTop: 2 },
+  moverEvidenceLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900' },
+  moverEvidenceValue: { color: FateDropColors.ivory, fontSize: 10, lineHeight: 11, marginTop: 2 },
   moverPriceAction: { minHeight: 35, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(226,197,141,.24)' },
-  moverPriceActionText: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .55 },
+  moverPriceActionText: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
   valueInstrument: { minHeight: 230, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   valueOrbit: { position: 'absolute', width: 208, height: 208, borderRadius: 104, borderWidth: StyleSheet.hairlineWidth },
-  valueLabel: { color: FateDropColors.gold, fontSize: 6.8, fontWeight: '900', letterSpacing: .8, marginTop: 8 },
+  valueLabel: { color: FateDropColors.gold, fontSize: 10, fontWeight: '900', letterSpacing: .8, marginTop: 8 },
   valueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 37, lineHeight: 44, marginTop: 2 },
-  valueSub: { maxWidth: 230, color: FateDropColors.secondary, fontSize: 8, lineHeight: 12, textAlign: 'center', marginTop: 2 },
+  valueSub: { maxWidth: 230, color: FateDropColors.secondary, fontSize: 10, lineHeight: 12, textAlign: 'center', marginTop: 2 },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  metricLabel: { color: FateDropColors.muted, fontSize: 6.3, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
+  metricLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
   metricValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 2, textAlign: 'center' },
-  metricDetail: { color: FateDropColors.muted, fontSize: 6.3, marginTop: 2 },
+  metricDetail: { color: FateDropColors.muted, fontSize: 10, marginTop: 2 },
   collectionCabinet: { minHeight: 250, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginTop: 12, padding: 20, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', backgroundColor: 'rgba(3,8,20,.28)' },
   collectionCabinetOrbit: { position: 'absolute', top: 17, width: 178, height: 178, borderRadius: 89, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.42)' },
-  collectionCabinetEyebrow: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginTop: 10 },
+  collectionCabinetEyebrow: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginTop: 10 },
   collectionCabinetTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 28, lineHeight: 34, marginTop: 3, textAlign: 'center' },
   collectionCabinetCopy: { maxWidth: 285, color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, textAlign: 'center', marginTop: 4 },
   collectionDoorRow: { width: '100%', flexDirection: 'row', gap: 9, marginTop: 22 },
   collectionDoor: { flex: 1, minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)', borderRadius: 12, backgroundColor: 'rgba(4,9,23,.66)' },
   collectionDoorValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17 },
-  collectionDoorLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
+  collectionDoorLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55, marginTop: 2 },
   collectorValueCard: { marginTop: 12, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.22)' },
   collectorValueTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   collectorValueSource: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   collectorValueSourceText: { color: FateDropColors.echo, fontSize: 9, fontWeight: '900', letterSpacing: .85 },
   collectorCurrency: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .8 },
   collectorValueLine: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 10 },
-  collectorValueLabel: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '900', letterSpacing: .75 },
+  collectorValueLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .75 },
   collectorValueMain: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 24, lineHeight: 29, marginTop: 1 },
   collectorValueNote: { maxWidth: 330, color: FateDropColors.secondary, fontSize: 9, lineHeight: 13, marginTop: 5 },
   collectorCoverageTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
-  collectorCoverageLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .7 },
-  collectorCoverageValue: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900' },
+  collectorCoverageLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .7 },
+  collectorCoverageValue: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900' },
   collectorCoverageTrack: { height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,255,255,.09)', marginTop: 7 },
   collectorCoverageFill: { height: 5, borderRadius: 3, backgroundColor: FateDropColors.echo },
-  collectorSourceNote: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 12, marginTop: 9 },
+  collectorSourceNote: { color: FateDropColors.muted, fontSize: 10, lineHeight: 12, marginTop: 9 },
   collectorFactGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 12 },
   collectorFact: { width: '48.7%', minHeight: 92, flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.24)', borderRadius: 17, backgroundColor: 'rgba(3,8,20,.52)' },
-  collectorFactLabel: { color: FateDropColors.muted, fontSize: 8, fontWeight: '900', letterSpacing: .55 },
+  collectorFactLabel: { color: FateDropColors.muted, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
   collectorFactValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 22, lineHeight: 27, marginTop: 2 },
-  collectorFactDetail: { color: FateDropColors.muted, fontSize: 8.5, lineHeight: 11, marginTop: 2 },
+  collectorFactDetail: { color: FateDropColors.muted, fontSize: 10, lineHeight: 11, marginTop: 2 },
   closestSetCard: { marginTop: 12, padding: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.44)', borderRadius: 18, backgroundColor: 'rgba(7,12,25,.62)' },
   closestSetTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  closestSetEyebrow: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: .75 },
+  closestSetEyebrow: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900', letterSpacing: .75 },
   closestSetName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, lineHeight: 21, marginTop: 3 },
   closestSetPercent: { color: FateDropColors.echo, fontFamily: Fonts.serif, fontSize: 22 },
   closestSetTrack: { height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(255,255,255,.09)', marginTop: 12 },
@@ -737,15 +715,15 @@ const styles = StyleSheet.create({
   closestSetBottom: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, marginTop: 8 },
   closestSetDetail: { flex: 1, color: FateDropColors.secondary, fontSize: 9.5 },
   closestSetAction: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}66`, backgroundColor: `${FateDropColors.echo}0B` },
-  closestSetActionText: { color: FateDropColors.echo, fontSize: 8, fontWeight: '900', letterSpacing: .45 },
+  closestSetActionText: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900', letterSpacing: .45 },
   collectorExplanation: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 4, marginTop: 14 },
   panelCopy: { flex: 1, color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 15 },
   collectionPrimaryAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingHorizontal: 15, borderRadius: 15, backgroundColor: FateDropColors.echo },
   collectionPrimaryActionText: { flex: 1, color: FateDropColors.background, fontSize: 10, fontWeight: '900', letterSpacing: .65, textAlign: 'center' },
   retryAction: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: `${FateDropColors.echo}55`, borderRadius: 13 },
-  retryActionText: { color: FateDropColors.echo, fontSize: 8.5, fontWeight: '900', letterSpacing: .55 },
+  retryActionText: { color: FateDropColors.echo, fontSize: 10, fontWeight: '900', letterSpacing: .55 },
   orbitalAction: { minHeight: 45, marginTop: 14, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.35)', backgroundColor: 'rgba(3,8,20,.20)' },
-  orbitalActionText: { color: FateDropColors.goldBright, fontSize: 7.8, fontWeight: '900', letterSpacing: .65 },
+  orbitalActionText: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: .65 },
   truthLedger: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginTop: 19, paddingHorizontal: 8, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
-  truthCopy: { flex: 1, color: FateDropColors.muted, fontSize: 7.8, lineHeight: 12 },
+  truthCopy: { flex: 1, color: FateDropColors.muted, fontSize: 10, lineHeight: 12 },
 });

@@ -50,10 +50,12 @@ test('Where to Buy consumes Cloud-owned delivered-price verdicts and safe retail
   assert.doesNotMatch(buy, /function\s+(?:calculate|classify|score).*(?:price|offer|verdict)/i);
 });
 
-test('the FatePrice wayfinder is an optimized atmospheric asset, not a pasted poster', () => {
-  assert.match(chrome, /fate-market-guardian-wayfinder\.webp/);
-  assert.match(chrome, /copyVeil/);
-  assert.match(chrome, /lowerVeil/);
+test('FatePrice uses the shared home atmosphere and retains the companion artwork', () => {
+  assert.match(chrome, /FateMarketBackground/);
+  const brand = read('components/fate-market-brand.tsx');
+  assert.match(brand, /home-living-stage-v2\.png/);
+  assert.match(brand, /ProfileWallpaperArt/);
+  assert.match(brand, /lowerVeil/);
   const assets = [
     'fate-market-guardian-wayfinder.webp',
     'fate-market-guardian-violet.webp',

@@ -4,7 +4,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FateDropBackground, FateDropHeader } from '@/components/fatedrop-ui';
+import { FateDropHeader } from '@/components/fatedrop-ui';
+import { FateMarketBackground } from '@/components/fate-market-brand';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -373,7 +374,7 @@ export default function FateTraderScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <FateDropBackground />
+      <FateMarketBackground />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { void load(); void loadOwned(); }} tintColor={FateDropColors.gold} />}

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FatePriceCardGlyph } from '@/components/fate-price-chrome';
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -186,8 +186,8 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateDropBackground />
-        <View style={styles.backgroundVeil} />
+        <FateMarketBackground />
+
       </View>
 
       <ScrollView
@@ -196,18 +196,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <View style={styles.topBar}>
-          <Pressable accessibilityLabel="Back to Fate Market" onPress={() => router.replace('/(tabs)/market')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="arrow-back" size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-          <View style={styles.brandCopy}>
-            <Text style={styles.brandTitle}>FatePulse</Text>
-            <Text style={styles.brandSubtitle}>TCG MARKET INTELLIGENCE</Text>
-          </View>
-          <Pressable accessibilityLabel="Open My Pulse" onPress={() => { setView('watchlist'); router.replace('/fate-pulse/my-pulse'); }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="star-outline" size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-        </View>
+        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" accessibilityLabel="Search any exact card or set" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.globalSearch, pressed && styles.pressed]}>
           <Ionicons name="search-outline" size={19} color={FateDropColors.secondary} />
@@ -678,7 +667,7 @@ const styles = StyleSheet.create({
   stack: { gap: 13 },
   loadingPanel: { minHeight: 88, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(130,143,180,.22)', backgroundColor: 'rgba(7,13,26,.82)', alignItems: 'center', justifyContent: 'center', gap: 8 },
   loadingText: { color: FateDropColors.secondary, fontSize: 9 },
-  marketSummary: { minHeight: 158, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(104,125,184,.34)', backgroundColor: 'rgba(6,12,27,.92)' },
+  marketSummary: { minHeight: 158, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.30)', backgroundColor: 'rgba(4,8,21,.84)' },
   summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   summaryEyebrow: { color: FateDropColors.goldBright, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.55 },
   summaryWindow: { color: FateDropColors.muted, fontSize: 7.5, fontWeight: '800' },
@@ -686,7 +675,7 @@ const styles = StyleSheet.create({
   summaryPercent: { fontFamily: Fonts.serif, fontSize: 39, lineHeight: 44 },
   summaryCondition: { color: FateDropColors.goldBright, fontFamily: Fonts.serif, fontSize: 18, marginLeft: 6 },
   summaryCopy: { color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 16, marginTop: 9 },
-  sectionCard: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(120,136,177,.24)', backgroundColor: 'rgba(6,12,25,.92)', overflow: 'hidden' },
+  sectionCard: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.25)', backgroundColor: 'rgba(4,8,21,.84)', overflow: 'hidden' },
   sectionHeader: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(120,136,177,.21)' },
   sectionTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17 },
@@ -715,7 +704,7 @@ const styles = StyleSheet.create({
   tabEyebrow: { color: FateDropColors.goldBright, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.25 },
   tabTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 23, lineHeight: 27, marginTop: 5 },
   tabCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, marginTop: 5 },
-  filterSearch: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(120,136,177,.24)', backgroundColor: 'rgba(5,11,22,.82)' },
+  filterSearch: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(226,197,141,.25)', backgroundColor: 'rgba(5,11,22,.82)' },
   filterSearchCompact: { flex: 1 },
   filterInput: { flex: 1, minWidth: 0, color: FateDropColors.ivory, fontSize: 10.5, paddingVertical: 10 },
   findAnyRow: { flexDirection: 'row', gap: 8 },

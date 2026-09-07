@@ -5,6 +5,7 @@ import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FateMarketBackground } from '@/components/fate-market-brand';
 import { FateCollectionsArt, type CollectionArtKind } from '@/components/fate-collections-art';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
@@ -14,8 +15,7 @@ export function CollectionsScreen({ children }: PropsWithChildren) {
   return <SafeAreaView style={collectionsStyles.screen} edges={['top', 'bottom']}>
     <Stack.Screen options={{ headerShown: false }} />
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image source={require('../assets/images/fate-market-orbital-theme.webp')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" />
-      <View style={collectionsStyles.veil} />
+      <FateMarketBackground />
     </View>
     {loading ? <CollectionState loading text="Opening Fate Collections…" /> : signedIn ? children : <View style={collectionsStyles.gate}>
       <CollectionHeader title="Fate Collections" copy="A home for your cards, binders and graded favourites." />

@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
-import { FateDropBackground } from '@/components/fatedrop-ui';
+import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import {
   fetchFatePulse,
@@ -100,24 +100,13 @@ export default function FatePulseOverviewScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <FateDropBackground />
+      <FateMarketBackground />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <View style={styles.headerRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to Fate Market" onPress={() => router.replace('/(tabs)/market')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="arrow-back" size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.brand}>FatePulse</Text>
-            <Text style={styles.kicker}>TCG MARKET INTELLIGENCE</Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open FatePrice" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-            <Ionicons name="stats-chart-outline" size={18} color={FateDropColors.goldBright} />
-          </Pressable>
-        </View>
+        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.searchBar, pressed && styles.pressed]}>
           <Ionicons name="search" size={18} color={FateDropColors.secondary} />
@@ -279,7 +268,7 @@ const styles = StyleSheet.create({
   loadingText: { color: FateDropColors.secondary, fontSize: 9.5 },
   errorCard: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 13, borderWidth: 1, borderColor: `${FateDropColors.vanished}55`, backgroundColor: 'rgba(28,10,18,.72)', paddingHorizontal: 12 },
   errorText: { color: FateDropColors.secondary, fontSize: 9.5 },
-  marketSummary: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.28)', backgroundColor: 'rgba(8,14,25,.94)', padding: 15 },
+  marketSummary: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(226,197,141,.28)', backgroundColor: 'rgba(4,8,21,.84)', padding: 15 },
   summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   summaryEyebrow: { color: FateDropColors.secondary, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.35 },
   summaryValueRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', marginTop: 5 },
@@ -287,7 +276,7 @@ const styles = StyleSheet.create({
   summaryCondition: { fontFamily: Fonts.serif, fontSize: 16, marginLeft: 5 },
   directionBadge: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(5,10,18,.72)' },
   summaryCopy: { color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 16, marginTop: 7 },
-  sectionCard: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(7,13,23,.94)', overflow: 'hidden' },
+  sectionCard: { borderRadius: 18, borderWidth: 1, borderColor: FateDropColors.border, backgroundColor: 'rgba(4,8,21,.84)', overflow: 'hidden' },
   sectionHeader: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingHorizontal: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: FateDropColors.borderSoft },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
   sectionTitle: { color: FateDropColors.text, fontFamily: Fonts.serif, fontSize: 17 },
