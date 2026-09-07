@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type FatePulseCardFollow = {
   cardIdentityId: string;
   printingId: string;
-  setId: string;
+  setId?: string;
   tcgCode: string | null;
   name: string;
   setName: string;
