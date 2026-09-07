@@ -10,6 +10,7 @@ import { FateDropColors } from '@/constants/theme';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { useTcgCapabilities } from '@/contexts/tcg-capabilities-context';
+import { itemRrpPercent } from '@/lib/price-evidence';
 import { rrpBasisLabel } from '@/lib/value-compare';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
@@ -261,7 +262,8 @@ export default function FateFindLiveScreenV2() {
       const deliveredPence = alert.product.deliveredPricePence;
       const rrpPence = alert.product.rrpPence ?? alert.priceIntelligence.rrpPence;
       if (!Number.isFinite(deliveredPence) || !Number.isFinite(rrpPence) || !deliveredPence || !rrpPence || rrpPence <= 0) continue;
-      const deltaPercent = percentDelta(deliveredPence, rrpPence);
+      const deltaPercent = itemRrpPercent(alert.product.pricePence, rrpPence);
+      if (deltaPercent == null) continue;
       const next = { alert, deliveredPence, rrpPence, deltaPercent };
       const existing = byProduct.get(alert.productId);
       if (!existing || deltaPercent < existing.deltaPercent || (deltaPercent === existing.deltaPercent && deliveredPence < existing.deliveredPence)) byProduct.set(alert.productId, next);
@@ -304,7 +306,7 @@ export default function FateFindLiveScreenV2() {
 function BestDealsPanel({ deals, loading }: { deals: BestDeal[]; loading: boolean }) {
   return <View style={styles.bestDealsPanel}>
     <View style={styles.bestDealsHead}>
-      <View style={{ flex: 1 }}><Text style={styles.bestDealsEyebrow}>BEST DEALS RIGHT NOW</Text><Text style={styles.bestDealsTitle}>Closest to retail price across FateDrop</Text><Text style={styles.bestDealsCopy}>Current Manifested offers only · ranked by delivered price against verified RRP.</Text></View>
+      <View style={{ flex: 1 }}><Text style={styles.bestDealsEyebrow}>BEST DEALS RIGHT NOW</Text><Text style={styles.bestDealsTitle}>Closest to retail price across FateDrop</Text><Text style={styles.bestDealsCopy}>Current Manifested offers only · ranked by item price against verified RRP/reference; delivered totals shown separately.</Text></View>
       <Ionicons name="sparkles" size={20} color={FateDropColors.goldBright} />
     </View>
     {loading ? <View style={styles.bestDealsState}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.bestDealsStateText}>Checking live deals…</Text></View> : deals.length ? deals.map((deal, index) => {
@@ -315,7 +317,7 @@ function BestDealsPanel({ deals, loading }: { deals: BestDeal[]; loading: boolea
           <Text style={styles.bestDealProduct} numberOfLines={2}>{deal.alert.product.title || deal.alert.title}</Text>
           <Text style={styles.bestDealRetailer}>{deal.alert.retailer}</Text>
           <Text style={styles.bestDealPrice}>{money(deal.deliveredPence / 100)} delivered</Text>
-          <Text style={styles.bestDealRrp}>RRP {money(deal.rrpPence / 100)} · {percentLabel(deal.deltaPercent)}</Text>
+          <Text style={styles.bestDealRrp}>RRP/reference {money(deal.rrpPence / 100)} · item {percentLabel(deal.deltaPercent)}</Text>
         </View>
         <View style={styles.bestDealAction}>
           <StatusBadge label={status.label} color={status.color} />

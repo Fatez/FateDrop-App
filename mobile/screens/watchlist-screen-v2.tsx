@@ -10,6 +10,7 @@ import { API_BASE_URL } from '@/constants/api';
 import { retailers } from '@/constants/retailers';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { selectWishlistPrice } from '@/lib/price-evidence';
 import { loadWatchlist, toggleWatchlist } from '@/lib/watchlist';
 import { adaptLegacyOffer } from '@/services/catalogue';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
@@ -174,7 +175,7 @@ function OfferRow({ row, onRemove, onToggleAlerts }: { row: Extract<WishlistRow,
 function ProductRow({ row, onRemove, onToggleAlerts }: { row: Extract<WishlistRow, { kind: 'product' }>; onRemove: () => void; onToggleAlerts: () => void }) {
   const group = row.group;
   const liveOffers = group?.offers.filter((offer) => offer.stockStatus === 'IN_STOCK') || [];
-  const best = [...liveOffers].sort((a, b) => (a.totalDeliveredGbp ?? a.priceGbp ?? Infinity) - (b.totalDeliveredGbp ?? b.priceGbp ?? Infinity))[0];
+  const { offer: best, delivered: bestDelivered } = selectWishlistPrice(liveOffers);
   const latestChecked = group?.offers.map((offer) => offer.lastCheckedAt).filter((value): value is string => Boolean(value)).sort().at(-1);
   const title = row.item.label || row.item.targetId;
 
@@ -188,10 +189,10 @@ function ProductRow({ row, onRemove, onToggleAlerts }: { row: Extract<WishlistRo
     <View style={styles.evidenceBand}>
       <View style={styles.evidenceCell}><Text style={styles.evidenceLabel}>CURRENT COVERAGE</Text><Text style={styles.evidenceValue}>{group ? `${group.retailerCount} retailer${group.retailerCount === 1 ? '' : 's'}` : 'Evidence unavailable'}</Text></View>
       <View style={styles.evidenceDivider} />
-      <View style={styles.evidenceCell}><Text style={styles.evidenceLabel}>BEST KNOWN NOW</Text><Text style={[styles.evidenceValue, best && { color: FateDropColors.manifested }]}>{best ? (best.totalDeliveredGbp !== undefined ? `£${best.totalDeliveredGbp.toFixed(2)} delivered` : best.priceGbp !== undefined ? `£${best.priceGbp.toFixed(2)} item` : 'Price unknown') : 'No live offer'}</Text></View>
+      <View style={styles.evidenceCell}><Text style={styles.evidenceLabel}>{bestDelivered ? 'LOWEST KNOWN DELIVERED' : 'LOWEST ITEM PRICE'}</Text><Text style={[styles.evidenceValue, best && { color: FateDropColors.manifested }]}>{best ? (bestDelivered && best.totalDeliveredGbp !== undefined ? `£${best.totalDeliveredGbp.toFixed(2)} delivered` : best.priceGbp !== undefined ? `£${best.priceGbp.toFixed(2)} item` : 'Price unknown') : liveOffers.length ? 'Price unavailable' : 'No live offer'}</Text></View>
     </View>
 
-    {best ? <Text style={styles.best}>Best current evidence: {best.retailerName}{best.deliveryKnown ? ' · delivery verified' : ' · delivery pending'}.</Text> : <Text style={styles.muted}>Saved safely. FateDrop does not turn missing live evidence into a fake price or availability claim.</Text>}
+    {best ? <Text style={styles.best}>{bestDelivered ? 'Lowest known delivered total' : 'Lowest item price'}: {best.retailerName}{bestDelivered ? ' · delivery verified' : ' · delivery pending; total unknown'}.</Text> : <Text style={styles.muted}>Saved safely. FateDrop does not turn missing live evidence into a fake price or availability claim.</Text>}
 
     <View style={styles.ruleNote}><Ionicons name="options-outline" size={14} color={FateDropColors.goldBright} /><View style={styles.flex}><Text style={styles.ruleTitle}>No target price lives on Wishlist.</Text><Text style={styles.ruleCopy}>Set a maximum item price, True Price or RRP tolerance in FateFind when you want an active hunt.</Text></View></View>
     <WatchActions title={title} alertsEnabled={row.item.alertsEnabled} onToggleAlerts={onToggleAlerts} />
