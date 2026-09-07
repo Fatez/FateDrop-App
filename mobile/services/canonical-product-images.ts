@@ -3,7 +3,7 @@ import type { ProductOffer } from '@/types/domain';
 
 const catalogue = new ApiCatalogueRepository();
 const OFFICIAL_IMAGE_RETAILERS = new Set(['pokemon-center-uk']);
-const imageCache = new Map<string, string | null>();
+const imageCache = new Map<string, string>();
 const imageFlights = new Map<string, Promise<string | null>>();
 
 function text(value: string | null | undefined) {
@@ -82,22 +82,30 @@ export async function resolveExactCanonicalProductImage({
   // This pilot uses the existing Pokémon catalogue contract. Other TCGs fail
   // closed to their observed image until the catalogue query accepts tcgCode.
   if (!exactProductId || !query || text(tcgCode).toLowerCase() !== 'pokemon') return fallback;
-  if (imageCache.has(exactProductId)) return imageCache.get(exactProductId) ?? fallback;
+
+  const cached = imageCache.get(exactProductId);
+  if (cached) return cached;
 
   const inFlight = imageFlights.get(exactProductId);
   if (inFlight) return (await inFlight) ?? fallback;
 
+  // A flight only carries a genuinely preferred canonical asset. A retailer
+  // fallback is deliberately kept caller-local so one retailer's JPEG can never
+  // become the cached image for every offer sharing this product identity.
   const flight = catalogue.list({ query, limit: 100 })
-    .then((page) => chooseExactCanonicalProductImage({
-      productId: exactProductId,
-      fallbackImageUrl: fallback,
-      candidates: page.offers,
-    }))
-    .catch(() => fallback)
+    .then((page) => {
+      const candidate = chooseExactCanonicalProductImage({
+        productId: exactProductId,
+        fallbackImageUrl: fallback,
+        candidates: page.offers,
+      });
+      return candidate && candidate !== fallback ? candidate : null;
+    })
+    .catch(() => null)
     .finally(() => imageFlights.delete(exactProductId));
 
   imageFlights.set(exactProductId, flight);
   const resolved = await flight;
-  imageCache.set(exactProductId, resolved);
+  if (resolved) imageCache.set(exactProductId, resolved);
   return resolved ?? fallback;
 }
