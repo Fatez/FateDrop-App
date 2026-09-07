@@ -23,8 +23,8 @@ test('Orbital Home preserves real evidence and interactive destinations', () => 
   assert.match(home, /fetchFatePulse\(\)/);
   assert.match(home, /fetchFateCollectorsSummary\(\)/);
   assert.match(home, /fetchCanonicalLiveOpportunities\(50\)/);
-  assert.match(home, /pathname: '\/\(tabs\)\/market', params: \{ area: 'pulse' \}/);
-  assert.match(home, /pathname: '\/\(tabs\)\/market', params: \{ area: 'collectors' \}/);
+  assert.match(home, /router\.push\('\/fate-pulse'\)/);
+  assert.match(home, /router\.push\('\/collections'\)/);
   assert.match(home, /router\.push\('\/\(tabs\)\/search'\)/);
   assert.match(home, /router\.push\('\/fatefind'\)/);
   assert.match(home, /router\.push\('\/encounters'\)/);

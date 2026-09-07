@@ -17,7 +17,7 @@ import {
   type FatePulseSnapshot,
 } from '@/services/fate-market';
 
-type PulseView = 'overview' | 'sets' | 'cards' | 'watchlist';
+export type PulseView = 'overview' | 'sets' | 'cards' | 'watchlist';
 type PulsePeriod = 'd1' | 'd7' | 'd30' | 'd90';
 type MarketScope = 'all' | TcgCode;
 type SetFilter = 'trending' | 'rising' | 'falling' | 'watched';
@@ -80,9 +80,16 @@ function evidenceDay(data: FatePulseSnapshot | null) {
   return data?.pulse?.anchorMarketDay || data?.readiness.history.latestMarketDay || '—';
 }
 
-export default function FatePulseScreen() {
+function routeForView(view: PulseView) {
+  if (view === 'sets') return '/fate-pulse/sets' as const;
+  if (view === 'cards') return '/fate-pulse/cards' as const;
+  if (view === 'watchlist') return '/fate-pulse/my-pulse' as const;
+  return '/fate-pulse' as const;
+}
+
+export default function FatePulseScreen({ initialView = 'overview' }: { initialView?: PulseView }) {
   const { snapshot } = useFateDropId();
-  const [view, setView] = useState<PulseView>('overview');
+  const [view, setView] = useState<PulseView>(initialView);
   const [periodKey, setPeriodKey] = useState<PulsePeriod>('d30');
   const [scope, setScope] = useState<MarketScope>('all');
   const [pulse, setPulse] = useState<FatePulseSnapshot | null>(null);
@@ -165,7 +172,10 @@ export default function FatePulseScreen() {
               key={item.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: view === item.key }}
-              onPress={() => setView(item.key)}
+              onPress={() => {
+                setView(item.key);
+                router.replace(routeForView(item.key));
+              }}
               style={[styles.viewTab, view === item.key && styles.viewTabActive]}
             >
               <Text style={[styles.viewTabText, view === item.key && styles.viewTabTextActive]}>{item.label}</Text>

@@ -9,7 +9,11 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const marketRoute = read('app/(tabs)/market.tsx');
 const market = read('screens/fate-market-screen-v2.tsx');
 const pulseRoute = read('app/fate-pulse.tsx');
+const pulseSetsRoute = read('app/fate-pulse/sets.tsx');
+const pulseCardsRoute = read('app/fate-pulse/cards.tsx');
+const myPulseRoute = read('app/fate-pulse/my-pulse.tsx');
 const pulseScreen = read('screens/fate-pulse-screen.tsx');
+const home = read('screens/home-screen-v3.tsx');
 const dock = read('components/persistent-bottom-nav.tsx');
 
 test('Fate Market keeps the approved entry screen and only hands FatePulse off to its dedicated route', () => {
@@ -37,6 +41,17 @@ test('FatePulse has the locked exploration roadmap', () => {
   assert.match(pulseScreen, /COOLING DOWN/);
   assert.match(pulseScreen, /EVIDENCE COVERAGE/);
   assert.match(pulseScreen, /LAST MARKET DAY/);
+  assert.match(pulseSetsRoute, /initialView="sets"/);
+  assert.match(pulseCardsRoute, /initialView="cards"/);
+  assert.match(myPulseRoute, /initialView="watchlist"/);
+  assert.match(pulseScreen, /'\/fate-pulse\/sets'/);
+  assert.match(pulseScreen, /'\/fate-pulse\/cards'/);
+  assert.match(pulseScreen, /'\/fate-pulse\/my-pulse'/);
+});
+
+test('Home opens the real investor and collection hubs without an extra preview tap', () => {
+  assert.match(home, /onPress=\{\(\) => router\.push\('\/fate-pulse'\)\}/);
+  assert.match(home, /onPress=\{\(\) => router\.push\('\/collections'\)\}/);
 });
 
 test('Pulse stays Cloud-owned and never invents unsupported intelligence', () => {

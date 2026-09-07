@@ -402,7 +402,7 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
         title="TCG MARKET"
         icon="pulse-outline"
         presentation={market}
-        onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'pulse' } })}
+        onPress={() => router.push('/fate-pulse')}
       />
       <View accessible accessibilityRole="image" accessibilityLabel={signal.label} style={styles.hubCrystal}>
         <Animated.View pointerEvents="none" style={[styles.hubCrystalBloom, {
@@ -433,7 +433,7 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
         title="YOUR COLLECTION"
         icon="people-outline"
         presentation={collection}
-        onPress={() => router.push({ pathname: '/(tabs)/market', params: { area: 'collectors' } })}
+        onPress={() => router.push('/collections')}
       />
       <Pressable
         accessibilityRole="button"
