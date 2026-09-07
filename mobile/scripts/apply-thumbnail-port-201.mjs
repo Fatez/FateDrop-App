@@ -1,3 +1,4 @@
+// Trigger guarded PR #201 thumbnail port.
 import fs from 'node:fs';
 
 function replaceExact(path, from, to, expected = 1) {
