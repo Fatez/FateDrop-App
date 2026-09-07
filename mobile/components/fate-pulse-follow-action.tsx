@@ -31,7 +31,7 @@ export function FatePulseFollowAction({
   collectorNumber = '',
 }: Props) {
   const { snapshot } = useFateDropId();
-  const identity = snapshot?.user.id || 'guest';
+  const identity = snapshot?.user.fateId || 'guest';
   const [tracked, setTracked] = useState(false);
   const [busy, setBusy] = useState(false);
 
