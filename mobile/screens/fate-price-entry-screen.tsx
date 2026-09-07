@@ -1,5 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
+import { FatePulseFollowAction } from '@/components/fate-pulse-follow-action';
 import FatePriceDiscoveryScreen from '@/screens/fate-price-discovery-screen';
 import FatePriceScreen from '@/screens/fate-price-screen';
 
@@ -8,7 +10,43 @@ function first(value: string | string[] | undefined) {
 }
 
 export default function FatePriceEntryScreen() {
-  const params = useLocalSearchParams<{ cardId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    cardId?: string | string[];
+    collectorNumber?: string | string[];
+    name?: string | string[];
+    printingId?: string | string[];
+    setId?: string | string[];
+    setName?: string | string[];
+    tcg?: string | string[];
+  }>();
   const cardId = first(params.cardId)?.trim() || '';
-  return cardId ? <FatePriceScreen /> : <FatePriceDiscoveryScreen />;
+
+  if (!cardId) return <FatePriceDiscoveryScreen />;
+
+  return (
+    <View style={styles.root}>
+      <FatePriceScreen />
+      <View style={styles.followDock}>
+        <FatePulseFollowAction
+          cardIdentityId={cardId}
+          printingId={first(params.printingId)?.trim() || ''}
+          setId={first(params.setId)?.trim() || ''}
+          tcgCode={first(params.tcg)?.trim() || null}
+          name={first(params.name)?.trim() || 'Exact card'}
+          setName={first(params.setName)?.trim() || 'Verified set'}
+          collectorNumber={first(params.collectorNumber)?.trim() || ''}
+        />
+      </View>
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  followDock: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 92,
+  },
+});
