@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-shot guarded port: exact top-missing Binder UI on PR #201.
 function replaceExact(path, from, to, expected = 1) {
   let text = fs.readFileSync(path, 'utf8');
   const count = text.split(from).length - 1;
@@ -19,7 +20,6 @@ replaceExact(service,
   "  languageCode: string | null;\n};\n\nexport type FateCollectorValueCoverage",
   "  languageCode: string | null;\n  currentPrice?: number | null;\n  currencyCode?: string | null;\n  priceObservedAt?: number | null;\n};\n\nexport type FateCollectorValueCoverage"
 );
-
 replaceExact(screen,
   "  const currency = binder?.value?.currencyCode || 'GBP';",
   "  const currency = binder?.value?.currencyCode || 'GBP';\n  const topMissing = binder?.topMissingCards?.slice(0, 3) || [];\n  const missingPriceCoverageComplete = binder?.value?.missingExpectedCount != null && binder?.value?.missingUnpricedCount === 0;"
