@@ -102,6 +102,10 @@ export default function FateTraderScreen() {
     }
   }, [accountId]);
   useFocusEffect(useCallback(() => {
+    setNotice('');
+    setError('');
+    setBinderCount(0);
+    setWantCount(0);
     void loadOwned();
     return () => { ownedGeneration.current += 1; };
   }, [loadOwned]));
@@ -143,6 +147,7 @@ export default function FateTraderScreen() {
   const selectedSet = useMemo(() => sets.find((item) => item.id === setId) || null, [sets, setId]);
 
   const loadMine = useCallback(async () => {
+    const accountAtStart = accountId;
     if (!signedIn) {
       setBinderCount(0);
       setWantCount(0);
@@ -150,16 +155,18 @@ export default function FateTraderScreen() {
     }
     try {
       const [binder, wants] = await Promise.all([fetchTraderBinder(), fetchTraderStructuredWants()]);
+      if (currentAccount.current !== accountAtStart) return;
       setBinderCount(binder.items?.length || 0);
       setWantCount(wants.count || wants.wants?.length || 0);
     } catch (cause) {
+      if (currentAccount.current !== accountAtStart) return;
       if (cause instanceof FateTraderApiError && cause.status === 401) {
         setError('Your FateDrop session has expired. Sign in again to use your Trade Binder and Wants.');
         return;
       }
       setError(messageFor(cause, 'Could not read your Fate Trader data.'));
     }
-  }, [signedIn]);
+  }, [signedIn, accountId]);
 
   const load = useCallback(async () => {
     setLoading(true);
