@@ -159,6 +159,9 @@ function snapshotFromSession(result:SessionResponse):FateDropSyncSnapshot{
   });
 }
 
+let activeIdentitySnapshot: {token:string;snapshot:FateDropSyncSnapshot} | null = null;
+export function getActiveIdentitySnapshot(token:string) { return activeIdentitySnapshot?.token === token ? activeIdentitySnapshot.snapshot : null; }
+
 async function storeSessionToken(token:string){ await SecureStore.setItemAsync(TOKEN_KEY,token); }
 export async function getStoredSessionToken(){
   const secureToken=await SecureStore.getItemAsync(TOKEN_KEY);
@@ -169,10 +172,10 @@ export async function getStoredSessionToken(){
   await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
   return legacyToken;
 }
-export async function clearStoredSession(){ await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(LEGACY_TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
+export async function clearStoredSession(){ activeIdentitySnapshot=null; await Promise.all([SecureStore.deleteItemAsync(TOKEN_KEY),AsyncStorage.removeItem(TOKEN_KEY),AsyncStorage.removeItem(LEGACY_TOKEN_KEY),AsyncStorage.removeItem(SNAPSHOT_KEY)]); }
 
 export async function loadCachedIdentitySnapshot():Promise<FateDropSyncSnapshot|null>{await AsyncStorage.removeItem(SNAPSHOT_KEY).catch(()=>null);return null;}
-async function saveSnapshot(snapshot:FateDropSyncSnapshot){return normalizeSnapshot(snapshot);}
+async function saveSnapshot(snapshot:FateDropSyncSnapshot,token:string){const normalized=normalizeSnapshot(snapshot);if(await getStoredSessionToken()===token)activeIdentitySnapshot={token,snapshot:normalized};return normalized;}
 
 async function fetchSessionState(token:string){
   const response=await fetch(`${baseUrl()}/api/mobile/session`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});
@@ -186,7 +189,7 @@ export async function signInFateDropId(email:string,password:string){
   if(!result.sessionToken)throw new Error('FateDrop sign-in response is missing the session token.');
   await storeSessionToken(result.sessionToken);
   await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
-  return saveSnapshot(snapshotFromSession(result));
+  return saveSnapshot(snapshotFromSession(result),result.sessionToken);
 }
 export async function signOutFateDropId(){
   const token=await getStoredSessionToken();
@@ -200,12 +203,12 @@ export async function syncFateDropId():Promise<FateDropSyncSnapshot>{
   const token=await getStoredSessionToken();
   if(!token)throw new Error('FateDrop ID sign-in required.');
   const session=await fetchSessionState(token);
-  if(session.accessAllowed!==true||session.betaAccess?.approved!==true)return saveSnapshot(snapshotFromSession(session));
+  if(session.accessAllowed!==true||session.betaAccess?.approved!==true)return saveSnapshot(snapshotFromSession(session),token);
   const response=await fetch(`${baseUrl()}/api/mobile/sync`,{headers:{authorization:`Bearer ${token}`,accept:'application/json'}});
   if(response.status===401){await clearStoredSession();throw new Error('Your FateDrop ID session expired. Please sign in again.');}
-  if(response.status===403){return saveSnapshot(snapshotFromSession(await fetchSessionState(token)));}
+  if(response.status===403){return saveSnapshot(snapshotFromSession(await fetchSessionState(token)),token);}
   const result=await parseJson<FateDropSyncSnapshot>(response);
-  return saveSnapshot(normalizeSnapshot(result));
+  return saveSnapshot(normalizeSnapshot(result),token);
 }
 export async function entitlementIsFresh(maxAgeSeconds=300){const snapshot=await loadCachedIdentitySnapshot();return Boolean(snapshot&&Math.floor(Date.now()/1000)-snapshot.syncedAt<=maxAgeSeconds);}
 export function hasCapability(snapshot:FateDropSyncSnapshot|null,capability:FateCapability){return Boolean(snapshot?.accessAllowed&&snapshot.betaAccess?.approved&&snapshot.entitlement?.active&&snapshot.entitlement.capabilities.includes(capability));}
