@@ -113,6 +113,22 @@ export default function FatePriceSetScreen() {
   const setName = set?.name || routeSetName;
 
   const openVariants = useCallback((group: PrintingGroup) => {
+    const card = group.cards[0];
+    if (group.cards.length === 1 && card?.verificationStatus === 'verified') {
+      router.push({
+        pathname: '/fate-price',
+        params: {
+          cardId: card.id,
+          collectorNumber: card.collectorNumber,
+          name: card.name || '',
+          printingId: card.printingId,
+          setId: card.setId,
+          setName: card.setName || setName,
+          tcg: card.tcgCode || tcg,
+        },
+      });
+      return;
+    }
     router.push({
       pathname: '/fate-price-variants',
       params: {
@@ -136,7 +152,7 @@ export default function FatePriceSetScreen() {
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>FATEPRICE · SET VIEW</Text>
         <Text style={styles.title}>Narrow it down.</Text>
-        <Text style={styles.copy}>Use the set’s real fields to find the exact card. Finish, rarity and language stay separate because they describe different things.</Text>
+        <Text style={styles.copy}>Find a card to check its value or see where to buy it. Choose a finish only when there’s more than one option.</Text>
         <View style={styles.breadcrumb}><Ionicons name="sparkles-outline" size={13} color={FateDropColors.goldBright} /><Text style={styles.breadcrumbText}>{tcg.replaceAll('-', ' ').toUpperCase()} › {setName}</Text></View>
       </View>
 
@@ -157,7 +173,7 @@ export default function FatePriceSetScreen() {
       <FilterGroup label="LANGUAGE" detail="A separate exact identity field" values={languages} selected={language} onSelect={setLanguage} />
 
       <View style={styles.resultsHeading}>
-        <View><Text style={styles.count}>{groups.length} CARDS</Text><Text style={styles.countDetail}>Every tile represents one canonical printing.</Text></View>
+        <View><Text style={styles.count}>{groups.length} CARDS</Text><Text style={styles.countDetail}>One tile per card, with its finishes kept together.</Text></View>
         <View style={styles.sort}><Ionicons name="swap-vertical-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.sortText}>SET ORDER</Text></View>
       </View>
 
@@ -167,7 +183,7 @@ export default function FatePriceSetScreen() {
         <View style={styles.glyphWrap}><CanonicalThumbnail kind="card" setId={group.cards[0]?.setId || setId} collectorNumber={group.collectorNumber} width={84} height={118} /></View>
         <Text numberOfLines={2} style={styles.cardName}>{group.name}</Text>
         <Text style={styles.cardMeta}>#{group.collectorNumber} · {group.rarity || group.supertype || 'Verified card'}</Text>
-        <View style={styles.identityLine}><Text style={styles.identityText}>{group.cards.length} EXACT {group.cards.length === 1 ? 'IDENTITY' : 'IDENTITIES'}</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.goldBright} /></View>
+        <View style={styles.identityLine}><Text style={styles.identityText}>{group.cards.length === 1 ? 'VIEW CARD' : `${group.cards.length} OPTIONS`}</Text><Ionicons name="chevron-forward" size={14} color={FateDropColors.goldBright} /></View>
       </Pressable>)}</View> : null}
 
       <FatePriceTruth title="Finish is not rarity.">A Common card can also be Reverse Holo. FatePrice filters both fields independently so the exact identity never changes silently.</FatePriceTruth>
