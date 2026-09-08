@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const compass = fs.readFileSync(path.join(__dirname, '../components/fate-network-compass.tsx'), 'utf8');
 
 const tabLayout = fs.readFileSync(path.join(__dirname, '../app/(tabs)/_layout.tsx'), 'utf8');
 const rootLayout = fs.readFileSync(path.join(__dirname, '../app/_layout.tsx'), 'utf8');
@@ -41,7 +42,7 @@ test('Home network pulse consumes public Cloud signal truth, never private diagn
 test('Fate Network keeps the complete directory while the compass stays focused', () => {
   assert.match(fateNetwork, /title="FateFind"/);
   assert.match(fateNetwork, /title="FateMatch"/);
-  assert.match(fateNetwork, /title="Fate Trader"/);
+  assert.doesNotMatch(fateNetwork, /title="Fate Trader"/);
   assert.match(fateNetwork, /title="Local Radar"/);
   assert.match(fateNetwork, /title="Stores"/);
   assert.match(fateNetwork, /Search live database/);
@@ -49,13 +50,13 @@ test('Fate Network keeps the complete directory while the compass stays focused'
   assert.match(fateNetwork, /Monitor the products and conditions you care about/);
   assert.doesNotMatch(fateNetwork, /FateMatch means it was found/);
   assert.match(tabLayout, /setCompassOpen\(true\)/);
-  assert.match(tabLayout, /accessibilityLabel="Open FateFind"/);
-  assert.match(tabLayout, /title="FateMatch"/);
-  assert.match(tabLayout, /title="Local Radar"/);
-  assert.match(tabLayout, /title="Retailers"/);
-  assert.match(tabLayout, /title="Fate Trader"/);
+  assert.match(compass, /title: 'FateFind'/);
+  assert.match(compass, /title: 'FateMatch'/);
+  assert.match(compass, /title: 'Local Radar'/);
+  assert.match(compass, /title: 'Retailers'/);
+  assert.doesNotMatch(compass, /fate-trader|Fate Trader/);
   assert.doesNotMatch(tabLayout, /<CompassNode[^>]*title="Search"/);
-  assert.match(tabLayout, /title="Wishlist"/);
+  assert.match(compass, /title: 'Wishlist'/);
   assert.match(fateMarket, /title: 'FateInsight'/);
   assert.match(fateMarket, /title: 'FatePrice'/);
   assert.match(fateMarket, /title: 'Collections'/);

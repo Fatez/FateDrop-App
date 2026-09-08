@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const compass = fs.readFileSync(path.join(__dirname, '..', 'components', 'fate-network-compass.tsx'), 'utf8');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
@@ -13,12 +14,12 @@ const market = read('screens/fate-market-screen-v2.tsx');
 const profile = read('screens/profile-screen-v2.tsx');
 
 function assertCompassDestinations(source) {
-  assert.match(source, /accessibilityLabel="Open FateFind"/);
-  assert.match(source, /title="FateMatch"/);
-  assert.match(source, /title="Local Radar"/);
-  assert.match(source, /title="Retailers"/);
-  assert.match(source, /title="Fate Trader"/);
-  assert.match(source, /title="Wishlist"/);
+  assert.match(compass, /title: 'FateFind'/);
+  assert.match(compass, /title: 'FateMatch'/);
+  assert.match(compass, /title: 'Local Radar'/);
+  assert.match(compass, /title: 'Retailers'/);
+  assert.doesNotMatch(compass, /fate-trader|Fate Trader/);
+  assert.match(compass, /title: 'Wishlist'/);
   assert.doesNotMatch(source, /<CompassNode[^>]*title="Search"/);
 }
 
@@ -40,12 +41,12 @@ test('Fate Market owns Pulse Price and Collections in the former Live Network sl
 test('full tools directory remains available and Live Network moves to Profile', () => {
   assert.match(tools, /title="FateFind"/);
   assert.match(tools, /title="FateMatch"/);
-  assert.match(tools, /title="Fate Trader"/);
+  assert.doesNotMatch(tools, /title="Fate Trader"/);
   assert.match(tools, /title="Local Radar"/);
   assert.match(tools, /title="Stores"/);
   assert.match(tools, /Search live database/);
   assert.match(tools, /Wishlist/);
-  assert.match(persistentDock, /router\.push\('\/tools'\)/);
+  assert.match(persistentDock, /<FateNetworkCompass/);
   assert.match(profile, /title="Live Network"/);
   assert.match(profile, /router\.push\('\/\(tabs\)\/network'\)/);
 });

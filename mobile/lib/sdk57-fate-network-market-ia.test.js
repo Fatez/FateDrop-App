@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const compass = fs.readFileSync(path.join(__dirname, '..', 'components', 'fate-network-compass.tsx'), 'utf8');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
@@ -12,18 +13,18 @@ const market = read('screens/fate-market-screen-v2.tsx');
 const fatePrice = read('screens/fate-price-screen.tsx');
 const fatePriceService = read('services/fate-market.ts');
 
-test('FateFind remains the centre of the Fate Network compass', () => {
-  assert.match(tabs, /accessibilityLabel="Open FateFind"/);
-  assert.match(tabs, /openTool\('\/fatefind'\)/);
-  assert.match(tabs, /<Text style=\{styles\.fateFindTitle\}>FateFind<\/Text>/);
+test('The Network centre toggles the arc and FateFind has its own destination', () => {
+  assert.match(compass, /title: 'FateFind'/);
+  assert.match(compass, /route: '\/fatefind'/);
+  assert.match(compass, /accessibilityLabel="Close Fate Network"[\s\S]*onPress=\{onClose\}/);
 });
 
-test('Fate Network contains action tools including Fate Trader, not Fate Market intelligence', () => {
-  assert.match(tabs, /title="FateMatch"/);
-  assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /title="Local Radar"/);
-  assert.match(tabs, /title="Wishlist"/);
-  assert.match(tabs, /title="Fate Trader"[\s\S]*openTool\('\/fate-trader'\)/);
+test('Fate Network keeps Trader outside its action arc', () => {
+  assert.match(compass, /title: 'FateMatch'/);
+  assert.match(compass, /title: 'Retailers'/);
+  assert.match(compass, /title: 'Local Radar'/);
+  assert.match(compass, /title: 'Wishlist'/);
+  assert.doesNotMatch(compass, /fate-trader|Fate Trader/);
   assert.doesNotMatch(tabs, /<CompassNode[^>]*title="Search"/);
 });
 

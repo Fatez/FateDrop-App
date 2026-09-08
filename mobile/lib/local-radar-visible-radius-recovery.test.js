@@ -3,6 +3,7 @@ const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const compass = fs.readFileSync(path.join(__dirname, '..', 'components', 'fate-network-compass.tsx'), 'utf8');
 const radar = fs.readFileSync(path.join(__dirname, '..', 'app', 'local-radar.tsx'), 'utf8');
 const tabs = fs.readFileSync(path.join(__dirname, '..', 'app', '(tabs)', '_layout.tsx'), 'utf8');
 const tools = fs.readFileSync(path.join(__dirname, '..', 'app', 'tools.tsx'), 'utf8');
@@ -18,7 +19,7 @@ test('Local Radar fits returned mapped branches before falling back to a fixed u
 
 test('central Fate Network Local Radar entry remains unscoped', () => {
   assert.match(tabs, /setCompassOpen\(true\)/);
-  assert.match(tabs, /onPress=\{\(\) => openTool\('\/local-radar'\)\}/);
+  assert.match(compass, /route: '\/local-radar'/);
   assert.doesNotMatch(tabs, /openTool\(\{[^}]*retailerId/);
   assert.match(tools, /title="Local Radar"/);
   assert.doesNotMatch(tools, /retailerId/);
