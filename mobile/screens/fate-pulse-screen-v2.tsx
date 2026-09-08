@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,7 +32,7 @@ import {
 } from '@/services/fate-market';
 
 export type PulseView = 'overview' | 'sets' | 'cards' | 'watchlist';
-type PulsePeriod = 'd1' | 'd7' | 'd30';
+type PulsePeriod = 'd1' | 'd7' | 'd30' | 'd90';
 type MarketScope = 'all' | TcgCode;
 type DirectionFilter = 'risers' | 'fallers';
 
@@ -47,6 +47,7 @@ const PERIODS: { key: PulsePeriod; label: string }[] = [
   { key: 'd1', label: '1D' },
   { key: 'd7', label: '7D' },
   { key: 'd30', label: '30D' },
+  { key: 'd90', label: '90D' },
 ];
 
 function scopeLabel(scope: MarketScope) {
@@ -112,11 +113,12 @@ function setFollowFromRanked(item: FatePulseRankedSet): FatePulseSetFollow {
 }
 
 export default function FatePulseScreenV2({ initialView = 'overview' }: { initialView?: PulseView }) {
+  const params = useLocalSearchParams<{ period?: string; direction?: string; scope?: string }>();
   const { snapshot } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
   const [view, setView] = useState<PulseView>(initialView);
-  const [periodKey, setPeriodKey] = useState<PulsePeriod>('d30');
-  const [scope, setScope] = useState<MarketScope>('all');
+  const [periodKey, setPeriodKey] = useState<PulsePeriod>(PERIODS.some((item) => item.key === params.period) ? params.period as PulsePeriod : 'd30');
+  const [scope, setScope] = useState<MarketScope>(isTcgCode(params.scope) ? params.scope : 'all');
   const [pulse, setPulse] = useState<FatePulseSnapshot | null>(null);
   const [loadedScope, setLoadedScope] = useState<MarketScope | null>(null);
   const [loading, setLoading] = useState(false);
@@ -181,7 +183,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
   }, [identity]);
 
   const data = loadedScope === scope ? pulse : null;
-  const period = data?.pulse?.direction?.periods[periodKey];
+  const period = periodKey === 'd90' ? undefined : data?.pulse?.direction?.periods[periodKey];
   const currency = data?.source.currencyCode || 'EUR';
 
   return (
@@ -209,7 +211,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
           {VIEWS.map((item) => {
             const selected = view === item.key;
             return (
-              <Pressable key={item.key} accessibilityRole="tab" accessibilityState={{ selected }} onPress={() => { setView(item.key); router.replace(routeForView(item.key)); }} style={styles.viewTab}>
+              <Pressable key={item.key} accessibilityRole="tab" accessibilityState={{ selected }} onPress={() => { setView(item.key); router.replace({ pathname: routeForView(item.key), params: { period: periodKey, scope } }); }} style={styles.viewTab}>
                 <Text style={[styles.viewTabText, selected && styles.viewTabTextActive]}>{item.label}</Text>
                 {selected ? <View style={styles.viewTabUnderline} /> : null}
               </Pressable>
@@ -240,6 +242,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
         </ScrollView>
 
         {error ? <CompactNotice icon="cloud-offline-outline" text={error} /> : null}
+        {periodKey === 'd90' ? <CompactNotice icon="time-outline" text="90-day rankings will appear when verified 90D market history is available." /> : null}
         {loading && !data ? <View style={styles.loadingPanel}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Loading market movement…</Text></View> : null}
 
         {view === 'overview' ? (
@@ -253,10 +256,10 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
           />
         ) : null}
         {view === 'sets' ? (
-          <SetsView period={period} currency={currency} follows={follows} onToggleSet={toggleSet} />
+          <SetsView key={params.direction} initialDirection={params.direction === 'fallers' ? 'fallers' : 'risers'} period={period} currency={currency} follows={follows} onToggleSet={toggleSet} />
         ) : null}
         {view === 'cards' ? (
-          <CardsView period={period} currency={currency} follows={follows} onToggleCard={toggleCard} />
+          <CardsView key={params.direction} initialDirection={params.direction === 'fallers' ? 'fallers' : 'risers'} period={period} currency={currency} follows={follows} onToggleCard={toggleCard} />
         ) : null}
         {view === 'watchlist' ? (
           <MyPulseView
@@ -347,13 +350,14 @@ function OverviewView({
   );
 }
 
-function SetsView({ period, currency, follows, onToggleSet }: {
+function SetsView({ period, currency, follows, onToggleSet, initialDirection }: {
+  initialDirection: DirectionFilter;
   period: FatePulseDirectionPeriod | undefined;
   currency: string;
   follows: FatePulseFollows;
   onToggleSet: (item: FatePulseRankedSet) => void;
 }) {
-  const [filter, setFilter] = useState<DirectionFilter>('risers');
+  const [filter, setFilter] = useState<DirectionFilter>(initialDirection);
   const [query, setQuery] = useState('');
   const rows = useMemo(() => {
     const base = filter === 'risers' ? period?.setRisers ?? [] : period?.setDecliners ?? [];
@@ -374,13 +378,14 @@ function SetsView({ period, currency, follows, onToggleSet }: {
   );
 }
 
-function CardsView({ period, currency, follows, onToggleCard }: {
+function CardsView({ period, currency, follows, onToggleCard, initialDirection }: {
+  initialDirection: DirectionFilter;
   period: FatePulseDirectionPeriod | undefined;
   currency: string;
   follows: FatePulseFollows;
   onToggleCard: (item: FatePulseRankedCard) => void;
 }) {
-  const [filter, setFilter] = useState<DirectionFilter>('risers');
+  const [filter, setFilter] = useState<DirectionFilter>(initialDirection);
   const [query, setQuery] = useState('');
   const rows = useMemo(() => {
     const base = filter === 'risers' ? period?.cardRisers ?? [] : period?.cardDecliners ?? [];
