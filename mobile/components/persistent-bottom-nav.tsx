@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, useSegments } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FateDropNavEmblem } from '@/components/fatedrop-nav-emblem';
+import { FateNetworkCompass } from '@/components/fate-network-compass';
 import { FateDropColors } from '@/constants/theme';
 
 const ROOT_DOCK_PREFIXES = [
   '/fatefind', '/fate-match', '/fate-trader', '/fate-pulse', '/local-radar', '/encounters', '/retailers/',
   '/notification-preferences', '/dashboard', '/demo', '/tools',
   '/collections', '/collection', '/binders', '/binder/', '/graded-collection', '/fate-price',
+  '/account', '/profile-customisation', '/stories', '/pokemon-center-uk', '/retailer-dashboard', '/retailer-partners',
+  '/event-vendors', '/manual-echo-intake', '/fatescore', '/reserve-demo', '/basket-breaker', '/fatebounty', '/demand-signal', '/true-price',
 ];
 
 function DockItem({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
@@ -23,19 +27,21 @@ function DockItem({ label, icon, onPress }: { label: string; icon: keyof typeof 
 
 export function PersistentBottomNav() {
   const pathname = usePathname();
+  const segments = useSegments();
   const insets = useSafeAreaInsets();
-  if (!ROOT_DOCK_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) return null;
+  const [compassOpen, setCompassOpen] = useState(false);
+  if (segments[0] === '(tabs)' || !ROOT_DOCK_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix))) return null;
 
   return (
-    <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 13) }]}>
+    <><View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 13) }]}>
       <DockItem label="Home" icon="home-sharp" onPress={() => router.replace('/')} />
       <DockItem label="Alerts" icon="notifications-outline" onPress={() => router.replace('/(tabs)/alerts')} />
-      <Pressable accessibilityRole="button" accessibilityLabel="Open Fate Network" onPress={() => router.push('/tools')} style={styles.emblemButton}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open Fate Network" onPress={() => setCompassOpen(true)} style={styles.emblemButton}>
         <FateDropNavEmblem size={48} />
       </Pressable>
       <DockItem label="Fate Market" icon="analytics-outline" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
       <DockItem label="Profile" icon="person-outline" onPress={() => router.replace('/(tabs)/profile')} />
-    </View>
+    </View><FateNetworkCompass visible={compassOpen} onClose={() => setCompassOpen(false)} /></>
   );
 }
 

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const compass = fs.readFileSync(path.join(__dirname, '..', 'components', 'fate-network-compass.tsx'), 'utf8');
 const root = path.resolve(__dirname, '..');
 const search = fs.readFileSync(path.join(root, 'screens', 'search-screen-v2.tsx'), 'utf8');
 const retailers = fs.readFileSync(path.join(root, 'screens', 'indies-screen-v2.tsx'), 'utf8');
@@ -35,8 +36,8 @@ test('retailer storefront resolves Cloud profile first and excludes static demo 
 
 test('Fate Network exposes one Stores entry rather than a competing independent-store tool', () => {
   assert.match(tabs, /setCompassOpen\(true\)/);
-  assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /onPress=\{\(\) => openTool\('\/\(tabs\)\/indies'\)\}/);
+  assert.match(compass, /title: 'Retailers'/);
+  assert.match(compass, /route: '\/\(tabs\)\/indies'/);
   assert.match(tools, /title="Stores"/);
   assert.match(tools, /Discover the retailer network, including major retailers and independents/);
   assert.doesNotMatch(tools, /title="Support Independent Stores"/);

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const compass = fs.readFileSync(path.join(__dirname, '..', 'components', 'fate-network-compass.tsx'), 'utf8');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
@@ -26,20 +27,20 @@ test('primary navigation is Home, Alerts, FateDrop compass, Fate Market and Prof
   assert.match(tabs, /name="tools"/);
   assert.match(tabs, /FateDropNavEmblem/);
   assert.match(tabs, /setCompassOpen\(true\)/);
-  assert.match(tabs, /accessibilityLabel="Open FateFind"/);
-  assert.match(tabs, /title="FateMatch"/);
-  assert.match(tabs, /title="Local Radar"/);
-  assert.match(tabs, /title="Retailers"/);
-  assert.match(tabs, /title="Fate Trader"/);
+  assert.match(compass, /title: 'FateFind'/);
+  assert.match(compass, /title: 'FateMatch'/);
+  assert.match(compass, /title: 'Local Radar'/);
+  assert.match(compass, /title: 'Retailers'/);
+  assert.doesNotMatch(compass, /fate-trader|Fate Trader/);
   assert.doesNotMatch(tabs, /<CompassNode[^>]*title="Search"/);
-  assert.match(tabs, /title="Wishlist"/);
+  assert.match(compass, /title: 'Wishlist'/);
   assert.match(tabs, /name="market"/);
   assert.match(tabs, /name="network" options=\{\{ href: null \}\}/);
   assert.match(tabs, /name="profile"/);
   assert.match(tabs, /name="search" options=\{\{ href: null \}\}/);
   assert.match(tools, /title="FateFind"/);
   assert.match(tools, /title="FateMatch"/);
-  assert.match(tools, /title="Fate Trader"/);
+  assert.doesNotMatch(tools, /title="Fate Trader"/);
   assert.match(tools, /title="Local Radar"/);
   assert.match(tools, /title="Stores"/);
   assert.match(tools, /Search live database/);
