@@ -45,7 +45,9 @@ test('centre crystal is a deterministic personal signal rather than a network sc
   const vanished = signal.indexOf("unreadVanished > 0");
   assert.ok(manifested > 0 && manifested < echo && echo < pcuk && pcuk < whisper && whisper < vanished);
   assert.doesNotMatch(signal, /NetworkPulse|marketHeat|collectionValue|healthScore/);
-  assert.match(home, /accessibilityRole="image" accessibilityLabel=\{signal\.label\}/);
+  assert.match(home, /accessibilityRole="button" accessibilityLabel=\{`Fate crystal\. \$\{signal\.label\}`\}/);
+  assert.match(home, /Alert\.alert\('Your Fate crystal', signal\.label/);
+  assert.doesNotMatch(home, /Explore Fate Market|styles\.marketExplore/);
   assert.doesNotMatch(home, /accessibilityLabel="Open Fate Market"/);
 });
 

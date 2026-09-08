@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   FlatList,
   Modal,
@@ -29,6 +30,8 @@ import { fetchFateCollectorsSummary, fetchFatePulse, type FateCollectorsSnapshot
 import { fetchNetworkPulse, type NetworkPulse, type NetworkSignalState } from '@/services/network-signals';
 import { openExternalRetailerLink } from '@/services/outbound-links';
 import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
+import { LocalWishlistRepository } from '@/services/wishlist';
+import type { WishlistItem } from '@/types/domain';
 import type { CalendarEvent } from '@/types/encounter';
 
 const stageMeta: Record<NetworkSignalState, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -88,6 +91,7 @@ export default function HomeScreenV3() {
   const [sheet, setSheet] = useState<SheetState>(null);
   const [liveIndex, setLiveIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const [savedWishlist, setSavedWishlist] = useState<{identity:string;items:WishlistItem[]} | null>(null);
   const [homeSignalState, setHomeSignalState] = useState<HomeSignalKind>('loading');
   const [pokemonCenterStatus, setPokemonCenterStatus] = useState<PokemonCenterStatus>({ active: false, label: 'POKÉMON CENTER UK ACTIVITY CHECKING' });
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -129,6 +133,11 @@ export default function HomeScreenV3() {
   }, [identity, refreshIfStale, signedIn]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    void new LocalWishlistRepository().list().then(items => { if(active) setSavedWishlist({identity,items}); }).catch(() => { if(active) setSavedWishlist(null); });
+    return () => { active = false; };
+  },[identity]));
 
   useEffect(() => {
     let active = true;
@@ -170,10 +179,11 @@ export default function HomeScreenV3() {
     const floor = Math.floor(observedNow / 1000) - 7 * 86_400;
     return snapshot?.fateMatches?.filter((item) => item.matchedAt >= floor).length ?? 0;
   }, [observedNow, snapshot?.fateMatches]);
-  const saved = snapshot?.wishlist?.length ?? 0;
+  const savedItems = savedWishlist?.identity === identity ? savedWishlist.items : null;
+  const saved = savedItems?.length ?? null;
   const wantedProductIds = useMemo(() => new Set(
-    snapshot?.wishlist?.map((item) => item.productIdentityId).filter((id): id is string => Boolean(id)) ?? [],
-  ), [snapshot?.wishlist]);
+    savedItems?.filter(item=>item.targetType==='PRODUCT'||item.targetType==='OFFER').map(item=>item.targetId) ?? [],
+  ), [savedItems]);
   const rankedLiveOpportunities = useMemo(() => rankLiveOpportunities(
     liveOpportunities,
     wantedProductIds,
@@ -242,7 +252,6 @@ export default function HomeScreenV3() {
           />
           <View style={styles.lifecycleBelowHub}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
-            <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/market')} style={({ pressed }) => [styles.marketExplore, pressed && styles.pressed]}><Text style={styles.marketExploreText}>Explore Fate Market</Text><Text style={styles.marketExploreDetail}>Insight · Price · Collections</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.goldBright} /></Pressable>
           </View>
         </Animated.View>
 
@@ -405,7 +414,10 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
         presentation={market}
         onPress={() => router.push('/fate-pulse')}
       />
-      <View accessible accessibilityRole="image" accessibilityLabel={signal.label} style={styles.hubCrystal}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Fate crystal. ${signal.label}`} accessibilityHint="Explains the crystal glow and opens the relevant signal view" onPress={() => Alert.alert('Your Fate crystal', signal.label + '.\n\nThe glow reflects personal stock signals and Pokémon Center UK activity. It does not indicate collection value or investment performance.', [
+        {text:'Close',style:'cancel'},
+        ...(active ? [{text:signalState==='pcuk'?'View Pokémon Center UK':'View alerts',onPress:()=>signalState==='pcuk'?router.push('/pokemon-center-uk'):router.push({pathname:'/(tabs)/alerts',params:{stage:signalState.toUpperCase()}})}] : []),
+      ])} style={styles.hubCrystal}>
         <Animated.View pointerEvents="none" style={[styles.hubCrystalBloom, {
           backgroundColor: signal.accent,
           opacity: glowOpacity,
@@ -426,7 +438,7 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
         <View pointerEvents="none" style={[styles.hubCrystalCore, { backgroundColor: signal.accent, opacity: active ? 0.22 : 0.08 }]} />
         <View pointerEvents="none" style={[styles.hubCrystalNeedle, { borderBottomColor: FateDropColors.goldBright }]} />
         <View pointerEvents="none" style={[styles.hubCrystalNeedle, styles.hubCrystalNeedleBottom, { borderBottomColor: FateDropColors.goldBright }]} />
-      </View>
+      </Pressable>
       <OrbitalIntelligenceNode
         side="right"
         accent={accent}
@@ -537,11 +549,11 @@ function VerifiedLiveEmpty({ signedIn, state }: { signedIn: boolean; state: Load
   return <View style={styles.liveEmpty}><Ionicons name={state === 'error' ? 'cloud-offline-outline' : 'diamond-outline'} size={20} color={state === 'error' ? FateDropColors.muted : FateDropColors.manifested} /><View style={styles.flex}><Text style={styles.liveEmptyTitle}>{title}</Text><Text style={styles.liveEmptyCopy}>{detail}</Text></View></View>;
 }
 
-function PersonalLedger({ activeFinds, recentMatches, saved, signedIn }: { activeFinds: number; recentMatches: number | null; saved: number; signedIn: boolean }) {
+function PersonalLedger({ activeFinds, recentMatches, saved, signedIn }: { activeFinds: number; recentMatches: number | null; saved: number | null; signedIn: boolean }) {
   const values = [
     { icon: 'telescope-outline' as const, label: 'ACTIVE FATEFINDS', value: signedIn ? String(activeFinds) : '—', onPress: () => router.push('/fate-match') },
     { icon: 'sparkles-outline' as const, label: '7D FATEMATCHES', value: signedIn && recentMatches != null ? String(recentMatches) : '—', onPress: () => router.push({ pathname: '/(tabs)/alerts', params: { view: 'matches' } }) },
-    { icon: 'bookmark-outline' as const, label: 'WISHLIST', value: signedIn ? String(saved) : '—', onPress: () => router.push('/(tabs)/watchlist') },
+    { icon: 'bookmark-outline' as const, label: 'WISHLIST', value: signedIn && saved != null ? String(saved) : '—', onPress: () => router.push('/(tabs)/watchlist') },
   ];
   return (
     <View style={styles.ledgerSection}>
@@ -625,7 +637,7 @@ function DetailFact({ label, value }: { label: string; value: string }) {
 
 function rankLiveOpportunities(alerts: CanonicalMobileAlert[], wantedProductIds: Set<string>, selectedTcgCodes: TcgCode[]) {
   return [...alerts].sort((left, right) => {
-    const wantedDifference = Number(wantedProductIds.has(right.productId)) - Number(wantedProductIds.has(left.productId));
+    const wantedDifference = Number((wantedProductIds.has(right.productId) || wantedProductIds.has(right.offerId || ''))) - Number((wantedProductIds.has(left.productId) || wantedProductIds.has(left.offerId || '')));
     if (wantedDifference) return wantedDifference;
     const selectedDifference = Number(isTcgCode(right.tcgCode) && selectedTcgCodes.includes(right.tcgCode)) - Number(isTcgCode(left.tcgCode) && selectedTcgCodes.includes(left.tcgCode));
     if (selectedDifference) return selectedDifference;
@@ -720,9 +732,6 @@ const styles = StyleSheet.create({
   themeAccent: { ...StyleSheet.absoluteFill },
   themeContrast: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2,5,14,.13)' },
   lowerAtmosphere: { position: 'absolute', left: 0, right: 0, top: '45%', bottom: 0, backgroundColor: 'rgba(2,6,16,.29)' },
-  marketExplore: { minHeight: 44, marginHorizontal: 21, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.28)' },
-  marketExploreText: { color: FateDropColors.goldBright, fontSize: 12, fontWeight: '700' },
-  marketExploreDetail: { flex: 1, color: FateDropColors.secondary, fontSize: 10 },
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
   hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
