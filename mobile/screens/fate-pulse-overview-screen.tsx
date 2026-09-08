@@ -160,7 +160,7 @@ export default function FatePulseOverviewScreen() {
           <SectionHeader title="Sets Heating Up" icon="flame-outline" accent={FateDropColors.goldBright} onPress={() => router.push({ pathname: '/fate-pulse/sets', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
           {heatingSets.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.setRail}>
-              {heatingSets.map((item) => <SetMoverCard key={item.key} item={item} />)}
+              {heatingSets.map((item) => <SetMoverCard key={item.key} item={item} period={periodKey} scope={scope || 'all'} />)}
             </ScrollView>
           ) : <EmptyState text={is90 ? '90D set rankings are still building.' : 'No qualifying set risers yet.'} />}
         </View>
@@ -215,7 +215,7 @@ function SectionHeader({ title, icon, accent, onPress }: { title: string; icon: 
 
 function CardMoverRow({ item, currencyCode, accent }: { item: FatePulseRankedCard; currencyCode: string | undefined; accent: string }) {
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: item.cardIdentityId } })} style={({ pressed }) => [styles.moverRow, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: item.cardIdentityId, name: item.name || '', setName: item.setName || '', collectorNumber: item.collectorNumber || '', tcg: item.tcgCode || '' } })} style={({ pressed }) => [styles.moverRow, pressed && styles.pressed]}>
       <CanonicalThumbnail kind="card" setId={item.setCode} collectorNumber={item.collectorNumber} width={36} height={50} />
       <View style={styles.moverCopy}>
         <Text numberOfLines={1} style={styles.moverName}>{item.name || 'Verified card'}</Text>
@@ -230,9 +230,9 @@ function CardMoverRow({ item, currencyCode, accent }: { item: FatePulseRankedCar
   );
 }
 
-function SetMoverCard({ item }: { item: FatePulseRankedSet }) {
+function SetMoverCard({ item, period, scope }: { item: FatePulseRankedSet; period: PulsePeriod; scope: string }) {
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse/sets')} style={({ pressed }) => [styles.setCard, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`View market ranking for ${item.setName || item.setCode || 'this set'}`} onPress={() => router.push({ pathname: '/fate-pulse/sets', params: { setKey: item.key, setName: item.setName || item.setCode || '', period, scope, direction: 'risers' } })} style={({ pressed }) => [styles.setCard, pressed && styles.pressed]}>
       <CanonicalThumbnail kind="set" setId={item.setCode} width={44} height={44} />
       <Text numberOfLines={2} style={styles.setName}>{item.setName || item.setCode || 'Tracked set'}</Text>
       <Text style={styles.setMovement}>{movement(item.movementPercent)}</Text>
