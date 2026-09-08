@@ -113,7 +113,7 @@ function setFollowFromRanked(item: FatePulseRankedSet): FatePulseSetFollow {
 }
 
 export default function FatePulseScreenV2({ initialView = 'overview' }: { initialView?: PulseView }) {
-  const params = useLocalSearchParams<{ period?: string; direction?: string; scope?: string }>();
+  const params = useLocalSearchParams<{ period?: string; direction?: string; scope?: string; setKey?: string; setName?: string }>();
   const { snapshot } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
   const [view, setView] = useState<PulseView>(initialView);
@@ -256,7 +256,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
           />
         ) : null}
         {view === 'sets' ? (
-          <SetsView key={params.direction} initialDirection={params.direction === 'fallers' ? 'fallers' : 'risers'} period={period} currency={currency} follows={follows} onToggleSet={toggleSet} />
+          <SetsView key={`${params.direction}:${params.setKey}`} selectedSetKey={params.setKey} selectedSetName={params.setName} initialDirection={params.direction === 'fallers' ? 'fallers' : 'risers'} period={period} currency={currency} follows={follows} onToggleSet={toggleSet} />
         ) : null}
         {view === 'cards' ? (
           <CardsView key={params.direction} initialDirection={params.direction === 'fallers' ? 'fallers' : 'risers'} period={period} currency={currency} follows={follows} onToggleCard={toggleCard} />
@@ -350,7 +350,9 @@ function OverviewView({
   );
 }
 
-function SetsView({ period, currency, follows, onToggleSet, initialDirection }: {
+function SetsView({ period, currency, follows, onToggleSet, initialDirection, selectedSetKey, selectedSetName }: {
+  selectedSetKey?: string;
+  selectedSetName?: string;
   initialDirection: DirectionFilter;
   period: FatePulseDirectionPeriod | undefined;
   currency: string;
@@ -358,20 +360,22 @@ function SetsView({ period, currency, follows, onToggleSet, initialDirection }: 
   onToggleSet: (item: FatePulseRankedSet) => void;
 }) {
   const [filter, setFilter] = useState<DirectionFilter>(initialDirection);
+  const [focusedSet, setFocusedSet] = useState(selectedSetKey || '');
   const [query, setQuery] = useState('');
   const rows = useMemo(() => {
     const base = filter === 'risers' ? period?.setRisers ?? [] : period?.setDecliners ?? [];
     const q = query.trim().toLowerCase();
-    return base.filter((item) => !q || `${item.setName || ''} ${item.setCode || ''} ${item.tcgCode || ''}`.toLowerCase().includes(q));
-  }, [filter, period, query]);
+    return base.filter((item) => (!focusedSet || item.key === focusedSet) && (!q || `${item.setName || ''} ${item.setCode || ''} ${item.tcgCode || ''}`.toLowerCase().includes(q)));
+  }, [filter, period, query, focusedSet]);
 
   return (
     <View style={styles.stack}>
       <TabIntro eyebrow="SET MARKET" title="Which sets are moving?" copy="Ranked from verified set-basket movement. Star a set to keep it in My Insights." />
+      {focusedSet ? <Pressable accessibilityRole="button" accessibilityLabel="Clear selected set and show all sets" onPress={() => { setFocusedSet(''); router.setParams({ setKey: '', setName: '' }); }} style={styles.scopeChip}><Text style={styles.scopeText}>{selectedSetName || 'Selected set'} · Show all sets</Text></Pressable> : null}
       <FilterSearch value={query} onChange={setQuery} placeholder="Filter set movers" />
       <DirectionToggle value={filter} onChange={setFilter} />
       <MarketSection title={filter === 'risers' ? 'Set Risers' : 'Set Fallers'} icon={filter === 'risers' ? 'trending-up-outline' : 'trending-down-outline'} accent={filter === 'risers' ? FateDropColors.manifested : FateDropColors.vanished}>
-        {rows.map((item, index) => <SetMovementRow key={item.key} item={item} rank={index + 1} currency={currency} tracked={follows.sets.some((follow) => follow.key === item.key)} onToggle={() => onToggleSet(item)} />)}
+        {rows.map((item) => <SetMovementRow key={item.key} item={item} rank={(filter === 'risers' ? period?.setRisers ?? [] : period?.setDecliners ?? []).findIndex((entry) => entry.key === item.key) + 1} currency={currency} tracked={follows.sets.some((follow) => follow.key === item.key)} onToggle={() => onToggleSet(item)} />)}
         {!rows.length ? <EmptyRow text="No qualifying sets match this view." /> : null}
       </MarketSection>
     </View>
@@ -404,7 +408,7 @@ function CardsView({ period, currency, follows, onToggleCard, initialDirection }
       </View>
       <DirectionToggle value={filter} onChange={setFilter} />
       <MarketSection title={filter === 'risers' ? 'Card Risers' : 'Card Fallers'} icon={filter === 'risers' ? 'trending-up-outline' : 'trending-down-outline'} accent={filter === 'risers' ? FateDropColors.manifested : FateDropColors.vanished}>
-        {rows.map((item, index) => <CardMovementRow key={item.cardIdentityId} item={item} rank={index + 1} currency={currency} tracked={follows.cards.some((follow) => follow.cardIdentityId === item.cardIdentityId)} onToggle={() => onToggleCard(item)} />)}
+        {rows.map((item) => <CardMovementRow key={item.cardIdentityId} item={item} rank={(filter === 'risers' ? period?.cardRisers ?? [] : period?.cardDecliners ?? []).findIndex((entry) => entry.cardIdentityId === item.cardIdentityId) + 1} currency={currency} tracked={follows.cards.some((follow) => follow.cardIdentityId === item.cardIdentityId)} onToggle={() => onToggleCard(item)} />)}
         {!rows.length ? <EmptyRow text="No qualifying exact cards match this view." /> : null}
       </MarketSection>
     </View>
