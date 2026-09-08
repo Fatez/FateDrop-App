@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { storedPeriodMovement } from '@/lib/history-period';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
+import { appSavedNotice } from '@/services/app-saved-items';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -77,12 +78,14 @@ export default function MyPulseInvestorScreen() {
   const [follows, setFollows] = useState<FatePulseFollows>(EMPTY_FOLLOWS);
   const [intel, setIntel] = useState<Record<string, CardIntel>>({});
   const [chartWindow, setChartWindow] = useState<ChartWindow>(30);
+  const [notice, setNotice] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (force = false) => {
     setRefreshing(force);
     const nextFollows = await loadFatePulseFollows(identity);
     setFollows(nextFollows);
+    setNotice(appSavedNotice(identity,'insights'));
 
     if (!nextFollows.cards.length) {
       setIntel({});
@@ -122,7 +125,7 @@ export default function MyPulseInvestorScreen() {
   }, [identity]);
 
   useFocusEffect(useCallback(() => {
-    void load(false);
+    void load(false).catch(() => { setNotice('Saved follows could not be loaded. Please reopen this page.'); setRefreshing(false); });
   }, [load]));
 
   const thirtyDayMoves = useMemo(() => follows.cards.map((follow) => {
@@ -165,8 +168,9 @@ export default function MyPulseInvestorScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true).catch(() => { setNotice('Refresh failed. Your saves have not been erased.'); setRefreshing(false); })} tintColor={FateDropColors.goldBright} />}
       >
+        {notice ? <Text accessibilityRole="alert" style={{color:FateDropColors.secondary,fontSize:12,lineHeight:18}}>{notice}</Text> : null}
         <FateMarketHeader title="FateInsight" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" accessibilityLabel="Search any exact card or set" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.globalSearch, pressed && styles.pressed]}>
@@ -235,13 +239,13 @@ export default function MyPulseInvestorScreen() {
         ) : null}
 
         <View style={styles.cardStack}>
-          {follows.cards.map((follow) => <WatchedCard key={follow.cardIdentityId} follow={follow} intel={intel[follow.cardIdentityId]} chartWindow={chartWindow} onRemove={() => void removeCard(follow.cardIdentityId)} />)}
+          {follows.cards.map((follow) => <WatchedCard key={follow.cardIdentityId} follow={follow} intel={intel[follow.cardIdentityId]} chartWindow={chartWindow} onRemove={() => void removeCard(follow.cardIdentityId).catch(() => setNotice('Removal was not confirmed. Please try again.'))} />)}
         </View>
 
         {follows.sets.length ? (
           <View style={styles.setSection}>
             <View style={styles.setHeading}><View style={styles.setHeadingLine} /><Ionicons name="albums-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.setHeadingText}>Watched Sets</Text><View style={styles.setHeadingLine} /></View>
-            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'}</Text></View><Pressable accessibilityLabel="Remove set from My Insights" onPress={() => void removeSet(set.key)} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
+            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'}</Text></View><Pressable accessibilityLabel="Remove set from My Insights" onPress={() => void removeSet(set.key).catch(() => setNotice('Removal was not confirmed. Please try again.'))} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
           </View>
         ) : null}
 

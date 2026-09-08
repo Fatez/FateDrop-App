@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { appSavedNotice } from '@/services/app-saved-items';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
   addFatePulseCardFollow,
@@ -34,18 +35,21 @@ export function FatePulseFollowAction({
   const identity = snapshot?.user.fateId || 'guest';
   const [tracked, setTracked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [syncNotice, setSyncNotice] = useState('');
 
   useEffect(() => {
     let active = true;
     void loadFatePulseFollows(identity).then((follows) => {
-      if (active) setTracked(follows.cards.some((item) => item.cardIdentityId === cardIdentityId));
-    });
+      if (active) { setTracked(follows.cards.some((item) => item.cardIdentityId === cardIdentityId)); setSyncNotice(appSavedNotice(identity,'insights')); }
+    }).catch(() => { if (active) setError('Saved follow could not be loaded.'); });
     return () => { active = false; };
   }, [cardIdentityId, identity]);
 
   const toggle = async () => {
     if (busy) return;
     setBusy(true);
+    setError('');
     try {
       if (tracked) {
         await removeFatePulseCardFollow(identity, cardIdentityId);
@@ -63,6 +67,9 @@ export function FatePulseFollowAction({
         });
         setTracked(true);
       }
+      setSyncNotice(appSavedNotice(identity,'insights'));
+    } catch {
+      setError('Your follow change was not confirmed. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -70,6 +77,8 @@ export function FatePulseFollowAction({
 
   return (
     <View style={styles.wrap}>
+      {syncNotice ? <Text style={{color:FateDropColors.secondary,fontSize:12,lineHeight:18}}>{syncNotice}</Text> : null}
+      {error ? <Text accessibilityRole="alert" style={{color:FateDropColors.coral,fontSize:12,lineHeight:18}}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={tracked ? 'Remove this exact card from My Insights' : 'Add this exact card to My Insights'}

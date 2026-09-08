@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { savedAccount, loadAppSavedItems, changeAppSavedItem } from '@/services/app-saved-items';
 
 export type FatePulseCardFollow = {
   cardIdentityId: string;
@@ -65,7 +66,7 @@ function parseSet(value: unknown): FatePulseSetFollow | null {
   };
 }
 
-export async function loadFatePulseFollows(identity?: string | null): Promise<FatePulseFollows> {
+async function loadLocalFollows(identity?: string | null): Promise<FatePulseFollows> {
   try {
     const raw = await AsyncStorage.getItem(storageKey(identity));
     if (!raw) return { cards: [], sets: [] };
@@ -79,40 +80,34 @@ export async function loadFatePulseFollows(identity?: string | null): Promise<Fa
   }
 }
 
-export async function saveFatePulseFollows(identity: string | null | undefined, follows: FatePulseFollows) {
-  await AsyncStorage.setItem(storageKey(identity), JSON.stringify(follows));
-}
 
-export async function addFatePulseCardFollow(identity: string | null | undefined, follow: FatePulseCardFollow) {
-  const current = await loadFatePulseFollows(identity);
-  const next: FatePulseFollows = {
-    ...current,
-    cards: [...current.cards.filter((item) => item.cardIdentityId !== follow.cardIdentityId), follow],
+function records(follows: FatePulseFollows): Record<string,unknown>[] {
+  return [...follows.cards.map(item=>({...item,kind:'card'})),...follows.sets.map(item=>({...item,kind:'set'}))];
+}
+function followsFromRecords(items: Record<string,unknown>[]): FatePulseFollows {
+  return {
+    cards: items.filter(item=>item.kind==='card').map(parseCard).filter((item):item is FatePulseCardFollow=>Boolean(item)),
+    sets: items.filter(item=>item.kind==='set').map(parseSet).filter((item):item is FatePulseSetFollow=>Boolean(item)),
   };
-  await saveFatePulseFollows(identity, next);
-  return next;
 }
-
-export async function removeFatePulseCardFollow(identity: string | null | undefined, cardIdentityId: string) {
-  const current = await loadFatePulseFollows(identity);
-  const next: FatePulseFollows = { ...current, cards: current.cards.filter((item) => item.cardIdentityId !== cardIdentityId) };
-  await saveFatePulseFollows(identity, next);
-  return next;
+export async function loadFatePulseFollows(identity?: string | null): Promise<FatePulseFollows> {
+  const account = await savedAccount(identity);
+  const legacy = await loadLocalFollows(account.identity);
+  return followsFromRecords(await loadAppSavedItems('insights',account,records(legacy)));
 }
-
-export async function addFatePulseSetFollow(identity: string | null | undefined, follow: FatePulseSetFollow) {
-  const current = await loadFatePulseFollows(identity);
-  const next: FatePulseFollows = {
-    ...current,
-    sets: [...current.sets.filter((item) => item.key !== follow.key), follow],
-  };
-  await saveFatePulseFollows(identity, next);
-  return next;
+async function changeFollow(identity: string | null | undefined, input: {operation:'save';item:Record<string,unknown>}|{operation:'remove';key:string}) {
+  const account = await savedAccount(identity);
+  if(account.token) return followsFromRecords(await changeAppSavedItem('insights',account,input));
+  const current = records(await loadLocalFollows(account.identity));
+  const itemKey=(item:Record<string,unknown>)=>item.kind==='card'?'card:'+item.cardIdentityId:'set:'+item.key;
+  const key=input.operation==='save'?itemKey(input.item):input.key;
+  const next=current.filter(item=>itemKey(item)!==key);
+  if(input.operation==='save') next.push(input.item);
+  const follows=followsFromRecords(next);
+  await AsyncStorage.setItem(storageKey(account.identity),JSON.stringify(follows));
+  return follows;
 }
-
-export async function removeFatePulseSetFollow(identity: string | null | undefined, key: string) {
-  const current = await loadFatePulseFollows(identity);
-  const next: FatePulseFollows = { ...current, sets: current.sets.filter((item) => item.key !== key) };
-  await saveFatePulseFollows(identity, next);
-  return next;
-}
+export async function addFatePulseCardFollow(identity: string | null | undefined, follow: FatePulseCardFollow) { return changeFollow(identity,{operation:'save',item:{...follow,kind:'card'}}); }
+export async function removeFatePulseCardFollow(identity: string | null | undefined, cardIdentityId: string) { return changeFollow(identity,{operation:'remove',key:'card:'+cardIdentityId}); }
+export async function addFatePulseSetFollow(identity: string | null | undefined, follow: FatePulseSetFollow) { return changeFollow(identity,{operation:'save',item:{...follow,kind:'set'}}); }
+export async function removeFatePulseSetFollow(identity: string | null | undefined, key: string) { return changeFollow(identity,{operation:'remove',key:'set:'+key}); }
