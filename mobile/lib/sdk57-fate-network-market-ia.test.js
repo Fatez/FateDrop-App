@@ -30,7 +30,7 @@ test('Fate Network contains action tools including Fate Trader, not Fate Market 
 test('Fate Market is Pulse Price and Collections and does not own Fate Trader', () => {
   assert.match(marketRoute, /fate-market-screen-v2/);
   assert.match(market, /type MarketAreaKey = 'pulse' \| 'price' \| 'collectors'/);
-  assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'FateInsight'/);
   assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Collections'/);
   assert.doesNotMatch(market, /title: 'Fate Trader'/);

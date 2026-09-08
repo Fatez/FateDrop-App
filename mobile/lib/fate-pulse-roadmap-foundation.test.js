@@ -19,11 +19,11 @@ const dock = read('components/persistent-bottom-nav.tsx');
 
 test('Fate Market uses consistent overview tabs with explicit routes into deeper tools', () => {
   assert.match(marketRoute, /fate-market-screen-v2/);
-  assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'FateInsight'/);
   assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Collections'/);
   assert.match(market, /setActiveArea\(key\); router\.setParams\(\{ area: key \}\)/);
-  assert.match(market, /EXPLORE FATEPULSE/);
+  assert.match(market, /EXPLORE FATEINSIGHT/);
   assert.match(market, /router\.push\('\/fate-pulse'\)/);
   assert.match(market, /OPEN FATEPRICE/);
   assert.match(market, /router\.push\('\/fate-price'\)/);
@@ -35,7 +35,7 @@ test('FatePulse Overview is the simple investor dashboard', () => {
   assert.match(pulseOverview, /Overview/);
   assert.match(pulseOverview, /Sets/);
   assert.match(pulseOverview, /Cards/);
-  assert.match(pulseOverview, /My Pulse/);
+  assert.match(pulseOverview, /My Insights/);
   assert.match(pulseOverview, /Biggest Card Risers/);
   assert.match(pulseOverview, /Biggest Card Fallers/);
   assert.match(pulseOverview, /Sets Heating Up/);

@@ -211,7 +211,7 @@ export default function FatePriceBuyScreen() {
       {offerState === 'empty' ? <View style={styles.empty}>
         <View style={styles.emptyOrbit}><Ionicons name="storefront-outline" size={30} color={FateDropColors.goldBright} /></View>
         <Text style={styles.emptyTitle}>No verified live single right now.</Text>
-        <Text style={styles.emptyCopy}>No current verified retailer offers were found for this exact card. You can review its market history in FatePrice and add it to My Pulse to track price movement.</Text>
+        <Text style={styles.emptyCopy}>No current verified retailer offers were found for this exact card. You can review its market history in FatePrice and add it to My Insights to track price movement.</Text>
         <Pressable accessibilityRole="button" onPress={openExactPrice} style={styles.findButton}><Ionicons name="analytics-outline" size={16} color="#080B14" /><Text style={styles.findButtonText}>VIEW THIS CARD IN FATEPRICE</Text></Pressable>
       </View> : null}
       {offers.length ? <><View style={styles.rankingTruth}><Ionicons name="shield-checkmark-outline" size={15} color={FateDropColors.goldBright} /><Text style={styles.rankingTruthText}>Cloud-ranked by verified delivered total. Unknown postage stays unknown and cannot be labelled the lowest total.</Text></View><View style={styles.offerStack}>{offers.map((offer) => <OfferCard key={offer.offerId} lowestVerifiedDelivered={offer.offerId === lowestVerifiedDeliveredOfferId} offer={offer} onOpen={() => void openOffer(offer)} />)}</View></> : null}

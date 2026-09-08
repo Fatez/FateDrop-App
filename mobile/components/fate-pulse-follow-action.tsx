@@ -72,7 +72,7 @@ export function FatePulseFollowAction({
     <View style={styles.wrap}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={tracked ? 'Remove this exact card from My Pulse' : 'Add this exact card to My Pulse'}
+        accessibilityLabel={tracked ? 'Remove this exact card from My Insights' : 'Add this exact card to My Insights'}
         disabled={busy}
         onPress={() => void toggle()}
         style={({ pressed }) => [styles.primary, tracked && styles.primaryTracked, pressed && styles.pressed]}
@@ -83,17 +83,17 @@ export function FatePulseFollowAction({
             : <Ionicons name={tracked ? 'star' : 'star-outline'} size={19} color={tracked ? FateDropColors.goldBright : FateDropColors.background} />}
         </View>
         <View style={styles.copy}>
-          <Text style={[styles.eyebrow, tracked && styles.eyebrowTracked]}>FATEPULSE WATCHLIST</Text>
-          <Text style={[styles.title, tracked && styles.titleTracked]}>{tracked ? 'Tracking in My Pulse' : 'Add to My Pulse'}</Text>
+          <Text style={[styles.eyebrow, tracked && styles.eyebrowTracked]}>FATEINSIGHT WATCHLIST</Text>
+          <Text style={[styles.title, tracked && styles.titleTracked]}>{tracked ? 'Tracking in My Insights' : 'Add to My Insights'}</Text>
           <Text style={[styles.detail, tracked && styles.detailTracked]}>{tracked ? 'This exact card is on your market watchlist.' : 'Follow this exact card’s price and movement.'}</Text>
         </View>
         <Ionicons name={tracked ? 'checkmark-circle' : 'add-circle'} size={20} color={tracked ? FateDropColors.goldBright : FateDropColors.background} />
       </Pressable>
 
       {tracked ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Open My Pulse" onPress={() => router.push('/fate-pulse/my-pulse')} style={({ pressed }) => [styles.openAction, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open My Insights" onPress={() => router.push('/fate-pulse/my-pulse')} style={({ pressed }) => [styles.openAction, pressed && styles.pressed]}>
           <Ionicons name="pulse-outline" size={15} color={FateDropColors.goldBright} />
-          <Text style={styles.openText}>VIEW MY PULSE</Text>
+          <Text style={styles.openText}>VIEW MY INSIGHTS</Text>
           <Ionicons name="arrow-forward" size={14} color={FateDropColors.goldBright} />
         </Pressable>
       ) : null}
