@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
+import { MarketSetCatalogueLink } from '@/components/market-set-catalogue-link';
 import { FatePriceCardGlyph } from '@/components/fate-price-chrome';
 import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
@@ -563,16 +564,16 @@ function SetMovementRow({ item, rank, currency, tracked, onToggle }: {
     <View style={styles.marketRow}>
       <Text style={styles.rank}>{rank}</Text>
       <View style={styles.setGlyph}><Ionicons name="albums-outline" size={19} color={FateDropColors.goldBright} /></View>
-      <View style={styles.rowMainStatic}>
+      <MarketSetCatalogueLink tcgCode={item.tcgCode} setCode={item.setCode} name={item.setName} style={styles.rowMainStatic}>
         <View style={styles.rowCopy}>
           <Text numberOfLines={1} style={styles.rowTitle}>{item.setName || 'Verified set'}</Text>
-          <Text numberOfLines={1} style={styles.rowMeta}>{item.setCode || item.tcgCode || 'Tracked set'} · {item.pricedCardCount} priced cards</Text>
+          <Text numberOfLines={1} style={styles.rowMeta}>{item.pricedCardCount} priced cards · View cards ›</Text>
         </View>
         <View style={styles.rowNumbers}>
           <Text style={styles.rowPrice}>{formatMoney(item.currentBasketValue, currency)}</Text>
           <Text style={[styles.rowMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
         </View>
-      </View>
+      </MarketSetCatalogueLink>
       <Pressable accessibilityRole="button" accessibilityLabel={tracked ? 'Remove set from My Insights' : 'Add set to My Insights'} onPress={onToggle} style={({ pressed }) => [styles.starButton, tracked && styles.starButtonActive, pressed && styles.pressed]}>
         <Ionicons name={tracked ? 'star' : 'star-outline'} size={17} color={tracked ? FateDropColors.goldBright : FateDropColors.muted} />
       </Pressable>

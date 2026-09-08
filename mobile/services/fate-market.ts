@@ -182,6 +182,7 @@ export type FatePriceCard = {
 
 export type FatePriceSet = {
   id: string;
+  code?: string | null;
   tcgCode: string | null;
   seriesId: string;
   seriesName: string | null;
