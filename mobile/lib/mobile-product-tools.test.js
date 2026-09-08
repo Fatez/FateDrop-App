@@ -45,7 +45,7 @@ test('primary navigation is Home, Alerts, FateDrop compass, Fate Market and Prof
   assert.match(tools, /Search live database/);
   assert.match(tools, /Wishlist/);
   assert.match(marketRoute, /fate-market-screen-v2/);
-  assert.match(market, /title: 'FatePulse'/);
+  assert.match(market, /title: 'FateInsight'/);
   assert.match(market, /title: 'FatePrice'/);
   assert.match(market, /title: 'Collections'/);
   assert.doesNotMatch(market, /title: 'Fate Trader'/);

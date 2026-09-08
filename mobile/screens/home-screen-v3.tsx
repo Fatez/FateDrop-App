@@ -242,7 +242,7 @@ export default function HomeScreenV3() {
           />
           <View style={styles.lifecycleBelowHub}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
-            <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/market')} style={({ pressed }) => [styles.marketExplore, pressed && styles.pressed]}><Text style={styles.marketExploreText}>Explore Fate Market</Text><Text style={styles.marketExploreDetail}>Pulse · Price · Collections</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.goldBright} /></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/market')} style={({ pressed }) => [styles.marketExplore, pressed && styles.pressed]}><Text style={styles.marketExploreText}>Explore Fate Market</Text><Text style={styles.marketExploreDetail}>Insight · Price · Collections</Text><Ionicons name="chevron-forward" size={15} color={FateDropColors.goldBright} /></Pressable>
           </View>
         </Animated.View>
 
@@ -399,7 +399,7 @@ function OrbitalIntelligenceHub({ accent, collection, market, pokemonCenter, red
       <OrbitalIntelligenceNode
         side="left"
         accent={FateDropColors.manifested}
-        eyebrow="FATEPULSE"
+        eyebrow="FATEINSIGHT"
         title="TCG MARKET"
         icon="pulse-outline"
         presentation={market}

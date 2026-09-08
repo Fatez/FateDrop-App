@@ -40,7 +40,7 @@ const VIEWS: { key: PulseView; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'sets', label: 'Sets' },
   { key: 'cards', label: 'Cards' },
-  { key: 'watchlist', label: 'My Pulse' },
+  { key: 'watchlist', label: 'My Insights' },
 ];
 const PERIODS: { key: PulsePeriod; label: string }[] = [
   { key: 'd1', label: '1D' },
@@ -196,7 +196,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
+        <FateMarketHeader title="FateInsight" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" accessibilityLabel="Search any exact card or set" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.globalSearch, pressed && styles.pressed]}>
           <Ionicons name="search-outline" size={19} color={FateDropColors.secondary} />
@@ -336,7 +336,7 @@ function OverviewView({
       <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse/my-pulse')} style={({ pressed }) => [styles.myPulsePreview, pressed && styles.pressed]}>
         <View style={styles.previewIcon}><Ionicons name="star" size={18} color={FateDropColors.goldBright} /></View>
         <View style={styles.flex}>
-          <Text style={styles.previewEyebrow}>MY PULSE</Text>
+          <Text style={styles.previewEyebrow}>MY INSIGHTS</Text>
           <Text style={styles.previewTitle}>{follows.cards.length + follows.sets.length ? `${follows.cards.length} cards · ${follows.sets.length} sets tracked` : 'Build your personal watchlist'}</Text>
           <Text style={styles.previewCopy}>Follow exact cards and sets without mixing them into your retail Wishlist.</Text>
         </View>
@@ -362,7 +362,7 @@ function SetsView({ period, currency, follows, onToggleSet }: {
 
   return (
     <View style={styles.stack}>
-      <TabIntro eyebrow="SET MARKET" title="Which sets are moving?" copy="Ranked from verified set-basket movement. Star a set to keep it in My Pulse." />
+      <TabIntro eyebrow="SET MARKET" title="Which sets are moving?" copy="Ranked from verified set-basket movement. Star a set to keep it in My Insights." />
       <FilterSearch value={query} onChange={setQuery} placeholder="Filter set movers" />
       <DirectionToggle value={filter} onChange={setFilter} />
       <MarketSection title={filter === 'risers' ? 'Set Risers' : 'Set Fallers'} icon={filter === 'risers' ? 'trending-up-outline' : 'trending-down-outline'} accent={filter === 'risers' ? FateDropColors.manifested : FateDropColors.vanished}>
@@ -389,7 +389,7 @@ function CardsView({ period, currency, follows, onToggleCard }: {
 
   return (
     <View style={styles.stack}>
-      <TabIntro eyebrow="CARD MARKET" title="What’s moving right now?" copy="Tap a card for its exact FatePrice. Star it to track it in My Pulse." />
+      <TabIntro eyebrow="CARD MARKET" title="What’s moving right now?" copy="Tap a card for its exact FatePrice. Star it to track it in My Insights." />
       <View style={styles.findAnyRow}>
         <FilterSearch value={query} onChange={setQuery} placeholder="Filter current movers" compact />
         <Pressable accessibilityRole="button" accessibilityLabel="Find any exact card" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.findAnyButton, pressed && styles.pressed]}>
@@ -455,7 +455,7 @@ function MyPulseView({ follows, period, pulseCurrency, onRemoveCard, onRemoveSet
         <View style={styles.emptyWatchlist}>
           <Ionicons name="star-outline" size={28} color={FateDropColors.goldBright} />
           <Text style={styles.emptyWatchTitle}>Nothing tracked yet.</Text>
-          <Text style={styles.emptyWatchCopy}>Find any exact card, choose the correct printing, then tap Add to My Pulse. You can also star cards and sets directly from FatePulse rankings.</Text>
+          <Text style={styles.emptyWatchCopy}>Find any exact card, choose the correct printing, then tap Add to My Insights. You can also star cards and sets directly from FateInsight rankings.</Text>
           <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.emptyWatchAction, pressed && styles.pressed]}>
             <Text style={styles.emptyWatchActionText}>FIND AN EXACT CARD</Text>
             <Ionicons name="arrow-forward" size={15} color={FateDropColors.background} />
@@ -486,7 +486,7 @@ function MyPulseView({ follows, period, pulseCurrency, onRemoveCard, onRemoveSet
         </MarketSection>
       ) : null}
 
-      <Text style={styles.localNote}>Preview foundation: My Pulse follows are currently stored against this FateDrop ID on this device while the Cloud follow contract is built. Market prices and movement still come from FateDrop Cloud.</Text>
+      <Text style={styles.localNote}>Preview foundation: My Insights follows are currently stored against this FateDrop ID on this device while the Cloud follow contract is built. Market prices and movement still come from FateDrop Cloud.</Text>
     </View>
   );
 }
@@ -534,7 +534,7 @@ function CardMovementRow({ item, rank, currency, tracked, onToggle }: {
           <Text style={[styles.rowMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
         </View>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={tracked ? 'Remove from My Pulse' : 'Add to My Pulse'} onPress={onToggle} style={({ pressed }) => [styles.starButton, tracked && styles.starButtonActive, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={tracked ? 'Remove from My Insights' : 'Add to My Insights'} onPress={onToggle} style={({ pressed }) => [styles.starButton, tracked && styles.starButtonActive, pressed && styles.pressed]}>
         <Ionicons name={tracked ? 'star' : 'star-outline'} size={17} color={tracked ? FateDropColors.goldBright : FateDropColors.muted} />
       </Pressable>
     </View>
@@ -563,7 +563,7 @@ function SetMovementRow({ item, rank, currency, tracked, onToggle }: {
           <Text style={[styles.rowMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
         </View>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={tracked ? 'Remove set from My Pulse' : 'Add set to My Pulse'} onPress={onToggle} style={({ pressed }) => [styles.starButton, tracked && styles.starButtonActive, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={tracked ? 'Remove set from My Insights' : 'Add set to My Insights'} onPress={onToggle} style={({ pressed }) => [styles.starButton, tracked && styles.starButtonActive, pressed && styles.pressed]}>
         <Ionicons name={tracked ? 'star' : 'star-outline'} size={17} color={tracked ? FateDropColors.goldBright : FateDropColors.muted} />
       </Pressable>
     </View>
@@ -586,7 +586,7 @@ function FollowedCardRow({ follow, rank, currentPrice, currency, movementPercent
         <View style={styles.rowCopy}><Text numberOfLines={1} style={styles.rowTitle}>{follow.name}</Text><Text numberOfLines={1} style={styles.rowMeta}>{follow.setName}{follow.collectorNumber ? ` · #${follow.collectorNumber}` : ''}</Text></View>
         <View style={styles.rowNumbers}><Text style={styles.rowPrice}>{formatMoney(currentPrice, currency)}</Text><Text style={[styles.rowMovement, { color: movementAccent(movementPercent) }]}>{movement(movementPercent)}</Text></View>
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Remove card from My Pulse" onPress={onRemove} style={({ pressed }) => [styles.starButton, styles.starButtonActive, pressed && styles.pressed]}><Ionicons name="star" size={17} color={FateDropColors.goldBright} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Remove card from My Insights" onPress={onRemove} style={({ pressed }) => [styles.starButton, styles.starButtonActive, pressed && styles.pressed]}><Ionicons name="star" size={17} color={FateDropColors.goldBright} /></Pressable>
     </View>
   );
 }
@@ -606,7 +606,7 @@ function FollowedSetRow({ follow, rank, ranked, currency, onRemove }: {
         <View style={styles.rowCopy}><Text numberOfLines={1} style={styles.rowTitle}>{follow.setName}</Text><Text numberOfLines={1} style={styles.rowMeta}>{follow.setCode || follow.tcgCode || 'Tracked set'}</Text></View>
         <View style={styles.rowNumbers}><Text style={styles.rowPrice}>{formatMoney(ranked?.currentBasketValue, currency)}</Text><Text style={[styles.rowMovement, { color: movementAccent(ranked?.movementPercent) }]}>{movement(ranked?.movementPercent)}</Text></View>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Remove set from My Pulse" onPress={onRemove} style={({ pressed }) => [styles.starButton, styles.starButtonActive, pressed && styles.pressed]}><Ionicons name="star" size={17} color={FateDropColors.goldBright} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Remove set from My Insights" onPress={onRemove} style={({ pressed }) => [styles.starButton, styles.starButtonActive, pressed && styles.pressed]}><Ionicons name="star" size={17} color={FateDropColors.goldBright} /></Pressable>
     </View>
   );
 }

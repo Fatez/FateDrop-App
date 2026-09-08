@@ -38,7 +38,7 @@ const marketAreas: Record<MarketAreaKey, {
     detail: 'Direction, breadth and evidence-backed movement.',
     eyebrow: 'WHAT IS MOVING?',
     icon: 'pulse-outline',
-    title: 'FatePulse',
+    title: 'FateInsight',
   },
   price: {
     accent: FateDropColors.goldBright,
@@ -291,7 +291,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
 
   return (
     <View style={styles.panel}>
-      <PanelHeading eyebrow="FATEPULSE" title="What is moving across the market?" accent={accent} status={evidenceStatus} />
+      <PanelHeading eyebrow="FATEINSIGHT" title="What is moving across the market?" accent={accent} status={evidenceStatus} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRail}>
         {scopeOptions.map((option) => (
           <ScopeButton key={option} label={option === 'all' ? 'ALL TCGs' : scopeLabel(option).toUpperCase()} selected={scope === option} onPress={() => { setSelectedMoverKey(null); onScopeChange(option); }} />
@@ -305,7 +305,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
         ))}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Ionicons name="pulse-outline" size={17} color={FateDropColors.goldBright} /><Text style={styles.orbitalActionText}>EXPLORE FATEPULSE</Text><Ionicons name="arrow-forward" size={16} color={FateDropColors.goldBright} /></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse')} style={({ pressed }) => [styles.orbitalAction, pressed && styles.pressed]}><Ionicons name="pulse-outline" size={17} color={FateDropColors.goldBright} /><Text style={styles.orbitalActionText}>EXPLORE FATEINSIGHT</Text><Ionicons name="arrow-forward" size={16} color={FateDropColors.goldBright} /></Pressable>
       <View style={styles.pulseInstrument}>
         <View pointerEvents="none" style={[styles.pulseOrbitOuter, { borderColor: `${accent}54` }]} />
         <View pointerEvents="none" style={styles.pulseOrbitMiddle} />

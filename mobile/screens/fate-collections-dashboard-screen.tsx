@@ -68,7 +68,7 @@ export default function FateCollectionsDashboardScreen() {
         </View>
 
         <View style={styles.marketTabs}>
-          <MarketTab label="FatePulse" icon="pulse-outline" onPress={() => router.navigate('/fate-pulse')} />
+          <MarketTab label="FateInsight" icon="pulse-outline" onPress={() => router.navigate('/fate-pulse')} />
           <MarketTab label="FatePrice" icon="pricetag-outline" onPress={() => router.push('/fate-price')} />
           <MarketTab label="Fate Collections" icon="albums-outline" active onPress={() => undefined} />
         </View>
@@ -124,7 +124,7 @@ export default function FateCollectionsDashboardScreen() {
           <View style={styles.flex}>
             <Text style={styles.sectionEyebrow}>YOUR COLLECTION PULSE</Text>
             <Text style={styles.sectionTitle}>Your biggest risers and fallers</Text>
-            <Text style={styles.sectionCopy}>Top 3 owned {rankingScope}. Whole-market rankings stay in FatePulse.</Text>
+            <Text style={styles.sectionCopy}>Top 3 owned {rankingScope}. Whole-market rankings stay in FateInsight.</Text>
           </View>
           <View style={styles.periodRail}>
             <PeriodButton label="7D" selected={period === 'd7'} onPress={() => setPeriod('d7')} />

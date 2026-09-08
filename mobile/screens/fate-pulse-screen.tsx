@@ -28,7 +28,7 @@ const VIEWS: { key: PulseView; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'sets', label: 'Sets' },
   { key: 'cards', label: 'Cards' },
-  { key: 'watchlist', label: 'My Pulse' },
+  { key: 'watchlist', label: 'My Insights' },
 ];
 const PERIODS: { key: PulsePeriod; label: string }[] = [
   { key: 'd1', label: '1D' },
@@ -158,7 +158,7 @@ export default function FatePulseScreen({ initialView = 'overview' }: { initialV
             <Ionicons name="arrow-back" size={19} color={FateDropColors.goldBright} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>FATEPULSE</Text>
+            <Text style={styles.eyebrow}>FATEINSIGHT</Text>
             <Text style={styles.title}>{view === 'overview' ? 'The market, in real time.' : view === 'sets' ? 'Set performance, at a glance.' : view === 'cards' ? "What's moving right now." : 'Your cards and sets, in market context.'}</Text>
             <Text style={styles.subtitle}>{view === 'overview' ? 'Price movement, breadth and canonical history across tracked TCGs.' : view === 'sets' ? 'Compare qualifying set baskets and see what is heating up or cooling down.' : view === 'cards' ? 'Track the biggest verified card movers and drill into exact FatePrice evidence.' : 'Follow exact cards and sets without changing the global Pulse calculation.'}</Text>
           </View>
@@ -251,7 +251,7 @@ function OverviewView({ data, period, periodKey, onPeriodChange, accent }: {
           <Text style={styles.indexStatus}>INDEX NOT CONNECTED</Text>
           <Text style={styles.indexPeriod}>{periodKey.slice(1)}D VIEW</Text>
         </View>
-        <Text style={styles.indexNote}>The current headline above is the Cloud-owned median return of qualifying set baskets. FatePulse will not relabel that movement statistic as the Market Price Index; the index gets its own value only when Cloud publishes the real index contract.</Text>
+        <Text style={styles.indexNote}>The current headline above is the Cloud-owned median return of qualifying set baskets. FateInsight will not relabel that movement statistic as the Market Price Index; the index gets its own value only when Cloud publishes the real index contract.</Text>
       </View>
 
       {is90 ? (
@@ -296,7 +296,7 @@ function OverviewView({ data, period, periodKey, onPeriodChange, accent }: {
         <MovementColumn title="COOLING DOWN" subtitle="Top qualifying set fallers" items={cooling} accent={FateDropColors.vanished} />
       </View>
 
-      {!is90 && heating.length === 0 && cooling.length === 0 ? <EvidenceNotice icon="analytics-outline" text="No qualifying set movement is available for this window yet. FatePulse will show the rankings as soon as the Cloud evidence boundary qualifies them." accent={FateDropColors.manifested} /> : null}
+      {!is90 && heating.length === 0 && cooling.length === 0 ? <EvidenceNotice icon="analytics-outline" text="No qualifying set movement is available for this window yet. FateInsight will show the rankings as soon as the Cloud evidence boundary qualifies them." accent={FateDropColors.manifested} /> : null}
       {is90 ? <EvidenceNotice icon="analytics-outline" text="90D heating and cooling rankings will appear here once the Cloud Pulse contract publishes that evidence window." accent={FateDropColors.goldBright} /> : null}
     </View>
   );
@@ -338,7 +338,7 @@ function SetsView({ period, periodKey, onPeriodChange }: {
         <View style={styles.rankingCard}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderCopy}>
-              <Text style={styles.smallEyebrow}>FATEPULSE · SETS</Text>
+              <Text style={styles.smallEyebrow}>FATEINSIGHT · SETS</Text>
               <Text style={styles.cardTitle}>Set performance & rankings</Text>
             </View>
             <Text style={styles.resultCount}>{rows.length}</Text>
@@ -383,7 +383,7 @@ function CardsView({ period, periodKey, onPeriodChange }: {
         <View style={styles.rankingCard}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderCopy}>
-              <Text style={styles.smallEyebrow}>FATEPULSE · CARDS</Text>
+              <Text style={styles.smallEyebrow}>FATEINSIGHT · CARDS</Text>
               <Text style={styles.cardTitle}>Top {filter === 'fallers' ? 'fallers' : 'risers'} right now</Text>
             </View>
             <Text style={styles.resultCount}>{rows.length}</Text>
@@ -402,9 +402,9 @@ function WatchlistView({ data }: { data: FatePulseSnapshot | null }) {
       <View style={styles.watchHero}>
         <View style={styles.watchIcon}><Ionicons name="eye-outline" size={27} color={FateDropColors.manifested} /></View>
         <Text style={styles.watchTitle}>Personal lens. Global truth.</Text>
-        <Text style={styles.watchCopy}>My Pulse will show verified market movement for exact cards and sets you follow. Your choices never influence the global Pulse calculation itself.</Text>
+        <Text style={styles.watchCopy}>My Insights will show verified market movement for exact cards and sets you follow. Your choices never influence the global Pulse calculation itself.</Text>
       </View>
-      <EvidenceNotice icon="construct-outline" text="My Pulse is being connected to an exact-card and exact-set follow contract. Wishlist remains separate: it saves retail products and powers stock watching and FateFind hunts." accent={FateDropColors.goldBright} />
+      <EvidenceNotice icon="construct-outline" text="My Insights is being connected to an exact-card and exact-set follow contract. Wishlist remains separate: it saves retail products and powers stock watching and FateFind hunts." accent={FateDropColors.goldBright} />
       <View style={styles.readinessCard}>
         <Text style={styles.smallEyebrow}>GLOBAL EVIDENCE READY FOR THE LENS</Text>
         <Text style={styles.cardTitle}>{data?.readiness.canonical.mappedCards ?? 0} mapped cards</Text>

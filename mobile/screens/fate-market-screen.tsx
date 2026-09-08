@@ -35,7 +35,7 @@ const marketAreas: Record<MarketAreaKey, {
     detail: 'Direction, volatility and unusual movement.',
     eyebrow: 'READ THE MARKET',
     icon: 'pulse-outline',
-    title: 'FatePulse',
+    title: 'FateInsight',
   },
   collectors: {
     accent: FateDropColors.echo,
@@ -188,7 +188,7 @@ function PulsePanel({ data, error, loading }: { data: FatePulseSnapshot | null; 
     : 'Waiting for the Cloud evidence boundary.';
   return (
     <View style={[styles.panel, { borderColor: `${FateDropColors.manifested}55` }]}>
-      <PanelHeading eyebrow="FATEPULSE" title="What is happening in the market?" accent={FateDropColors.manifested} status={status} />
+      <PanelHeading eyebrow="FATEINSIGHT" title="What is happening in the market?" accent={FateDropColors.manifested} status={status} />
       <View style={styles.metricGrid}>
         <MarketMetric label="MARKET HEAT" value="—" detail="Activity" />
         <MarketMetric label="PRICE" value={movementText(movement?.medianPercent)} detail={`7D · ${movement?.contributors ?? 0}/${movement?.eligible ?? 0} lanes`} />

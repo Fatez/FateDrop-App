@@ -28,7 +28,7 @@ const TABS = [
   { label: 'Overview', route: '/fate-pulse' as const, active: true },
   { label: 'Sets', route: '/fate-pulse/sets' as const, active: false },
   { label: 'Cards', route: '/fate-pulse/cards' as const, active: false },
-  { label: 'My Pulse', route: '/fate-pulse/my-pulse' as const, active: false },
+  { label: 'My Insights', route: '/fate-pulse/my-pulse' as const, active: false },
 ];
 
 function movement(value: number | null | undefined) {
@@ -106,7 +106,7 @@ export default function FatePulseOverviewScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
+        <FateMarketHeader title="FateInsight" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.searchBar, pressed && styles.pressed]}>
           <Ionicons name="search" size={18} color={FateDropColors.secondary} />
@@ -165,7 +165,7 @@ export default function FatePulseOverviewScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.push('/fate-pulse/my-pulse')} style={({ pressed }) => [styles.myPulseCard, pressed && styles.pressed]}>
           <View style={styles.myPulseIcon}><Ionicons name="star-outline" size={20} color={FateDropColors.goldBright} /></View>
           <View style={styles.flex}>
-            <Text style={styles.myPulseKicker}>MY PULSE</Text>
+            <Text style={styles.myPulseKicker}>MY INSIGHTS</Text>
             <Text style={styles.myPulseTitle}>Track the cards and sets you care about.</Text>
             <Text style={styles.myPulseCopy}>Your personal market watchlist, separate from retail Wishlist and stock alerts.</Text>
           </View>

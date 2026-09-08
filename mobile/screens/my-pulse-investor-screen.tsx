@@ -167,7 +167,7 @@ export default function MyPulseInvestorScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={FateDropColors.goldBright} />}
       >
-        <FateMarketHeader title="FatePulse" subtitle="Understand the market. Follow what matters to you." />
+        <FateMarketHeader title="FateInsight" subtitle="Understand the market. Follow what matters to you." />
 
         <Pressable accessibilityRole="button" accessibilityLabel="Search any exact card or set" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.globalSearch, pressed && styles.pressed]}>
           <Ionicons name="search-outline" size={18} color={FateDropColors.secondary} />
@@ -179,7 +179,7 @@ export default function MyPulseInvestorScreen() {
           <PulseTab label="Overview" onPress={() => router.replace('/fate-pulse')} />
           <PulseTab label="Sets" onPress={() => router.replace('/fate-pulse/sets')} />
           <PulseTab label="Cards" onPress={() => router.replace('/fate-pulse/cards')} />
-          <PulseTab label="My Pulse" selected onPress={() => undefined} />
+          <PulseTab label="My Insights" selected onPress={() => undefined} />
         </View>
 
         <View style={styles.heroRow}>
@@ -226,7 +226,7 @@ export default function MyPulseInvestorScreen() {
           <View style={styles.emptyState}>
             <View style={styles.emptyOrbit}><Ionicons name="analytics-outline" size={28} color={FateDropColors.goldBright} /></View>
             <Text style={styles.emptyTitle}>Your Pulse is waiting.</Text>
-            <Text style={styles.emptyCopy}>Find an exact card in FatePrice, add it to My Pulse, and its verified value, movement and stored price history will live here.</Text>
+            <Text style={styles.emptyCopy}>Find an exact card in FatePrice, add it to My Insights, and its verified value, movement and stored price history will live here.</Text>
             <Pressable accessibilityRole="button" onPress={() => router.push('/fate-price')} style={({ pressed }) => [styles.emptyAction, pressed && styles.pressed]}>
               <Text style={styles.emptyActionText}>FIND A CARD</Text>
               <Ionicons name="arrow-forward" size={14} color={FateDropColors.goldBright} />
@@ -241,11 +241,11 @@ export default function MyPulseInvestorScreen() {
         {follows.sets.length ? (
           <View style={styles.setSection}>
             <View style={styles.setHeading}><View style={styles.setHeadingLine} /><Ionicons name="albums-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.setHeadingText}>Watched Sets</Text><View style={styles.setHeadingLine} /></View>
-            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'}</Text></View><Pressable accessibilityLabel="Remove set from My Pulse" onPress={() => void removeSet(set.key)} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
+            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'}</Text></View><Pressable accessibilityLabel="Remove set from My Insights" onPress={() => void removeSet(set.key)} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
           </View>
         ) : null}
 
-        <Text style={styles.footerNote}>My Pulse uses the same exact-card FatePrice evidence as the research screen. Price trails show stored market days only; missing days are never invented.</Text>
+        <Text style={styles.footerNote}>My Insights uses the same exact-card FatePrice evidence as the research screen. Price trails show stored market days only; missing days are never invented.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -286,7 +286,7 @@ function WatchedCard({ follow, intel, chartWindow, onRemove }: { follow: FatePul
         <Text numberOfLines={1} style={styles.cardMeta}>{follow.setName}{follow.collectorNumber ? ` · #${follow.collectorNumber}` : ''}</Text>
         <View style={styles.priceLine}><Text style={styles.currentPrice}>{money(current, currency)}</Text>{intel?.loading ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : null}</View>
       </Pressable>
-      <Pressable accessibilityLabel="Remove card from My Pulse" onPress={onRemove} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable>
+      <Pressable accessibilityLabel="Remove card from My Insights" onPress={onRemove} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable>
     </View>
 
     <View style={styles.movementLedger}>

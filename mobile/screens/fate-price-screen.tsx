@@ -380,9 +380,9 @@ export default function FatePriceScreen() {
         <View style={styles.bridgePanel}>
           <Text style={styles.sectionEyebrow}>ONE MARKET · THREE VIEWS</Text>
           <Text style={styles.bridgeTitle}>Put this value in context.</Text>
-          <Text style={styles.bridgeCopy}>FatePulse explains wider movement. Fate Collections shows what verified prices mean across your own cards and binders.</Text>
+          <Text style={styles.bridgeCopy}>FateInsight explains wider movement. Fate Collections shows what verified prices mean across your own cards and binders.</Text>
           <View style={styles.bridgeActions}>
-            <BridgeAction accent={FateDropColors.manifested} icon="pulse-outline" label="OPEN FATEPULSE" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
+            <BridgeAction accent={FateDropColors.manifested} icon="pulse-outline" label="OPEN FATEINSIGHT" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} />
             <BridgeAction accent={FateDropColors.echo} icon="albums-outline" label="OPEN COLLECTIONS" onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} />
           </View>
         </View>
@@ -393,7 +393,7 @@ export default function FatePriceScreen() {
 
 function MarketConstellation() {
   return <View accessibilityRole="tablist" style={styles.areaRail}>
-    <Pressable accessibilityRole="tab" accessibilityState={{ selected: false }} onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} style={styles.areaTab}><Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>FatePulse</Text></Pressable>
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: false }} onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'pulse' } })} style={styles.areaTab}><Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>FateInsight</Text></Pressable>
     <View accessibilityRole="tab" accessibilityState={{ selected: true }} style={[styles.areaTab, styles.areaTabActive]}><Ionicons name="pricetag-outline" size={16} color={FateDropColors.goldBright} /><Text style={[styles.areaTitle, { color: FateDropColors.goldBright }]}>FatePrice</Text><View style={styles.areaActiveGem} /></View>
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: false }} onPress={() => router.replace({ pathname: '/(tabs)/market', params: { area: 'collectors' } })} style={styles.areaTab}><Ionicons name="albums-outline" size={16} color={FateDropColors.muted} /><Text style={styles.areaTitle}>Collections</Text></Pressable>
   </View>;

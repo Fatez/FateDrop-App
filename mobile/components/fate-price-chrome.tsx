@@ -37,7 +37,7 @@ export function FatePriceAreaRail() {
   return <View accessibilityRole="tablist" style={styles.areaRail}>
     <Pressable accessibilityRole="tab" onPress={() => router.navigate('/fate-pulse')} style={styles.areaTab}>
       <Ionicons name="pulse-outline" size={16} color={FateDropColors.muted} />
-      <Text style={styles.areaTitle}>FatePulse</Text>
+      <Text style={styles.areaTitle}>FateInsight</Text>
     </Pressable>
     <View accessibilityRole="tab" accessibilityState={{ selected: true }} style={[styles.areaTab, styles.areaTabActive]}>
       <Ionicons name="pricetag-outline" size={16} color={FateDropColors.goldBright} />
