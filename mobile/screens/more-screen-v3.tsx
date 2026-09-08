@@ -72,6 +72,9 @@ export default function MoreScreenV3() {
         <FateSectionHeading eyebrow="ACCOUNT & EXPERIENCE" title="Shape your FateDrop." copy="Guide, notifications, companion, identity and network visibility." />
         <View style={styles.toolList}>{experienceTools.map((item) => <ToolRow key={item.title} item={item} />)}</View>
 
+        <FateSectionHeading eyebrow="FOR BUSINESSES" title="Your shop in the Fate Network." copy="Retailer access and applications." />
+        <ToolRow item={{ title: 'Retailer partners', detail: 'Open your verified workspace or apply to connect your shop.', icon: 'storefront-outline', path: '/retailer-partners', color: FateDropColors.goldBright }} />
+
         <View style={styles.systemNote}>
           <Ionicons name="shield-checkmark-outline" size={18} color={FateDropColors.goldBright} />
           <View style={styles.toolCopy}>

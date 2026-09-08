@@ -44,7 +44,10 @@ export async function openTrackedRetailerLink(input: {
   offerId?: string;
   placement: string;
 }) {
-  const destinationUrl = await trackOutboundClick(input);
+  const destinationUrl = safeExternalHttpsUrl(input.destinationUrl);
+  if (!destinationUrl) throw new Error('Only secure public retailer links are supported.');
+  // Optional analytics must not prevent a collector from reaching the shop.
+  void trackOutboundClick(input).catch(() => undefined);
   await openBrowserAsync(destinationUrl, {
     presentationStyle: WebBrowserPresentationStyle.PAGE_SHEET,
   });
@@ -56,7 +59,9 @@ export async function openExternalRetailerLink(input: {
   offerId?: string;
   placement: string;
 }) {
-  const destinationUrl = await trackOutboundClick(input);
+  const destinationUrl = safeExternalHttpsUrl(input.destinationUrl);
+  if (!destinationUrl) throw new Error('Only secure public retailer links are supported.');
+  void trackOutboundClick(input).catch(() => undefined);
   const supported = await Linking.canOpenURL(destinationUrl);
   if (!supported) throw new Error('This retailer link cannot be opened.');
   await Linking.openURL(destinationUrl);
