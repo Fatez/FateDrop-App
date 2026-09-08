@@ -130,4 +130,10 @@ function fatePriceVariantLabel(card) {
   return [variant, language, rarity].filter(Boolean).join(' · ');
 }
 
-module.exports = { buildFatePriceDiscovery, fatePriceVariantLabel };
+function exactMarketCatalogueSet(sets, tcgCode, setCode) {
+  if (!tcgCode || !setCode || !Array.isArray(sets)) return null;
+  const matches = sets.filter((set) => set?.id && set.verificationStatus === 'verified' && set.tcgCode === tcgCode && set.code === setCode);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+module.exports = { buildFatePriceDiscovery, fatePriceVariantLabel, exactMarketCatalogueSet };

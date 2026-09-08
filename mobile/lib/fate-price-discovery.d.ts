@@ -1,4 +1,5 @@
-import type { FatePriceCard } from '@/services/fate-market';
+import type { FatePriceCard, FatePriceSet } from '@/services/fate-market';
+export function exactMarketCatalogueSet(sets: FatePriceSet[], tcgCode: string | null, setCode: string | null): FatePriceSet | null;
 
 export type FatePriceDiscoveryGame = { code: string; identityCount: number };
 export type FatePriceDiscoverySet = {
