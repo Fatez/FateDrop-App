@@ -8,6 +8,7 @@ import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FatePriceCardGlyph } from '@/components/fate-price-chrome';
 import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
+import { appSavedNotice } from '@/services/app-saved-items';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import {
@@ -148,7 +149,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
   useFocusEffect(useCallback(() => {
     let active = true;
     void load(false);
-    void loadFatePulseFollows(identity).then((next) => { if (active) setFollows(next); });
+    void loadFatePulseFollows(identity).then((next) => { if (active) { setFollows(next); setError(appSavedNotice(identity,'insights')); } }).catch(() => { if (active) setError('Saved follows could not be loaded. Please reopen this page.'); });
     return () => {
       active = false;
       loadGeneration.current += 1;

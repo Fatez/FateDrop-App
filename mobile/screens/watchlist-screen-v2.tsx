@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,12 +14,14 @@ import { selectWishlistPrice } from '@/lib/price-evidence';
 import { loadWatchlist, toggleWatchlist } from '@/lib/watchlist';
 import { adaptLegacyOffer } from '@/services/catalogue';
 import { openTrackedRetailerLink } from '@/services/outbound-links';
-import { LocalWishlistRepository, migrateLegacyWatchlist } from '@/services/wishlist';
+import { appSavedNotice } from '@/services/app-saved-items';
+import { importDeviceWishlist, LocalWishlistRepository, migrateLegacyWatchlist } from '@/services/wishlist';
 import type { ProductOffer, WishlistItem } from '@/types/domain';
 import type { LegacyCatalogueProduct } from '@/types/legacy';
 import type { TruePriceGroup, TruePriceResponse } from '@/types/true-price';
 
 type WishlistRow =
+  | { kind: 'unavailable'; item: WishlistItem }
   | { kind: 'offer'; item: WishlistItem; offer: ProductOffer }
   | { kind: 'product'; item: WishlistItem; group?: TruePriceGroup };
 
@@ -39,6 +41,9 @@ function timeAgo(value?: string) {
 
 export default function WatchlistScreenV2() {
   const { snapshot, signedIn } = useFateDropId();
+  const identity = snapshot?.user.fateId || 'guest';
+  const generation = useRef(0);
+  const [notice, setNotice] = useState('');
   const [rows, setRows] = useState<WishlistRow[]>([]);
   const [legacyKeys, setLegacyKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +53,11 @@ export default function WatchlistScreenV2() {
   const alerting = rows.filter((row) => row.item.alertsEnabled).length;
 
   const load = useCallback(() => {
+    const request = ++generation.current;
+    setRows([]);
     setLoading(true);
     void loadWatchlist().then(async (keys) => {
+      if (request !== generation.current) return;
       setLegacyKeys(keys);
       const items = await migrateLegacyWatchlist(keys);
       const offerItems = items.filter((item) => item.targetType === 'OFFER');
@@ -57,14 +65,17 @@ export default function WatchlistScreenV2() {
 
       let offerRows: WishlistRow[] = [];
       if (offerItems.length) {
+        let offers: ProductOffer[] = [];
+        try {
         const response = await fetch(`${API_BASE_URL}/api/catalogue/offers`, {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: offerItems.map((item) => item.targetId) }),
         });
         const data = await response.json();
-        const offers = (data.products || []).map((product: LegacyCatalogueProduct) => adaptLegacyOffer(product)) as ProductOffer[];
-        offerRows = offerItems.flatMap((item) => {
+        offers = (data.products || []).map((product: LegacyCatalogueProduct) => adaptLegacyOffer(product)) as ProductOffer[];
+        } catch { /* Saved offers remain visible when catalogue evidence is unavailable. */ }
+        offerRows = offerItems.map((item): WishlistRow => {
           const offer = offers.find((value) => value.id === item.targetId);
-          return offer ? [{ kind: 'offer' as const, item, offer }] : [];
+          return offer ? { kind: 'offer', item, offer } : { kind: 'unavailable', item };
         });
       }
 
@@ -80,29 +91,36 @@ export default function WatchlistScreenV2() {
         return { kind: 'product' as const, item, group };
       }));
 
+      if (request !== generation.current) return;
+      setNotice(appSavedNotice(identity,'wishlist'));
       setRows([...productRows, ...offerRows]);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    }).catch(() => { if (request === generation.current) { setNotice('Saved products could not be loaded. Please reopen Wishlist to retry.'); setLoading(false); } });
+    return () => { generation.current += 1; };
+  }, [identity]);
 
   useFocusEffect(load);
 
   const remove = async (row: WishlistRow) => {
-    if (row.kind === 'offer') {
-      const next = await toggleWatchlist(row.offer.id, legacyKeys);
+    if (row.item.targetType === 'OFFER' && legacyKeys.includes(row.item.targetId)) {
+      const next = await toggleWatchlist(row.item.targetId, legacyKeys);
       setLegacyKeys(next);
     }
     await repository.remove(row.item.id);
+    setNotice(appSavedNotice(identity,'wishlist'));
     setRows((current) => current.filter((value) => value.item.id !== row.item.id));
   };
 
   const toggleAlerts = async (row: WishlistRow) => {
     const updated = { ...row.item, alertsEnabled: !row.item.alertsEnabled };
     await repository.save(updated);
+    setNotice(appSavedNotice(identity,'wishlist'));
     setRows((current) => current.map((value) => value.item.id === updated.id ? { ...value, item: updated } as WishlistRow : value));
   };
 
   const header = <>
+    {notice ? <Text accessibilityRole="alert" style={{color:FateDropColors.secondary,fontSize:12,lineHeight:18,marginBottom:12}}>{notice}</Text> : null}
+    {signedIn ? <Pressable accessibilityRole="button" onPress={() => void importDeviceWishlist().then(() => load()).catch(() => setNotice('Device bookmarks could not be imported. Please try again.'))} style={{paddingVertical:12}}><Text style={{color:FateDropColors.goldBright,fontSize:12}}>Import this device’s old bookmarks into my account</Text></Pressable> : null}
     <FateDropHeader title="Wishlist" subtitle="SAVE · WATCH · HUNT" rightAction={rows.length ? <StatusBadge label={`${rows.length} saved`} color={FateDropColors.violetLight} /> : null} />
     <AbstractHero eyebrow="Universal wishlist" title="Save it first. Decide how hard FateDrop should hunt later." subtitle="Wishlist remembers products. Product alerts watch broad changes. FateFind applies your price and stock rules. A FateMatch appears only when a hunt genuinely qualifies." icon="bookmark" />
 
@@ -135,9 +153,11 @@ export default function WatchlistScreenV2() {
         ListEmptyComponent={loading
           ? <View style={styles.loading}><ActivityIndicator color={FateDropColors.goldBright} /><Text style={styles.loadingText}>Reading your saved products and current evidence…</Text></View>
           : <EmptyWatchlistState title="Bookmark your first product" subtitle="Save a product from Search or FateFind. Sold-out products remain saved." />}
-        renderItem={({ item }) => item.kind === 'offer'
-          ? <OfferRow row={item} onRemove={() => void remove(item)} onToggleAlerts={() => void toggleAlerts(item)} />
-          : <ProductRow row={item} onRemove={() => void remove(item)} onToggleAlerts={() => void toggleAlerts(item)} />}
+        renderItem={({ item }) => item.kind === 'unavailable'
+          ? <View style={{padding:16,borderWidth:1,borderColor:FateDropColors.border,borderRadius:16}}><Text style={{color:FateDropColors.text,fontSize:14}}>{item.item.label || 'Saved retailer item'}</Text><Text style={{color:FateDropColors.secondary,fontSize:12,marginTop:8}}>Still saved. Current retailer details are unavailable.</Text><Pressable accessibilityRole="button" onPress={() => void remove(item).catch(() => setNotice('Removal was not confirmed. Please try again.'))} style={{paddingVertical:12}}><Text style={{color:FateDropColors.goldBright}}>Remove bookmark</Text></Pressable></View>
+          : item.kind === 'offer'
+          ? <OfferRow row={item} onRemove={() => void remove(item).catch(() => setNotice('Removal was not confirmed. Please try again.'))} onToggleAlerts={() => void toggleAlerts(item).catch(() => setNotice('Your change was not confirmed. Please try again.'))} />
+          : <ProductRow row={item} onRemove={() => void remove(item).catch(() => setNotice('Removal was not confirmed. Please try again.'))} onToggleAlerts={() => void toggleAlerts(item).catch(() => setNotice('Your change was not confirmed. Please try again.'))} />}
       />
     </SafeAreaView>
   );
