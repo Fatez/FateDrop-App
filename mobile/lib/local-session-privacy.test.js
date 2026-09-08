@@ -15,7 +15,9 @@ test('bearer token remains in SecureStore while legacy plaintext tokens are migr
 test('full identity and collector activity snapshot is no longer persisted in AsyncStorage', () => {
   assert.match(service, /AsyncStorage\.removeItem\(SNAPSHOT_KEY\)/);
   assert.doesNotMatch(service, /AsyncStorage\.setItem\(SNAPSHOT_KEY/);
-  assert.match(service, /async function saveSnapshot\(snapshot:FateDropSyncSnapshot\)\{return normalizeSnapshot\(snapshot\);\}/);
+  assert.match(service, /async function saveSnapshot\(snapshot:FateDropSyncSnapshot,token:string\)/);
+  assert.match(service, /getStoredSessionToken\(\)===token/);
+  assert.match(service, /activeIdentitySnapshot=\{token,snapshot:normalized\}/);
 });
 
 test('app launch restores canonical identity from a SecureStore-backed server session', () => {

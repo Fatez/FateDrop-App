@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FATEDROP_WEB_URL } from '@/constants/api';
-import { getStoredSessionToken, loadCachedIdentitySnapshot } from '@/services/fatedrop-id';
+import { getStoredSessionToken, getActiveIdentitySnapshot } from '@/services/fatedrop-id';
 
 export type SavedCollection = 'wishlist' | 'insights';
 type SavedItem = Record<string, unknown>;
@@ -10,7 +10,9 @@ const notices = new Map<string, string>();
 const flights = new Map<string, Promise<unknown>>();
 
 export async function savedAccount(expectedIdentity?: string | null): Promise<Account> {
-  const [token, snapshot] = await Promise.all([getStoredSessionToken(), loadCachedIdentitySnapshot()]);
+  const token = await getStoredSessionToken();
+  const snapshot = token ? getActiveIdentitySnapshot(token) : null;
+  if (token && !snapshot) throw new Error('Your account is still loading. Please reopen this page after sign-in completes.');
   const identity = token && snapshot?.accessAllowed ? snapshot.user.fateId : 'guest';
   if (expectedIdentity && expectedIdentity !== identity) throw new Error('Your account changed. Please reopen this page.');
   return { identity, token: identity === 'guest' ? null : token };

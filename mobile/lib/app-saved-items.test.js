@@ -6,12 +6,12 @@ const { stripTypeScriptTypes } = require('node:module');
 
 function device(server = new Map()) {
   const storage = new Map();
-  const state = { identity: 'alice', token: 'alice-token', offline: false, requests: 0 };
+  const state = { identity: 'alice', token: 'alice-token', offline: false, requests: 0, ready: true };
   const raw = fs.readFileSync(path.join(__dirname,'../services/app-saved-items.ts'),'utf8');
   const code = stripTypeScriptTypes(raw).replace(/^import .*;\r?$/gm,'').replace(/export (async function|function)/g,'$1');
-  const api = new Function('AsyncStorage','FATEDROP_WEB_URL','getStoredSessionToken','loadCachedIdentitySnapshot','fetch',`${code}\nreturn {savedAccount,loadAppSavedItems,changeAppSavedItem,appSavedNotice};`)(
+  const api = new Function('AsyncStorage','FATEDROP_WEB_URL','getStoredSessionToken','getActiveIdentitySnapshot','fetch',`${code}\nreturn {savedAccount,loadAppSavedItems,changeAppSavedItem,appSavedNotice};`)(
     {getItem:async key=>storage.get(key)||null,setItem:async(key,value)=>storage.set(key,value),removeItem:async key=>storage.delete(key)},
-    'https://fatedrop.co.uk',async()=>state.token,async()=>({accessAllowed:true,user:{fateId:state.identity}}),
+    'https://fatedrop.co.uk',async()=>state.token,()=>state.ready?({accessAllowed:true,user:{fateId:state.identity}}):null,
     async(url,options)=>{
       state.requests++;
       if(state.offline) throw new Error('Offline');
@@ -26,6 +26,29 @@ function device(server = new Map()) {
   return {api,state,storage,server};
 }
 const card = id=>({kind:'card',cardIdentityId:id,printingId:'printing-'+id});
+
+test('real identity memory is available only for the session token that produced it',async()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../services/fatedrop-id.ts'),'utf8');
+  const state=source.slice(source.indexOf('let activeIdentitySnapshot:'),source.indexOf('async function storeSessionToken'));
+  const saver=source.match(/async function saveSnapshot[^\r\n]+/)[0];
+  let token='a';
+  const code=stripTypeScriptTypes(state+saver).replace(/export function/g,'function');
+  const real=new Function('getStoredSessionToken','normalizeSnapshot',`${code}\nreturn {saveSnapshot,getActiveIdentitySnapshot};`)(async()=>token,value=>value);
+  await real.saveSnapshot({user:{fateId:'alice'}},'a');
+  assert.equal(real.getActiveIdentitySnapshot('a').user.fateId,'alice');
+  assert.equal(real.getActiveIdentitySnapshot('b'),null);
+  token='b';
+  await real.saveSnapshot({user:{fateId:'old-request'}},'a');
+  assert.equal(real.getActiveIdentitySnapshot('b'),null);
+  await real.saveSnapshot({user:{fateId:'bob'}},'b');
+  assert.equal(real.getActiveIdentitySnapshot('b').user.fateId,'bob');
+});
+
+test('a token awaiting identity validation cannot be treated as guest storage',async()=>{
+  const a=device();a.state.ready=false;
+  await assert.rejects(a.api.savedAccount(),/still loading/);
+  assert.equal(a.storage.size,0);
+});
 
 test('saved follows appear on another device and removal survives legacy reimport',async()=>{
   const a=device(),b=device(a.server),c=device(a.server);
