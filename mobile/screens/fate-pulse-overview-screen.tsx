@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { FateDropColors, Fonts } from '@/constants/theme';
+import { isTcgCode } from '@/constants/tcg-registry';
 import {
   fetchFatePulse,
   type FatePulseDirectionPeriod,
@@ -61,7 +62,9 @@ function formatMoney(value: number | null | undefined, currencyCode: string | un
 }
 
 export default function FatePulseOverviewScreen() {
-  const [periodKey, setPeriodKey] = useState<PulsePeriod>('d30');
+  const params = useLocalSearchParams<{ period?: string; scope?: string }>();
+  const scope = isTcgCode(params.scope) ? params.scope : undefined;
+  const [periodKey, setPeriodKey] = useState<PulsePeriod>(PERIODS.some((item) => item.key === params.period) ? params.period as PulsePeriod : 'd30');
   const [pulse, setPulse] = useState<FatePulseSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -72,7 +75,7 @@ export default function FatePulseOverviewScreen() {
     setLoading(true);
     setError('');
     try {
-      const next = await fetchFatePulse(undefined, { force });
+      const next = await fetchFatePulse(scope, { force });
       if (request !== generation.current) return;
       setPulse(next);
     } catch {
@@ -81,7 +84,7 @@ export default function FatePulseOverviewScreen() {
     } finally {
       if (request === generation.current) setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useFocusEffect(useCallback(() => {
     void load(false);
@@ -116,7 +119,7 @@ export default function FatePulseOverviewScreen() {
 
         <View accessibilityRole="tablist" style={styles.tabs}>
           {TABS.map((tab) => (
-            <Pressable key={tab.label} accessibilityRole="tab" accessibilityState={{ selected: tab.active }} onPress={() => router.replace(tab.route)} style={styles.tab}>
+            <Pressable key={tab.label} accessibilityRole="tab" accessibilityState={{ selected: tab.active }} onPress={() => router.replace({ pathname: tab.route, params: { period: periodKey, scope: scope || 'all' } })} style={styles.tab}>
               <Text style={[styles.tabText, tab.active && styles.tabTextActive]}>{tab.label}</Text>
               {tab.active ? <View style={styles.tabUnderline} /> : null}
             </Pressable>
@@ -137,7 +140,7 @@ export default function FatePulseOverviewScreen() {
         <View style={styles.marketSummary}>
           <View style={styles.summaryTop}>
             <View style={styles.flex}>
-              <Text style={styles.summaryEyebrow}>TRACKED TCG MARKET</Text>
+              <Text style={styles.summaryEyebrow}>{scope ? `${scope.replaceAll('-', ' ').toUpperCase()} MARKET` : 'TRACKED TCG MARKET'}</Text>
               <View style={styles.summaryValueRow}>
                 <Text style={[styles.summaryValue, { color: is90 ? FateDropColors.muted : accent }]}>{is90 ? '—' : movement(period?.headlinePercent)}</Text>
                 <Text style={[styles.summaryCondition, { color: is90 ? FateDropColors.goldBright : accent }]}>· {is90 ? '90D building' : conditionLabel(period?.condition)}</Text>
@@ -150,11 +153,11 @@ export default function FatePulseOverviewScreen() {
           <Text style={styles.summaryCopy}>{is90 ? '90-day rankings will appear when verified 90D market history is available.' : period?.status === 'available' ? `${period.breadth.risingSets} sets rising · ${period.breadth.fallingSets} falling in this window.` : 'Verified market history is still building for this window.'}</Text>
         </View>
 
-        <MoverSection title="Biggest Card Risers" icon="trending-up" accent={FateDropColors.manifested} items={risers} currencyCode={currencyCode} onSeeAll={() => router.push('/fate-pulse/cards')} />
-        <MoverSection title="Biggest Card Fallers" icon="trending-down" accent={FateDropColors.vanished} items={fallers} currencyCode={currencyCode} onSeeAll={() => router.push('/fate-pulse/cards')} />
+        <MoverSection title="Biggest Card Risers" icon="trending-up" accent={FateDropColors.manifested} items={risers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
+        <MoverSection title="Biggest Card Fallers" icon="trending-down" accent={FateDropColors.vanished} items={fallers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'fallers', scope: scope || 'all' } })} />
 
         <View style={styles.sectionCard}>
-          <SectionHeader title="Sets Heating Up" icon="flame-outline" accent={FateDropColors.goldBright} onPress={() => router.push('/fate-pulse/sets')} />
+          <SectionHeader title="Sets Heating Up" icon="flame-outline" accent={FateDropColors.goldBright} onPress={() => router.push({ pathname: '/fate-pulse/sets', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
           {heatingSets.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.setRail}>
               {heatingSets.map((item) => <SetMoverCard key={item.key} item={item} />)}
