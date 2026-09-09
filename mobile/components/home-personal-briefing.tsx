@@ -213,7 +213,7 @@ export function HomePersonalBriefing({
     <View style={[styles.card, embedded && styles.cardEmbedded]}>
       <View style={styles.greeting}>
         <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome back,</Text>
-        <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
           {fateId || 'FateDrop member'}
         </Text>
       </View>
@@ -272,8 +272,8 @@ const styles = StyleSheet.create({
   },
   welcomeIdentityEmbedded: {
     color: FateDropColors.goldBright,
-    fontSize: 29,
-    lineHeight: 33,
+    fontSize: 23,
+    lineHeight: 29,
     textShadowColor: 'rgba(0,0,0,.96)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
