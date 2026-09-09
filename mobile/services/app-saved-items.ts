@@ -69,7 +69,13 @@ function itemKey(collection: SavedCollection, item: SavedItem) {
 async function flushPending(account: Account, collection: SavedCollection) {
   const pendingKey = `${key(account,collection)}:pending`;
   const pending: Change[] = JSON.parse(await AsyncStorage.getItem(pendingKey)||'[]');
-  for (const change of pending) await request(account,collection,change);
+  while (pending.length) {
+    await request(account,collection,pending[0]);
+    // Checkpoint each acknowledged operation before attempting the next one.
+    // Otherwise a later failure replays old saves over another device's edits.
+    pending.shift();
+    await AsyncStorage.setItem(pendingKey,JSON.stringify(pending));
+  }
   await AsyncStorage.removeItem(pendingKey);
 }
 export async function loadAppSavedItems(collection: SavedCollection, account: Account, legacy: SavedItem[] = []) {

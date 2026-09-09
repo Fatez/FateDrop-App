@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { storedPeriodMovement } from '@/lib/history-period';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
+import { MarketSetCatalogueLink } from '@/components/market-set-catalogue-link';
 import { FateMarketBackground, FateMarketHeader } from '@/components/fate-market-brand';
 import { appSavedNotice } from '@/services/app-saved-items';
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -75,6 +76,11 @@ function formatDay(value: string | undefined) {
 export default function MyPulseInvestorScreen() {
   const { snapshot } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
+  return <MyPulseInvestorContent key={identity} identity={identity} />;
+}
+
+function MyPulseInvestorContent({ identity }: { identity: string }) {
+  const requestGeneration = useRef(0);
   const [follows, setFollows] = useState<FatePulseFollows>(EMPTY_FOLLOWS);
   const [intel, setIntel] = useState<Record<string, CardIntel>>({});
   const [chartWindow, setChartWindow] = useState<ChartWindow>(30);
@@ -82,8 +88,13 @@ export default function MyPulseInvestorScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (force = false) => {
+    const generation = ++requestGeneration.current;
     setRefreshing(force);
-    const nextFollows = await loadFatePulseFollows(identity);
+    const nextFollows = await loadFatePulseFollows(identity).catch((error) => {
+      if (generation !== requestGeneration.current) return null;
+      throw error;
+    });
+    if (!nextFollows || generation !== requestGeneration.current) return;
     setFollows(nextFollows);
     setNotice(appSavedNotice(identity,'insights'));
 
@@ -111,6 +122,7 @@ export default function MyPulseInvestorScreen() {
         fetchFatePrice(follow.cardIdentityId, { force }),
         fetchFatePriceHistory(follow.cardIdentityId, { days: 90, force }),
       ]);
+      if (generation !== requestGeneration.current) return;
       setIntel((current) => ({
         ...current,
         [follow.cardIdentityId]: {
@@ -121,11 +133,12 @@ export default function MyPulseInvestorScreen() {
         },
       }));
     }));
-    setRefreshing(false);
+    if (generation === requestGeneration.current) setRefreshing(false);
   }, [identity]);
 
   useFocusEffect(useCallback(() => {
     void load(false).catch(() => { setNotice('Saved follows could not be loaded. Please reopen this page.'); setRefreshing(false); });
+    return () => { requestGeneration.current += 1; };
   }, [load]));
 
   const thirtyDayMoves = useMemo(() => follows.cards.map((follow) => {
@@ -142,7 +155,10 @@ export default function MyPulseInvestorScreen() {
   const weakest30 = thirtyDayMoves.length ? Math.min(...thirtyDayMoves) : null;
 
   const removeCard = useCallback(async (cardIdentityId: string) => {
+    const generation = ++requestGeneration.current;
+    setRefreshing(false);
     const next = await removeFatePulseCardFollow(identity, cardIdentityId);
+    if (generation !== requestGeneration.current) return;
     setFollows(next);
     setIntel((current) => {
       const nextIntel = { ...current };
@@ -152,7 +168,10 @@ export default function MyPulseInvestorScreen() {
   }, [identity]);
 
   const removeSet = useCallback(async (key: string) => {
-    setFollows(await removeFatePulseSetFollow(identity, key));
+    const generation = ++requestGeneration.current;
+    setRefreshing(false);
+    const next = await removeFatePulseSetFollow(identity, key);
+    if (generation === requestGeneration.current) setFollows(next);
   }, [identity]);
 
   return (
@@ -245,7 +264,7 @@ export default function MyPulseInvestorScreen() {
         {follows.sets.length ? (
           <View style={styles.setSection}>
             <View style={styles.setHeading}><View style={styles.setHeadingLine} /><Ionicons name="albums-outline" size={16} color={FateDropColors.goldBright} /><Text style={styles.setHeadingText}>Watched Sets</Text><View style={styles.setHeadingLine} /></View>
-            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'}</Text></View><Pressable accessibilityLabel="Remove set from My Insights" onPress={() => void removeSet(set.key).catch(() => setNotice('Removal was not confirmed. Please try again.'))} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
+            {follows.sets.map((set) => <View key={set.key} style={styles.setRow}><MarketSetCatalogueLink tcgCode={set.tcgCode} setCode={set.setCode} name={set.setName} style={styles.setLink}><View style={styles.setIcon}><Ionicons name="albums-outline" size={17} color={FateDropColors.goldBright} /></View><View style={styles.flex}><Text style={styles.setName}>{set.setName}</Text><Text style={styles.setMeta}>{set.setCode || set.tcgCode || 'Tracked set'} · View cards</Text></View><Ionicons name="chevron-forward" size={16} color={FateDropColors.goldBright} /></MarketSetCatalogueLink><Pressable accessibilityRole="button" accessibilityLabel={`Remove ${set.setName} from My Insights`} onPress={() => void removeSet(set.key).catch(() => setNotice('Removal was not confirmed. Please try again.'))} style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}><Ionicons name="star" size={16} color={FateDropColors.goldBright} /></Pressable></View>)}
           </View>
         ) : null}
 
@@ -429,7 +448,8 @@ const styles = StyleSheet.create({
   setHeadingText: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 15.5 },
   setRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.14)' },
   setIcon: { width: 38, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.32)', backgroundColor: 'rgba(3,8,20,.18)' },
-  setName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13 },
-  setMeta: { color: 'rgba(242,233,218,.42)', fontSize: 7, marginTop: 3 },
+  setLink: { flex: 1, minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 10 },
+  setName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 16 },
+  setMeta: { color: FateDropColors.secondary, fontSize: 11, marginTop: 4 },
   footerNote: { color: 'rgba(242,233,218,.36)', fontSize: 7, lineHeight: 10.5, textAlign: 'center', paddingHorizontal: 20 },
 });

@@ -6,7 +6,7 @@ const { stripTypeScriptTypes } = require('node:module');
 
 function device(server = new Map()) {
   const storage = new Map();
-  const state = { identity: 'alice', token: 'alice-token', offline: false, requests: 0, ready: true };
+  const state = { identity: 'alice', token: 'alice-token', offline: false, requests: 0, ready: true, failItem: null };
   const raw = fs.readFileSync(path.join(__dirname,'../services/app-saved-items.ts'),'utf8');
   const code = stripTypeScriptTypes(raw).replace(/^import .*;\r?$/gm,'').replace(/export (async function|function)/g,'$1');
   const api = new Function('AsyncStorage','FATEDROP_WEB_URL','getStoredSessionToken','getActiveIdentitySnapshot','fetch',`${code}\nreturn {savedAccount,loadAppSavedItems,changeAppSavedItem,appSavedNotice};`)(
@@ -19,7 +19,7 @@ function device(server = new Map()) {
       if(!server.has(namespace))server.set(namespace,new Map());
       const rows=server.get(namespace);
       const itemKey=item=>collection==='wishlist'?item.id:item.kind==='card'?'card:'+item.cardIdentityId:'set:'+item.key;
-      if(options.body){const body=JSON.parse(options.body);if(body.operation==='save')rows.set(itemKey(body.item),{deleted:false,payload:body.item});if(body.operation==='remove')rows.set(body.key,{deleted:true,payload:null});if(body.operation==='import')for(const item of body.items)if(!rows.has(itemKey(item)))rows.set(itemKey(item),{deleted:false,payload:item});}
+      if(options.body){const body=JSON.parse(options.body);if(body.item?.cardIdentityId===state.failItem)throw new Error('Transport failed');if(body.operation==='save')rows.set(itemKey(body.item),{deleted:false,payload:body.item});if(body.operation==='remove')rows.set(body.key,{deleted:true,payload:null});if(body.operation==='import')for(const item of body.items)if(!rows.has(itemKey(item)))rows.set(itemKey(item),{deleted:false,payload:item});}
       return {ok:true,json:async()=>options.body?{saved:true}:{items:[...rows].map(([key,value])=>({key,...value}))}};
     },
   );
@@ -91,4 +91,17 @@ test('simultaneous item changes preserve both saves',async()=>{
   const a=device();const account=await a.api.savedAccount();
   await Promise.all(['1','2'].map(id=>a.api.changeAppSavedItem('insights',account,{operation:'save',item:card(id)})));
   assert.equal((await a.api.loadAppSavedItems('insights',account)).length,2);
+});
+test('partial queue failure does not replay an acknowledged save over another device removal',async()=>{
+  const a=device(), b=device(a.server); const account=await a.api.savedAccount();
+  a.state.offline=true;
+  await a.api.changeAppSavedItem('insights',account,{operation:'save',item:card('1')});
+  await a.api.changeAppSavedItem('insights',account,{operation:'save',item:card('2')});
+  a.state.offline=false; a.state.failItem='2';
+  await a.api.loadAppSavedItems('insights',account);
+  const pending=JSON.parse(a.storage.get('fatedrop:app-saved:v1:alice:insights:pending'));
+  assert.deepEqual(pending.map(x=>x.item.cardIdentityId),['2']);
+  await b.api.changeAppSavedItem('insights',await b.api.savedAccount(),{operation:'remove',key:'card:1'});
+  a.state.failItem=null;
+  assert.deepEqual((await a.api.loadAppSavedItems('insights',account)).map(x=>x.cardIdentityId),['2']);
 });

@@ -15,10 +15,14 @@ const DESTINATIONS: { title: string; detail: string; icon: keyof typeof Ionicons
 ];
 
 export function FateNetworkCompass({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const stageWidth = Math.min(width - 16, 420);
-  const radius = Math.max(90, stageWidth / 2 - 47);
+  const nodeWidth = Math.min(88, stageWidth * .24);
+  const radius = (stageWidth - nodeWidth) / 2 - 4;
+  const verticalRadius = Math.max(170, 150 * fontScale);
+  const baseline = verticalRadius + 35;
+  const centreHeight = Math.max(116, 90 * fontScale);
   const open = (route: Href) => { onClose(); router.navigate(route); };
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
     <View style={styles.backdrop}>
@@ -30,18 +34,18 @@ export function FateNetworkCompass({ visible, onClose }: { visible: boolean; onC
             <Text accessibilityRole="header" style={styles.title}>Choose your direction</Text>
             <Text style={styles.copy}>Find a deal, follow a hunt, or explore nearby.</Text>
           </View>
-          <View style={[styles.stage, { width: stageWidth }]}>
+          <View style={[styles.stage, { width: stageWidth, height: baseline + centreHeight + 45 }]}>
             <View pointerEvents="none" style={[styles.aura, { left: stageWidth / 2 - 110 }]} />
-            <View pointerEvents="none" style={[styles.ring, { width: radius * 2, height: radius * 2, borderRadius: radius, left: stageWidth / 2 - radius, top: 230 - radius }]} />
-            <View pointerEvents="none" style={[styles.ring, { width: radius * 1.45, height: radius * 1.45, borderRadius: radius, left: stageWidth / 2 - radius * .725, top: 230 - radius * .725, borderColor: 'rgba(124,110,255,.25)' }]} />
+            <View pointerEvents="none" style={[styles.ring, { width: radius * 2, height: verticalRadius * 2, borderRadius: 999, left: stageWidth / 2 - radius, top: baseline - verticalRadius + 24 }]} />
+            <View pointerEvents="none" style={[styles.ring, { width: radius * 1.45, height: verticalRadius * 1.45, borderRadius: 999, left: stageWidth / 2 - radius * .725, top: baseline - verticalRadius * .725 + 24, borderColor: 'rgba(124,110,255,.25)' }]} />
             {DESTINATIONS.map((item, index) => {
               const angle = Math.PI - index * Math.PI / 4;
-              return <Pressable key={item.title} accessibilityRole="button" accessibilityLabel={`${item.title}: ${item.detail}`} onPress={() => open(item.route)} style={({ pressed }) => [styles.node, { left: stageWidth / 2 + radius * Math.cos(angle) - 44, top: 230 - radius * Math.sin(angle) - 34 }, pressed && styles.pressed]}>
+              return <Pressable key={item.title} accessibilityRole="button" accessibilityLabel={`${item.title}: ${item.detail}`} onPress={() => open(item.route)} style={({ pressed }) => [styles.node, { width: nodeWidth, left: stageWidth / 2 + radius * Math.cos(angle) - nodeWidth / 2, top: baseline - verticalRadius * Math.sin(angle) }, pressed && styles.pressed]}>
                 <View style={styles.nodeIcon}><Ionicons name={item.icon} size={23} color={FateDropColors.goldBright} /></View>
                 <Text style={styles.nodeTitle}>{item.title}</Text><Text style={styles.nodeDetail}>{item.detail}</Text>
               </Pressable>;
             })}
-            <Pressable accessibilityRole="button" accessibilityLabel="Close Fate Network" accessibilityState={{ expanded: true }} onPress={onClose} style={({ pressed }) => [styles.center, { left: stageWidth / 2 - 53 }, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close Fate Network" accessibilityState={{ expanded: true }} onPress={onClose} style={({ pressed }) => [styles.center, { left: stageWidth / 2 - 53, top: baseline + 12, height: centreHeight }, pressed && styles.pressed]}>
               <FateDropNavEmblem size={53} /><Text style={styles.centerTitle}>Network</Text><Text style={styles.nodeDetail}>Tap to close</Text>
             </Pressable>
           </View>
