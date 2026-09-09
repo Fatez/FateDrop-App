@@ -153,8 +153,8 @@ export default function FatePulseOverviewScreen() {
           <Text style={styles.summaryCopy}>{is90 ? '90-day rankings will appear when verified 90D market history is available.' : period?.status === 'available' ? `${period.breadth.risingSets} sets rising · ${period.breadth.fallingSets} falling in this window.` : 'Verified market history is still building for this window.'}</Text>
         </View>
 
-        <MoverSection title="Biggest Card Risers" icon="trending-up" accent={FateDropColors.manifested} items={risers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
-        <MoverSection title="Biggest Card Fallers" icon="trending-down" accent={FateDropColors.vanished} items={fallers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'fallers', scope: scope || 'all' } })} />
+        <MoverSection title="Largest Card Gains" icon="trending-up" accent={FateDropColors.manifested} items={risers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
+        <MoverSection title="Largest Card Losses" icon="trending-down" accent={FateDropColors.vanished} items={fallers} currencyCode={currencyCode} onSeeAll={() => router.push({ pathname: '/fate-pulse/cards', params: { period: periodKey, direction: 'fallers', scope: scope || 'all' } })} />
 
         <View style={styles.sectionCard}>
           <SectionHeader title="Sets Heating Up" icon="flame-outline" accent={FateDropColors.goldBright} onPress={() => router.push({ pathname: '/fate-pulse/sets', params: { period: periodKey, direction: 'risers', scope: scope || 'all' } })} />
@@ -223,7 +223,8 @@ function CardMoverRow({ item, currencyCode, accent }: { item: FatePulseRankedCar
       </View>
       <View style={styles.moverNumbers}>
         <Text style={styles.moverPrice}>{formatMoney(item.currentPrice, currencyCode)}</Text>
-        <Text style={[styles.moverMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
+        <Text style={[styles.moverMovement, { color: accent }]}>{(item.movementAmount ?? 0) > 0 ? '+' : ''}{formatMoney(item.movementAmount, currencyCode)}</Text>
+          <Text style={[styles.moverMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
       </View>
       <Ionicons name="chevron-forward" size={15} color={FateDropColors.muted} />
     </Pressable>

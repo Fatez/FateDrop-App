@@ -318,12 +318,12 @@ function OverviewView({
         <Text style={styles.summaryCopy}>{period ? `${period.breadth.risingSets} sets rising · ${period.breadth.fallingSets} falling · ${period.coverage.qualifyingSets} qualifying sets` : 'Waiting for enough verified market movement.'}</Text>
       </View>
 
-      <MarketSection title="Biggest Card Risers" icon="trending-up-outline" accent={FateDropColors.manifested} action="SEE ALL" onAction={() => router.push('/fate-pulse/cards')}>
+      <MarketSection title="Largest Card Gains" icon="trending-up-outline" accent={FateDropColors.manifested} action="SEE ALL" onAction={() => router.push('/fate-pulse/cards')}>
         {risers.map((item, index) => <CardMovementRow key={item.cardIdentityId} item={item} rank={index + 1} currency={currency} tracked={follows.cards.some((follow) => follow.cardIdentityId === item.cardIdentityId)} onToggle={() => onToggleCard(item)} />)}
         {!risers.length ? <EmptyRow text="No qualifying card risers in this window yet." /> : null}
       </MarketSection>
 
-      <MarketSection title="Biggest Card Fallers" icon="trending-down-outline" accent={FateDropColors.vanished} action="SEE ALL" onAction={() => router.push('/fate-pulse/cards')}>
+      <MarketSection title="Largest Card Losses" icon="trending-down-outline" accent={FateDropColors.vanished} action="SEE ALL" onAction={() => router.push('/fate-pulse/cards')}>
         {fallers.map((item, index) => <CardMovementRow key={item.cardIdentityId} item={item} rank={index + 1} currency={currency} tracked={follows.cards.some((follow) => follow.cardIdentityId === item.cardIdentityId)} onToggle={() => onToggleCard(item)} />)}
         {!fallers.length ? <EmptyRow text="No qualifying card fallers in this window yet." /> : null}
       </MarketSection>
@@ -408,7 +408,7 @@ function CardsView({ period, currency, follows, onToggleCard, initialDirection }
         </Pressable>
       </View>
       <DirectionToggle value={filter} onChange={setFilter} />
-      <MarketSection title={filter === 'risers' ? 'Card Risers' : 'Card Fallers'} icon={filter === 'risers' ? 'trending-up-outline' : 'trending-down-outline'} accent={filter === 'risers' ? FateDropColors.manifested : FateDropColors.vanished}>
+      <MarketSection title={filter === 'risers' ? 'Largest Price Gains' : 'Largest Price Losses'} icon={filter === 'risers' ? 'trending-up-outline' : 'trending-down-outline'} accent={filter === 'risers' ? FateDropColors.manifested : FateDropColors.vanished}>
         {rows.map((item) => <CardMovementRow key={item.cardIdentityId} item={item} rank={(filter === 'risers' ? period?.cardRisers ?? [] : period?.cardDecliners ?? []).findIndex((entry) => entry.cardIdentityId === item.cardIdentityId) + 1} currency={currency} tracked={follows.cards.some((follow) => follow.cardIdentityId === item.cardIdentityId)} onToggle={() => onToggleCard(item)} />)}
         {!rows.length ? <EmptyRow text="No qualifying exact cards match this view." /> : null}
       </MarketSection>
@@ -542,6 +542,7 @@ function CardMovementRow({ item, rank, currency, tracked, onToggle }: {
         </View>
         <View style={styles.rowNumbers}>
           <Text style={styles.rowPrice}>{formatMoney(item.currentPrice, currency)}</Text>
+          <Text style={[styles.rowMovement, { color: accent }]}>{(item.movementAmount ?? 0) > 0 ? '+' : ''}{formatMoney(item.movementAmount, currency)}</Text>
           <Text style={[styles.rowMovement, { color: accent }]}>{movement(item.movementPercent)}</Text>
         </View>
       </Pressable>

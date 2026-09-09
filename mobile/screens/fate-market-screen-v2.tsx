@@ -355,7 +355,7 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
       <View style={styles.moversHead}>
         <View>
           <Text style={styles.moversEyebrow}>{rankingScope === 'cards' ? 'GLOBAL CARD MOVERS' : 'MARKET SET MOVERS'}</Text>
-          <Text style={styles.moversTitle}>{rankingScope === 'cards' ? 'Top three across eligible exact cards' : 'Top three qualifying set baskets'}</Text>
+          <Text style={styles.moversTitle}>{rankingScope === 'cards' ? 'Largest price gains and losses' : 'Top three qualifying set baskets'}</Text>
         </View>
         <View style={styles.segmentedRow}>
           <SegmentButton label="SETS" selected={rankingScope === 'sets'} onPress={() => { setSelectedMoverKey(null); setRankingScope('sets'); }} />
@@ -363,8 +363,8 @@ function PulsePanel({ data, error, loading, onScopeChange, scope, scopeOptions }
         </View>
       </View>
       <View style={styles.moverColumns}>
-        <MoverColumn accent={FateDropColors.manifested} items={topRisers} label="RISERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
-        <MoverColumn accent={FateDropColors.vanished} items={topDecliners} label="FALLERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
+        <MoverColumn currencyCode={data?.source.currencyCode} accent={FateDropColors.manifested} items={topRisers} label="RISERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
+        <MoverColumn currencyCode={data?.source.currencyCode} accent={FateDropColors.vanished} items={topDecliners} label="FALLERS" onSelect={(item) => setSelectedMoverKey((current) => current === moverKey(item) ? null : moverKey(item))} selectedKey={selectedMoverKey} />
       </View>
       {selectedMover ? <MoverEvidence item={selectedMover} currencyCode={data?.source.currencyCode} periodLabel={periodKey.slice(1)} /> : null}
     </View>
@@ -515,7 +515,7 @@ function SegmentButton({ label, onPress, selected }: { label: string; onPress: (
   return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.segmentButton, selected && styles.segmentButtonActive]}><Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextActive]}>{label}</Text></Pressable>;
 }
 
-function MoverColumn({ accent, items, label, onSelect, selectedKey }: { accent: string; items: RankedMover[]; label: 'RISERS' | 'FALLERS'; onSelect: (item: RankedMover) => void; selectedKey: string | null }) {
+function MoverColumn({ currencyCode, accent, items, label, onSelect, selectedKey }: { currencyCode: string | undefined; accent: string; items: RankedMover[]; label: 'RISERS' | 'FALLERS'; onSelect: (item: RankedMover) => void; selectedKey: string | null }) {
   return (
     <View style={styles.moverColumn}>
       <View style={styles.moverColumnHead}><Ionicons name={label === 'RISERS' ? 'trending-up-outline' : 'trending-down-outline'} size={14} color={accent} /><Text style={[styles.moverColumnLabel, { color: accent }]}>{label}</Text><Text style={styles.moverColumnLimit}>TOP 3</Text></View>
@@ -524,7 +524,7 @@ function MoverColumn({ accent, items, label, onSelect, selectedKey }: { accent: 
         const selected = selectedKey === key;
         const isCard = 'cardIdentityId' in item;
         const title = isCard ? item.name || 'Unknown card' : item.setName || item.setCode || 'Unknown set';
-        return <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected }} accessibilityHint="Shows the supporting movement evidence" onPress={() => onSelect(item)} style={({ pressed }) => [styles.moverRow, selected && { borderColor: `${accent}80` }, pressed && styles.pressed]}><Text style={styles.moverRank}>{index + 1}</Text><View style={styles.moverIdentity}><Text style={styles.moverName} numberOfLines={2}>{title}</Text><Text style={styles.moverMeta} numberOfLines={1}>{isCard ? item.setName || item.setCode || 'Canonical card' : `${item.pricedCardCount} cards priced`}</Text></View><Text style={[styles.moverValue, { color: accent }]}>{movementText(item.movementPercent)}</Text></Pressable>;
+        return <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected }} accessibilityHint="Shows the supporting movement evidence" onPress={() => onSelect(item)} style={({ pressed }) => [styles.moverRow, selected && { borderColor: `${accent}80` }, pressed && styles.pressed]}><Text style={styles.moverRank}>{index + 1}</Text><View style={styles.moverIdentity}><Text style={styles.moverName} numberOfLines={2}>{title}</Text><Text style={styles.moverMeta} numberOfLines={1}>{isCard ? item.setName || item.setCode || 'Canonical card' : `${item.pricedCardCount} cards priced`}</Text></View><Text style={[styles.moverValue, { color: accent }]}>{isCard ? `${(item.movementAmount ?? 0) > 0 ? '+' : ''}${formatMoney(item.movementAmount, currencyCode)}` : movementText(item.movementPercent)}</Text></Pressable>;
       }) : <Text style={styles.moverEmpty}>No qualifying movement.</Text>}
     </View>
   );
