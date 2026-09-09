@@ -36,8 +36,8 @@ test('FatePulse Overview is the simple investor dashboard', () => {
   assert.match(pulseOverview, /Sets/);
   assert.match(pulseOverview, /Cards/);
   assert.match(pulseOverview, /My Insights/);
-  assert.match(pulseOverview, /Biggest Card Risers/);
-  assert.match(pulseOverview, /Biggest Card Fallers/);
+  assert.match(pulseOverview, /Largest Card Gains/);
+  assert.match(pulseOverview, /Largest Card Losses/);
   assert.match(pulseOverview, /Sets Heating Up/);
   assert.match(pulseOverview, /key: 'd1', label: '1D'/);
   assert.match(pulseOverview, /key: 'd7', label: '7D'/);
