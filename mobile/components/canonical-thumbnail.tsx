@@ -13,6 +13,7 @@ export function CanonicalThumbnail({
   sourceUrl = null,
   width,
   height,
+  cornerRadius,
 }: {
   kind: CanonicalThumbnailKind;
   setId: string | null | undefined;
@@ -20,6 +21,7 @@ export function CanonicalThumbnail({
   sourceUrl?: string | null | undefined;
   width: number;
   height: number;
+  cornerRadius?: number;
 }) {
   const canonicalUrl = useMemo(() => sourceUrl || (kind === 'set'
     ? resolveCanonicalSetThumbnailUrl(setId)
@@ -30,7 +32,7 @@ export function CanonicalThumbnail({
   const radius = kind === 'card' ? Math.max(5, Math.round(width * 0.16)) : Math.max(8, Math.round(width * 0.22));
 
   return (
-    <View style={[styles.frame, { width, height, borderRadius: radius }]}>
+    <View style={[styles.frame, { width, height, borderRadius: cornerRadius ?? radius }]}>
       {showImage ? (
         <Image
           source={{ uri: canonicalUrl! }}
