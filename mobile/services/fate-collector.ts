@@ -207,8 +207,9 @@ export type FateCollectorSetCompletionResult = {
 export type FateCollectorMissingCard = {
   imageUrl?: string | null;
   thumbnailUrl?: string | null;
-  fateCardId: string;
+  fateCardId: string | null;
   printingId: string | null;
+  identityStatus?: 'verified_exact_identity' | 'printing_only_finish_or_edition_unresolved';
   setId: string;
   setName: string | null;
   tcgCode: string | null;
