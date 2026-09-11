@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { BinderLanguageSelector } from '@/components/binder-language-selector';
 import { FateCollectionsArt } from '@/components/fate-collections-art';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { FateProgressRing, FateSectionHeading } from '@/components/fate-polish-ui';
@@ -24,7 +25,7 @@ import { fetchFatePriceSets, type FatePriceSet } from '@/services/fate-market';
 type BinderFilter = 'all' | 'progress' | 'complete';
 type BinderScope = 'mine' | 'all-sets';
 type TcgFilter = 'all' | 'pokemon' | 'one-piece';
-type BinderListRow = { kind: 'binder'; binder: FateCollectorSetBinder } | { kind: 'set'; set: FatePriceSet };
+type BinderListRow = { kind: 'era'; key: string; name: string; years: string } | { kind: 'binder'; binder: FateCollectorSetBinder } | { kind: 'set'; set: FatePriceSet };
 
 function pct(value: number | null | undefined) { return value == null || !Number.isFinite(value) ? '—' : `${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(value)}%`; }
 function money(value: number | null | undefined, currency: string | null | undefined) { if (value == null || !Number.isFinite(value)) return '—'; try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP', maximumFractionDigits: 2 }).format(value); } catch { return `${value.toFixed(2)} ${currency || 'GBP'}`; } }
@@ -59,7 +60,34 @@ export default function FateBindersScreenV2() {
     const unique = new Map((data?.sets || []).map((set) => [set.id, set]));
     return [...unique.values()].filter((set) => (!q || `${set.name} ${set.seriesName || ''}`.toLowerCase().includes(q)) && (tcgFilter === 'all' || set.tcgCode === tcgFilter)).sort((a, b) => Number(b.releasedAt || 0) - Number(a.releasedAt || 0) || a.name.localeCompare(b.name));
   }, [data?.sets, query, tcgFilter]);
-  const listRows: BinderListRow[] = scope === 'mine' ? visible.map((binder) => ({ kind: 'binder', binder })) : availableSets.map((set) => ({ kind: 'set', set }));
+  const cardRows: Exclude<BinderListRow, { kind: 'era' }>[] = scope === 'mine' ? visible.map((binder) => ({ kind: 'binder', binder })) : availableSets.map((set) => ({ kind: 'set', set }));
+
+  // Use the entire loaded library for stable year ranges, even during search.
+  const eraMetadata = new Map<string, { name: string; years: number[] }>();
+  const setMetadata = new Map((data?.sets || []).map((set) => [set.id, set]));
+  const eraKey = (set?: FatePriceSet) => set ? `${set.tcgCode || 'unknown'}:${set.seriesId || set.seriesName || 'unknown'}` : 'unknown';
+  for (const set of data?.sets || []) {
+    const key = eraKey(set);
+    const era = eraMetadata.get(key) || { name: set.seriesName || 'Other sets', years: [] };
+    const year = set.releasedAt ? new Date(set.releasedAt).getUTCFullYear() : NaN;
+    if (Number.isFinite(year) && year >= 1900 && year <= 2200) era.years.push(year);
+    eraMetadata.set(key, era);
+  }
+  const groups = new Map<string, typeof cardRows>();
+  for (const row of cardRows) {
+    const key = eraKey(row.kind === 'set' ? row.set : setMetadata.get(row.binder.setId));
+    const group = groups.get(key) || [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  const listRows: BinderListRow[] = [...groups.entries()]
+    .sort(([a], [b]) => Math.max(0, ...(eraMetadata.get(b)?.years || [])) - Math.max(0, ...(eraMetadata.get(a)?.years || [])))
+    .flatMap(([key, rows]): BinderListRow[] => {
+      const era = eraMetadata.get(key);
+      const years = era?.years || [];
+      const first = Math.min(...years), last = Math.max(...years);
+      return [{ kind: 'era', key, name: era?.name || 'Other tracked sets', years: years.length ? first === last ? String(first) : `${first}–${last}` : 'Release years unavailable' }, ...rows];
+    });
 
   const trackSet = async (set: FatePriceSet) => { if (trackingSetId) return; setTrackingSetId(set.id); try { await setFateCollectorBinderTracked(set.id, true); await load(); router.push({ pathname: '/binder/[setId]', params: { setId: set.id, setName: set.name } }); } catch (caught) { setImportMessage(caught instanceof Error ? caught.message : 'That binder could not be started.'); } finally { setTrackingSetId(''); } };
   const chooseCollectrCsv = async () => {
@@ -72,12 +100,13 @@ export default function FateBindersScreenV2() {
   };
 
   return <CollectionsScreen><FlatList
-    data={listRows} keyExtractor={(row) => row.kind === 'binder' ? `binder:${row.binder.setId}` : `set:${row.set.id}`}
-    renderItem={({ item }) => item.kind === 'binder' ? <BinderRow binder={item.binder} /> : <CatalogueSetRow set={item.set} binder={binderBySet.get(item.set.id)} working={trackingSetId === item.set.id} onStart={() => void trackSet(item.set)} />}
+    data={listRows} keyExtractor={(row) => row.kind === 'era' ? `era:${row.key}` : row.kind === 'binder' ? `binder:${row.binder.setId}` : `set:${row.set.id}`}
+    renderItem={({ item }) => item.kind === 'era' ? <View style={styles.eraHeading}><Text style={styles.eraYears}>{item.years}</Text><Text accessibilityRole="header" style={styles.eraName}>{item.name}</Text></View> : item.kind === 'binder' ? <BinderRow binder={item.binder} /> : <CatalogueSetRow set={item.set} binder={binderBySet.get(item.set.id)} working={trackingSetId === item.set.id} onStart={() => void trackSet(item.set)} />}
     initialNumToRender={12} maxToRenderPerBatch={10} windowSize={7} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
     refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}
     ListHeaderComponent={<>
       <View style={styles.headerRow}><Pressable accessibilityRole="button" accessibilityLabel="Back to Fate Collections" onPress={() => router.canGoBack() ? router.back() : router.replace('/collections')} style={styles.back}><Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} /></Pressable><View style={styles.flex}><Text style={styles.eyebrow}>FATE COLLECTIONS · BINDERS</Text><Text style={styles.title}>Finish the sets that matter to you.</Text><Text style={styles.copy}>See progress immediately, make missing cards impossible to miss, and open a verified checklist without mixing graded slabs into binder completion.</Text></View></View>
+      <BinderLanguageSelector />
       <View style={styles.scopeRail}><ScopeButton label="MY BINDERS" selected={scope === 'mine'} onPress={() => { setScope('mine'); setQuery(''); }} /><ScopeButton label="ALL SETS" selected={scope === 'all-sets'} onPress={() => { setScope('all-sets'); setQuery(''); }} /></View>
       {scope === 'mine' ? <View style={styles.summary}><SummaryMetric icon="albums-outline" value={String(allBinders.length)} label="TRACKED" /><SummaryMetric icon="checkmark-done-outline" value={String(completed.length)} label="COMPLETE" /><SummaryMetric icon="ellipse-outline" value={String(inProgress.length)} label="BUILDING" /></View> : <View style={styles.allSetsIntro}><FateCollectionsArt kind="binders" size={68} /><View style={styles.flex}><Text style={styles.smallEyebrow}>VERIFIED SET LIBRARY</Text><Text style={styles.introTitle}>Start at 0%. Build from truth.</Text><Text style={styles.introCopy}>A binder can exist before you own a card. Ownership only changes when exact raw cards are added.</Text></View></View>}
       {loading && !data ? <StateLine icon="time-outline" text="Opening your binders…" loading /> : null}{error ? <StateLine icon="alert-circle-outline" text={error} danger /> : null}
@@ -111,6 +140,9 @@ function CatalogueSetRow({ binder, onStart, set, working }: { binder?: FateColle
 function StateLine({ danger = false, icon, loading = false, text }: { danger?: boolean; icon: keyof typeof Ionicons.glyphMap; loading?: boolean; text: string }) { return <View style={styles.stateLine}>{loading ? <ActivityIndicator size="small" color={FateDropColors.goldBright} /> : <Ionicons name={icon} size={18} color={danger ? FateDropColors.vanished : FateDropColors.muted} />}<Text style={styles.stateText}>{text}</Text></View>; }
 
 const styles = StyleSheet.create({
+  eraHeading: { paddingTop: 24, paddingBottom: 12, borderBottomWidth: 1, borderColor: FateDropColors.borderSoft, marginBottom: 8 },
+  eraYears: { color: FateDropColors.goldBright, fontSize: 12, letterSpacing: 1, marginBottom: 4 },
+  eraName: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 23 },
   content: { width: '100%', maxWidth: 960, alignSelf: 'center', paddingHorizontal: 18, paddingBottom: 140 }, flex: { flex: 1 }, pressed: { opacity: .72 }, headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingTop: 8 }, back: { width: 44, height: 44, borderRadius: 16, borderWidth: 1, borderColor: FateDropColors.borderSoft, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,8,18,.58)' }, eyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '900', letterSpacing: 1.15 }, title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 5 }, copy: { color: FateDropColors.secondary, fontSize: 10.5, lineHeight: 16, marginTop: 6 },
   scopeRail: { flexDirection: 'row', minHeight: 52, marginTop: 16, borderWidth: 1, borderColor: 'rgba(226,197,141,.28)', borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(3,7,18,.68)' }, scopeButton: { flex: 1, position: 'relative', alignItems: 'center', justifyContent: 'center' }, scopeButtonActive: { backgroundColor: `${FateDropColors.violetLight}12` }, scopeText: { color: FateDropColors.secondary, fontSize: 10, fontWeight: '900', letterSpacing: .6 }, scopeTextActive: { color: FateDropColors.ivory }, scopeGem: { position: 'absolute', bottom: 0, width: 24, height: 2, backgroundColor: FateDropColors.goldBright },
   summary: { flexDirection: 'row', marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(226,197,141,.20)', overflow: 'hidden', backgroundColor: 'rgba(4,8,21,.62)' }, summaryMetric: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: FateDropColors.border }, summaryValue: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 3 }, summaryLabel: { color: FateDropColors.muted, fontSize: 7, fontWeight: '900', letterSpacing: .65, marginTop: 2 }, allSetsIntro: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 13, padding: 12, borderWidth: 1, borderColor: 'rgba(226,197,141,.28)', borderRadius: 16, backgroundColor: 'rgba(4,8,21,.72)' }, smallEyebrow: { color: FateDropColors.goldBright, fontSize: 8, fontWeight: '900', letterSpacing: .9 }, introTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 18, marginTop: 3 }, introCopy: { color: FateDropColors.secondary, fontSize: 9.5, lineHeight: 14, marginTop: 4 },
