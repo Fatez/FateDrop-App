@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
+import { BinderLanguageSelector } from '@/components/binder-language-selector';
 import { FateCollectionsArt } from '@/components/fate-collections-art';
 import { CollectionsScreen } from '@/components/fate-collections-ui';
 import { FateMetricStrip, FateProgressRing, FateSectionHeading } from '@/components/fate-polish-ui';
@@ -104,6 +105,7 @@ export default function FateBinderScreenV2() {
     keyboardShouldPersistTaps="handled" columnWrapperStyle={columns > 1 ? styles.gridRow : undefined} contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={FateDropColors.goldBright} />}
     ListHeaderComponent={<>
+      <BinderLanguageSelector />
       <View style={styles.headerRow}><Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/binders')} style={styles.back}><Ionicons name="chevron-back" size={20} color={FateDropColors.ivory} /></Pressable><View style={styles.flex}><Text style={styles.eyebrow}>FATE COLLECTIONS · BINDERS</Text><Text style={styles.title}>{setName}</Text><Text style={styles.copy}>See exactly what you own, what you still need, and the verified value of the gap. Graded slabs stay separate from binder completion.</Text></View></View>
 
       <View style={styles.progressCard}>
