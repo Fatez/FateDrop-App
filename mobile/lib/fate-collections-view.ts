@@ -37,7 +37,9 @@ export function binderEntries(items: FateCollectorItem[], missing: FateCollector
   const entries: BinderEntry[] = [];
   if (view !== 'needed') for (const item of owned.values()) entries.push({ key: `owned:${item.fateCardId}`, state: 'owned', item });
   if (view !== 'owned') for (const card of missing) {
-    if (card.setId === setId && !owned.has(card.fateCardId)) entries.push({ key: `needed:${card.fateCardId}`, state: 'needed', card });
+    const exactId = card.fateCardId || '';
+    const checklistKey = exactId || card.printingId || `${card.setId}:${card.collectorNumber || card.name || 'unknown'}`;
+    if (card.setId === setId && (!exactId || !owned.has(exactId))) entries.push({ key: `needed:${checklistKey}`, state: 'needed', card });
   }
   const search = query.trim().toLocaleLowerCase();
   const identity = (entry: BinderEntry) => entry.state === 'owned' ? entry.item.card : entry.card;

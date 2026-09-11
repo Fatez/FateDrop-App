@@ -47,6 +47,15 @@ test('binder pockets combine same-identity copies while keeping variants and sla
   assert.equal(result.some((r) => r.key === 'needed:two'), true);
 });
 
+test('printing-only checklist rows stay visible without a fake exact identity', async () => {
+  const { binderEntries } = await helpers;
+  const printingOnly = { fateCardId: null, printingId: 'printing-130', setId: '151', name: 'Held Finish', collectorNumber: '130', identityStatus: 'printing_only_finish_or_edition_unresolved' };
+  const result = binderEntries([], [printingOnly], '151', 'needed');
+  assert.equal(result.length, 1);
+  assert.equal(result[0].key, 'needed:printing-130');
+  assert.equal(result[0].card.fateCardId, null);
+});
+
 test('binder search and Owned/Needed filters retain exact identities', async () => {
   const { binderEntries } = await helpers;
   const items = [item('Daisy', '195')];
