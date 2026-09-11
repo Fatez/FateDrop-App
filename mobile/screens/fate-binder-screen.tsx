@@ -69,6 +69,7 @@ export default function FateBinderScreen() {
 
   const addMissing = async (card: FateCollectorMissingCard) => {
     if (addLock.current) return;
+    if (!card.fateCardId) { setMessage(`${card.name || 'This checklist card'} is binder-verified, but its exact finish or edition is still unresolved.`); return; }
     addLock.current = true;
     setAddingId(card.fateCardId);
     setMessage('');
@@ -159,7 +160,7 @@ export default function FateBinderScreen() {
 
         </>}
         renderItem={({ item: entry }) => <View style={{ width: `${100 / columns}%`, paddingHorizontal: 4, paddingBottom: 10 }}>
-          {entry.state === 'needed' ? <MissingCard card={entry.card} adding={addingId === entry.card.fateCardId} disabled={Boolean(addingId) || loading} onAdd={() => void addMissing(entry.card)} refreshKey={data} /> : <OwnedCard item={entry.item} setId={setId} setName={setName} refreshKey={data} />}
+          {entry.state === 'needed' ? <MissingCard card={entry.card} adding={Boolean(entry.card.fateCardId) && addingId === entry.card.fateCardId} disabled={Boolean(addingId) || loading || !entry.card.fateCardId} onAdd={() => void addMissing(entry.card)} refreshKey={data} /> : <OwnedCard item={entry.item} setId={setId} setName={setName} refreshKey={data} />}
         </View>}
         ListFooterComponent={<>
         {!loading && !error && !entries.length ? <StateLine success={complete && !query.trim() && view === 'needed'} text={query.trim() ? 'No cards match that search.' : complete && view === 'needed' ? 'Nothing missing. Every verified checklist printing is represented.' : view === 'owned' ? 'No ungraded cards are recorded here yet.' : checklistReady ? 'No card details are available for this view yet.' : 'Open Owned to see the cards already in your collection.'} /> : null}
@@ -180,7 +181,7 @@ function ViewButton({ label, onPress, selected, value }: { label: string; onPres
 }
 
 function MissingCard({ adding, card, disabled, onAdd, refreshKey }: { adding: boolean; card: FateCollectorMissingCard; disabled: boolean; onAdd: () => void; refreshKey: unknown }) {
-  const price = useCollectionCardPrice(card.fateCardId, refreshKey);
+  const price = useCollectionCardPrice(card.fateCardId || '', refreshKey);
   const withArt = card as FateCollectorMissingCard & ArtFields;
   const art = withArt.thumbnailUrl || withArt.imageUrl || null;
   return (
@@ -188,12 +189,12 @@ function MissingCard({ adding, card, disabled, onAdd, refreshKey }: { adding: bo
       {art ? <Image source={{ uri: art }} style={styles.cardArt} contentFit="contain" cachePolicy="memory-disk" /> : <View style={styles.cardArtPlaceholder}><Ionicons name="sparkles-outline" size={24} color={FateDropColors.echo} /></View>}
       <View style={styles.cardBody}>
         <Text style={styles.cardName} numberOfLines={2}>{card.name || 'Verified card'}</Text>
-        <Text style={styles.cardPrice}>{money(price?.amount, price?.currencyCode)}</Text>
+        <Text style={styles.cardPrice}>{card.fateCardId ? money(price?.amount, price?.currencyCode) : 'PRICE UNAVAILABLE'}</Text>
         <Text style={styles.cardNumber}>#{card.collectorNumber || '—'}</Text>
-        <Text style={styles.cardMeta} numberOfLines={1}>{card.rarity || card.variantCode || 'Exact printing'}</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: card.fateCardId, name: card.name || undefined, collectorNumber: card.collectorNumber || undefined, setId: card.setId, setName: card.setName || undefined, tcg: card.tcgCode || undefined } })} style={styles.priceButton}>
+        <Text style={styles.cardMeta} numberOfLines={1}>{card.fateCardId ? card.rarity || card.variantCode || 'Exact printing' : 'Exact finish/edition pending'}</Text>
+        {card.fateCardId ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/fate-price', params: { cardId: card.fateCardId!, name: card.name || undefined, collectorNumber: card.collectorNumber || undefined, setId: card.setId, setName: card.setName || undefined, tcg: card.tcgCode || undefined } })} style={styles.priceButton}>
           <Ionicons name="analytics-outline" size={12} color={FateDropColors.echo} /><Text style={styles.priceButtonText}>FATEPRICE</Text>
-        </Pressable>
+        </Pressable> : <View style={styles.priceButton}><Ionicons name="shield-checkmark-outline" size={12} color={FateDropColors.goldBright} /><Text style={styles.priceButtonText}>EXACT IDENTITY HELD</Text></View>}
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`Add ${card.name || 'card'} as owned`} accessibilityState={{ disabled, busy: adding }} disabled={disabled} onPress={onAdd} style={({ pressed }) => [styles.addButton, disabled && styles.disabled, pressed && styles.pressed]}>
         {adding ? <ActivityIndicator size="small" color={FateDropColors.background} /> : <><Ionicons name="add" size={15} color={FateDropColors.background} /><Text style={styles.addText}>ADD OWNED</Text></>}
