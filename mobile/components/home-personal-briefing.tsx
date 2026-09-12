@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { homeCompanionVoice } from '@/lib/companion-voice';
 import { deriveHomeSignalKind, type HomeSignalKind } from '@/lib/home-signal-state';
 import { loadWatchlist } from '@/lib/watchlist';
 import {
@@ -180,6 +181,14 @@ export function HomePersonalBriefing({
     unreadVanished: personalUnread.VANISHED,
   }), [alertState, liveState, personalUnread, pokemonCenterActive, signedIn, wantedLiveCount, wishlistState]);
 
+  const companionBriefing = useMemo(() => homeCompanionVoice({
+    state: signalState,
+    wantedLiveCount,
+    unreadEchoes: personalUnread.ECHO,
+    unreadWhispers: personalUnread.WHISPER,
+    unreadVanished: personalUnread.VANISHED,
+  }), [personalUnread, signalState, wantedLiveCount]);
+
   useEffect(() => {
     onSignalStateChange?.(signalState);
   }, [onSignalStateChange, signalState]);
@@ -202,7 +211,7 @@ export function HomePersonalBriefing({
         <Text style={[styles.welcomeKicker, embedded && styles.welcomeKickerEmbedded]}>Welcome to</Text>
         <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]}>FateDrop</Text>
         <Pressable onPress={() => router.push('/(tabs)/profile')} style={styles.signInRow}>
-          <Text style={styles.mutedLine}>Sign in to see your personal briefing</Text>
+          <Text style={styles.mutedLine}>Sign in so Koru & Friends can build your personal briefing</Text>
           <Ionicons name="chevron-forward" size={16} color={FateDropColors.muted} />
         </Pressable>
       </View>
@@ -216,6 +225,14 @@ export function HomePersonalBriefing({
         <Text style={[styles.welcomeIdentity, embedded && styles.welcomeIdentityEmbedded]} numberOfLines={1} adjustsFontSizeToFit>
           {fateId || 'FateDrop member'}
         </Text>
+        <View style={[styles.companionBriefing, embedded && styles.companionBriefingEmbedded]}>
+          <View style={styles.companionMark}><Ionicons name="sparkles-outline" size={12} color={FateDropColors.goldBright} /></View>
+          <View style={styles.companionCopy}>
+            <Text style={[styles.companionName, embedded && styles.companionNameEmbedded]}>{companionBriefing.companion.toUpperCase()}</Text>
+            <Text style={[styles.companionTitle, embedded && styles.companionTitleEmbedded]}>{companionBriefing.title}</Text>
+            <Text style={[styles.companionDetail, embedded && styles.companionDetailEmbedded]}>{companionBriefing.detail}</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -247,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   greeting: {
-    maxWidth: '64%',
+    maxWidth: '72%',
   },
   welcomeKicker: {
     color: FateDropColors.ivory,
@@ -278,12 +295,79 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
+  companionBriefing: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(226,197,141,.28)',
+  },
+  companionBriefingEmbedded: {
+    marginTop: 10,
+    paddingTop: 9,
+    borderTopColor: 'rgba(226,197,141,.34)',
+  },
+  companionMark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(226,197,141,.40)',
+    backgroundColor: 'rgba(8,10,17,.62)',
+  },
+  companionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  companionName: {
+    color: FateDropColors.goldBright,
+    fontSize: 8,
+    lineHeight: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+  companionNameEmbedded: {
+    textShadowColor: 'rgba(0,0,0,.94)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  companionTitle: {
+    marginTop: 2,
+    color: FateDropColors.ivory,
+    fontFamily: Fonts.serif,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
+  },
+  companionTitleEmbedded: {
+    textShadowColor: 'rgba(0,0,0,.96)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 7,
+  },
+  companionDetail: {
+    marginTop: 2,
+    color: FateDropColors.secondary,
+    fontSize: 9,
+    lineHeight: 13,
+  },
+  companionDetailEmbedded: {
+    color: 'rgba(247,242,229,.78)',
+    textShadowColor: 'rgba(0,0,0,.96)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 7,
+  },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   mutedLine: {
+    flex: 1,
     color: FateDropColors.muted,
     fontFamily: Fonts.sans,
     fontSize: 14,
