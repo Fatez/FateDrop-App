@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
@@ -19,10 +19,6 @@ function accentFor(companion: CompanionVoiceName) {
 export function CompanionRouteVoice({ pathname }: { pathname: string }) {
   const voice = useMemo(() => companionRouteVoice(pathname), [pathname]);
   const [dismissedPath, setDismissedPath] = useState('');
-
-  useEffect(() => {
-    setDismissedPath('');
-  }, [pathname]);
 
   if (!voice || dismissedPath === pathname) return null;
 
