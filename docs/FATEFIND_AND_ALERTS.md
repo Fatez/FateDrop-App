@@ -71,6 +71,18 @@ This personal alert choice does not alter the companions' canonical network-sign
 - Manifested → Koru
 - Vanished → Nyxen
 
+## Companion experience roles
+
+Koru & Friends are also the in-world guides that explain what FateDrop is doing behind the interface. These experience roles add personality without changing evidence or lifecycle semantics:
+
+- **Morren → Collections, Binders and Graded.** Morren is the keeper of what the collector owns and is building.
+- **Veyl → Fate Market / FateInsight.** Veyl interprets evidence-backed market movement.
+- **Taren → FatePrice / value tracing.** Taren explains exact-card value evidence and leaves unknown prices unknown.
+- **Search / Wishlist → Koru & Friends.** They can scout or remember an item, but those surfaces never imply active monitoring.
+- **FateFind / FateMatch → the user's selected companion where known.** FateFind is the hunt and its conditions; FateMatch is the successful result. Generic UI must say “Your companion” rather than inventing a named companion when the saved choice is not available.
+
+Companion copy must follow the same truth boundary as the product. It may narrate a verified state, but it must never invent stock, price, monitoring, alerts or a successful FateMatch.
+
 ## Network lifecycle alerts
 
 Whisper, Echo, Manifested and Vanished describe what FateDrop itself is observing across the network. They are separate from personal FateFind/FateMatch intent. Lifecycle precision and duplicate prevention remain more important than notification volume.
