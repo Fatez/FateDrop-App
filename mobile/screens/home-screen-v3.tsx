@@ -252,6 +252,7 @@ export default function HomeScreenV3() {
           />
           <View style={styles.lifecycleBelowHub}>
             <LifecycleRibbon pulse={pulse} state={pulseState} />
+            <Text style={styles.lifecycleWindow}>NETWORK · LAST 7 DAYS</Text>
           </View>
         </Animated.View>
 
@@ -674,7 +675,7 @@ function buildMarketPresentation(period: FatePulseDirectionPeriod | undefined, s
   if (state === 'error') return { value: '—', detail: 'Market evidence unavailable', secondary: '', foot: 'No direction inferred' };
   if (!period || period.status !== 'available' || period.condition === 'insufficient_evidence') {
     const coverage = period?.coverage.currentPriceCoveragePct;
-    return { value: '30D', detail: 'Building qualifying market evidence', secondary: '', foot: coverage == null ? 'Coverage unavailable' : `Coverage ${marketPercent(coverage)}` };
+    return { value: '—', detail: 'Building 30D market evidence', secondary: '', foot: coverage == null ? 'Coverage unavailable' : `Coverage ${marketPercent(coverage)}` };
   }
   const value = period.condition === 'broadly_rising' ? 'Rising' : period.condition === 'broadly_falling' ? 'Falling' : period.condition === 'unchanged' ? 'Stable' : 'Mixed';
   return { value, detail: movementPercent(period.headlinePercent), secondary: `${period.breadth.risingSets} rising · ${period.breadth.unchangedSets} stable · ${period.breadth.fallingSets} falling`, foot: `Coverage ${marketPercent(period.coverage.currentPriceCoveragePct)}` };
@@ -688,7 +689,7 @@ function buildCollectionPresentation(data: FateCollectorsSnapshot | null, state:
   const closestSet = data.summary.closestSet;
   const value = `${data.summary.cardUnits}`;
   const detail = `${data.summary.cardUnits === 1 ? 'owned card' : 'owned cards'} · ${data.summary.setsOwned} ${data.summary.setsOwned === 1 ? 'set' : 'sets'}`;
-  const secondary = collection.pricedUnits > 0 ? `${collection.pricedUnits}/${collection.totalUnits} copies priced` : 'Values still building';
+  const secondary = collection.pricedUnits > 0 ? `${collection.pricedUnits}/${collection.totalUnits} copies priced` : 'Valuation unavailable';
   return { value, detail, secondary, foot: closestSet ? `${closestSet.setName || 'Closest set'} · ${closestSet.completionPercent.toFixed(0)}% complete` : 'Start a set binder' };
 }
 
@@ -735,7 +736,8 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 92, maxWidth: 480, width: '100%', alignSelf: 'center' },
   hero: { height: 205, overflow: 'hidden' },
   heroBriefing: { position: 'absolute', left: 23, right: 19, zIndex: 2 },
-  lifecycleBelowHub: { height: 34, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
+  lifecycleBelowHub: { height: 47, marginHorizontal: 14, marginTop: 4, zIndex: 8 },
+  lifecycleWindow: { color: FateDropColors.secondary, fontSize: 7, lineHeight: 11, textAlign: 'right', marginTop: 2, letterSpacing: .5 },
   lifecycleRibbon: { height: 34, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.34)', backgroundColor: 'rgba(3,7,18,.22)' },
   lifecycleItem: { flex: 1, minWidth: 0, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 4, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
   lifecycleItemLast: { borderRightWidth: 0 },
@@ -768,7 +770,7 @@ const styles = StyleSheet.create({
   pcukHubStatus: { position: 'absolute', left: 80, right: 80, bottom: 0, minHeight: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, zIndex: 7 },
   pcukHubStatusText: { flexShrink: 1, color: 'rgba(99,225,255,.58)', fontFamily: Fonts.sans, fontSize: 7.3, lineHeight: 10, fontWeight: '700', letterSpacing: .58, textAlign: 'center', textShadowColor: 'rgba(0,0,0,.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5 },
   pcukHubStatusTextActive: { color: FateDropColors.cyan },
-  liveSection: { minHeight: 182, marginTop: 8, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.13)' },
+  liveSection: { minHeight: 182, marginTop: 8, marginHorizontal: 12, marginBottom: 5, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.42)', overflow: 'hidden', backgroundColor: 'rgba(2,7,18,.38)' },
   sectionHeading: { height: 36, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(226,197,141,.28)' },
   sectionStar: { width: 13, height: 13, alignItems: 'center', justifyContent: 'center' },
   sectionStarVertical: { position: 'absolute', width: 1, height: 13, backgroundColor: FateDropColors.goldBright },
@@ -781,12 +783,12 @@ const styles = StyleSheet.create({
   liveCarousel: { paddingRight: 22 },
   liveCard: { height: 145, overflow: 'hidden', backgroundColor: 'transparent', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.18)' },
   liveCardBody: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
-  liveIdentity: { width: 102, minWidth: 92, alignSelf: 'stretch', justifyContent: 'center', paddingLeft: 4, zIndex: 2 },
-  liveArtwork: { flex: 1, minWidth: 116, height: 142, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  liveIdentity: { flex: 1, minWidth: 0, alignSelf: 'stretch', justifyContent: 'center', paddingLeft: 4, zIndex: 2 },
+  liveArtwork: { width: 96, minWidth: 80, height: 142, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   liveArtworkOrbit: { position: 'absolute', width: 150, height: 54, borderRadius: 75, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.64)', bottom: 12, transform: [{ rotate: '-4deg' }] },
   liveArtworkOrbitInner: { position: 'absolute', width: 116, height: 35, borderRadius: 58, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.44)', bottom: 20 },
-  liveProductImage: { width: 126, height: 117 },
-  livePriceColumn: { width: 79, minWidth: 70, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 5, zIndex: 2 },
+  liveProductImage: { width: '100%', height: 117 },
+  livePriceColumn: { width: 74, minWidth: 64, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 5, zIndex: 2 },
   liveGame: { color: FateDropColors.goldBright, fontSize: 6.4, lineHeight: 9, letterSpacing: .2 },
   liveTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13.2, lineHeight: 16, marginTop: 4, ...heroShadow },
   liveRetailer: { color: FateDropColors.secondary, fontSize: 7.8, lineHeight: 11, marginTop: 4 },
