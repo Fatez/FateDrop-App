@@ -17,9 +17,9 @@ export function CollectionsScreen({ children }: PropsWithChildren) {
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <FateMarketBackground />
     </View>
-    {loading ? <CollectionState loading text="Opening Fate Collections…" /> : signedIn ? children : <View style={collectionsStyles.gate}>
-      <CollectionHeader title="Fate Collections" copy="A home for your cards, binders and graded favourites." />
-      <Text style={collectionsStyles.body}>Connect your FateDrop ID to open your private collection.</Text>
+    {loading ? <CollectionState loading text="Morren is opening Fate Collections…" /> : signedIn ? children : <View style={collectionsStyles.gate}>
+      <CollectionHeader title="Fate Collections" copy="A home for your cards, binders and graded favourites — with Morren keeping watch." />
+      <Text style={collectionsStyles.body}>Connect your FateDrop ID so Morren can keep your private collection in view.</Text>
       <Pressable accessibilityRole="button" onPress={() => router.push('/account')} style={collectionsStyles.primary}><Text style={collectionsStyles.primaryText}>Connect FateDrop ID</Text></Pressable>
     </View>}
   </SafeAreaView>;
@@ -32,7 +32,11 @@ export function CollectionHeader({ title, copy, kind }: { title: string; copy: s
       else router.replace(kind ? '/collections' : { pathname: '/(tabs)/market', params: { area: 'pulse' } });
     }} style={collectionsStyles.back}><Ionicons name="chevron-back" size={18} color={FateDropColors.goldBright} /><Text style={collectionsStyles.backText}>{kind ? 'Fate Collections' : 'Fate Market'}</Text></Pressable>
     <View style={collectionsStyles.heroRow}>
-      <View style={collectionsStyles.flex}><Text style={collectionsStyles.eyebrow}>{kind ? 'FATE COLLECTIONS' : 'YOUR CARDS. YOUR STORY.'}</Text><Text style={collectionsStyles.title}>{title}</Text><Text style={collectionsStyles.body}>{copy}</Text></View>
+      <View style={collectionsStyles.flex}>
+        <Text style={collectionsStyles.eyebrow}>{kind ? 'MORREN · FATE COLLECTIONS' : 'MORREN · YOUR CARDS. YOUR STORY.'}</Text>
+        <Text style={collectionsStyles.title}>{title}</Text>
+        <Text style={collectionsStyles.body}>{copy}</Text>
+      </View>
       {kind ? <FateCollectionsArt kind={kind} size={86} /> : <Image accessible={false} source={require('../assets/images/profile-avatar-koru.png')} style={collectionsStyles.companion} contentFit="contain" />}
     </View>
   </View>;
