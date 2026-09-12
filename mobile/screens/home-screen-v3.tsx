@@ -23,6 +23,7 @@ import { profileWallpaperMeta } from '@/constants/profile-customisation';
 import { TCG_REGISTRY, isTcgCode, type TcgCode } from '@/constants/tcg-registry';
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
+import { useBinderSession } from '@/hooks/use-binder-session';
 import { formatEventDate } from '@/lib/encounters';
 import type { HomeSignalKind } from '@/lib/home-signal-state';
 import { fetchCanonicalLiveOpportunities, type CanonicalMobileAlert } from '@/services/canonical-alerts';
@@ -76,6 +77,7 @@ export default function HomeScreenV3() {
   const { width } = useWindowDimensions();
   const { snapshot, signedIn, refreshIfStale } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
+  const { lastBinder, prepareNeeded } = useBinderSession();
   const [pulse, setPulse] = useState<NetworkPulse>(emptyPulse);
   const [pulseState, setPulseState] = useState<LoadState>('loading');
   const [liveOpportunities, setLiveOpportunities] = useState<CanonicalMobileAlert[]>([]);
@@ -305,6 +307,20 @@ export default function HomeScreenV3() {
         </Animated.View>
 
         <Animated.View style={[styles.lowerSections, entranceStyle(lowerEntrance, 18)]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Find missing cards in your binder" style={({ pressed }) => [styles.binderShortcut, { opacity: pressed ? 0.7 : 1 }]} onPress={() => {
+            const closest = signedIn && collectorsState === 'ready' ? collectors?.summary.closestSet : null;
+            const target = lastBinder || (closest ? { setId: closest.setId, setName: closest.setName || 'Your binder' } : null);
+            if (!target) { router.push('/binders'); return; }
+            prepareNeeded(target);
+            router.push({ pathname: '/binder/[setId]', params: target });
+          }}>
+            <Ionicons name="albums-outline" size={25} color={FateDropColors.goldBright} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.binderShortcutTitle}>Find missing cards</Text>
+              <Text style={styles.binderShortcutDetail} numberOfLines={1}>{lastBinder?.setName || 'Open your binder · explore what’s left'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
+          </Pressable>
           <PersonalLedger signedIn={signedIn} activeFinds={activeFinds} recentMatches={recentMatches} saved={saved} />
           <OrbitalCommandPortal event={featuredEvent} state={eventsState} />
         </Animated.View>
@@ -800,6 +816,9 @@ const styles = StyleSheet.create({
   liveEmpty: { minHeight: 144, marginHorizontal: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   liveEmptyTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 13 },
   liveEmptyCopy: { color: FateDropColors.secondary, fontSize: 8.5, lineHeight: 13, marginTop: 2 },
+  binderShortcut: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 24, paddingVertical: 18, minHeight: 76, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.3)' },
+  binderShortcutTitle: { fontFamily: Fonts.serif, fontSize: 20, color: FateDropColors.ivory },
+  binderShortcutDetail: { marginTop: 4, fontSize: 11, color: FateDropColors.secondary },
   lowerSections: { paddingTop: 1 },
   ledgerSection: { marginHorizontal: 14, marginBottom: 2 },
   ornamentTitle: { height: 21, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
