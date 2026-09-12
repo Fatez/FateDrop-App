@@ -65,7 +65,16 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow FateDrop to open a card photo you choose.",
+          "cameraPermission": "Allow FateDrop to photograph a card so Koru can help identify it.",
+          "microphonePermission": false
+        }
+      ],
+      "./plugins/with-card-scanner-android.cjs"
     ],
     "experiments": {
       "typedRoutes": true
