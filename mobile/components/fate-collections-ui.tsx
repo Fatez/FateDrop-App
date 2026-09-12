@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, Stack } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -37,7 +36,7 @@ export function CollectionHeader({ title, copy, kind }: { title: string; copy: s
         <Text style={collectionsStyles.title}>{title}</Text>
         <Text style={collectionsStyles.body}>{copy}</Text>
       </View>
-      {kind ? <FateCollectionsArt kind={kind} size={86} /> : <Image accessible={false} source={require('../assets/images/profile-avatar-koru.png')} style={collectionsStyles.companion} contentFit="contain" />}
+      {kind ? <FateCollectionsArt kind={kind} size={86} /> : <View accessibilityLabel="Morren collection guardian" style={collectionsStyles.companionSigil}><Ionicons name="shield-checkmark-outline" size={30} color={FateDropColors.goldBright} /></View>}
     </View>
   </View>;
 }
@@ -63,7 +62,7 @@ export const collectionsStyles = StyleSheet.create({
   back: { alignSelf: 'flex-start', minHeight: 44, flexDirection: 'row', gap: 5, alignItems: 'center' },
   backText: { color: FateDropColors.goldBright, fontSize: 13 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 8 },
-  companion: { width: 96, height: 112 },
+  companionSigil: { width: 82, height: 82, borderRadius: 41, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(226,197,141,.38)', backgroundColor: 'rgba(226,197,141,.08)' },
   flex: { flex: 1, minWidth: 0 },
   eyebrow: { color: FateDropColors.goldBright, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   title: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 32, lineHeight: 37, marginVertical: 7 },
