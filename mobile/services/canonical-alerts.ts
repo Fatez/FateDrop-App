@@ -9,9 +9,11 @@ import {
   type CanonicalAlertReadItem,
   type CanonicalAlertReadState,
 } from '@/lib/canonical-alert-read-state';
+import { resolveExactCanonicalProductImage } from '@/services/canonical-product-images';
 import { getStoredSessionToken } from '@/services/fatedrop-id';
 
 const ALERT_READ_STATE_PREFIX = 'fatedrop:canonical-alerts:read:v1';
+const LIVE_IMAGE_RESOLUTION_LIMIT = 8;
 
 export type CanonicalAlertStage = 'WHISPER' | 'ECHO' | 'MANIFESTED' | 'VANISHED';
 
@@ -239,12 +241,28 @@ export function canonicalAlertIsCurrentOpportunity(alert: CanonicalMobileAlert) 
     && alert.opportunity?.current !== false;
 }
 
+async function enrichLiveOpportunityImages(alerts: CanonicalMobileAlert[]) {
+  const head = alerts.slice(0, LIVE_IMAGE_RESOLUTION_LIMIT);
+  const enrichedHead = await Promise.all(head.map(async (alert) => {
+    const resolvedImageUrl = await resolveExactCanonicalProductImage({
+      productId: alert.productId,
+      title: alert.product.title || alert.title,
+      fallbackImageUrl: alert.product.imageUrl,
+      tcgCode: alert.tcgCode,
+    });
+    if (!resolvedImageUrl || resolvedImageUrl === alert.product.imageUrl) return alert;
+    return { ...alert, product: { ...alert.product, imageUrl: resolvedImageUrl } };
+  }));
+  return [...enrichedHead, ...alerts.slice(LIVE_IMAGE_RESOLUTION_LIMIT)];
+}
+
 export async function fetchCanonicalLiveOpportunities(limit = 16): Promise<CanonicalMobileAlert[]> {
   const token = await getStoredSessionToken();
   if (!token) return [];
   const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
   const alerts = await fetchCanonicalAlertStage(token, 'manifested', safeLimit, true);
-  return alerts.filter(canonicalAlertIsCurrentOpportunity).slice(0, safeLimit);
+  const current = alerts.filter(canonicalAlertIsCurrentOpportunity).slice(0, safeLimit);
+  return enrichLiveOpportunityImages(current);
 }
 
 export async function fetchCanonicalAlerts(limit = 30): Promise<CanonicalMobileAlert[]> {
