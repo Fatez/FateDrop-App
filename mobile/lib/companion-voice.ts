@@ -37,15 +37,17 @@ const plural = (value: number, one: string, many = `${one}s`) => value === 1 ? o
 export function homeCompanionVoice(input: HomeCompanionVoiceInput): CompanionVoiceMessage {
   switch (input.state) {
     case 'manifested': {
-      const count = Math.max(1, input.wantedLiveCount);
+      const count = Number.isFinite(input.wantedLiveCount) ? Math.max(0, Math.floor(input.wantedLiveCount)) : 0;
+      if (!count) return { companion: 'Koru & Friends', title: 'Your briefing is updating.', detail: 'Open the latest activity to check what is available.' };
       return {
         companion: 'Koru',
-        title: count === 1 ? 'Koru spotted something you saved live.' : `Koru spotted ${count} saved items live.`,
+        title: count === 1 ? 'Koru found a saved item in stock.' : `Koru spotted ${count} saved items live.`,
         detail: 'Open the verified live opportunities below to check the exact retailer evidence.',
       };
     }
     case 'echo': {
-      const count = Math.max(1, input.unreadEchoes);
+      const count = Number.isFinite(input.unreadEchoes) ? Math.max(0, Math.floor(input.unreadEchoes)) : 0;
+      if (!count) return { companion: 'Koru & Friends', title: 'Your briefing is updating.', detail: 'Open the latest activity to check what is available.' };
       return {
         companion: 'Fenn',
         title: 'Fenn heard the signal getting stronger.',
@@ -56,10 +58,11 @@ export function homeCompanionVoice(input: HomeCompanionVoiceInput): CompanionVoi
       return {
         companion: 'Koru & Friends',
         title: 'The team picked up Pokémon Center UK activity.',
-        detail: 'Open the signal detail before treating activity as a live-stock instruction.',
+        detail: 'Check the activity details for confirmed availability.',
       };
     case 'whisper': {
-      const count = Math.max(1, input.unreadWhispers);
+      const count = Number.isFinite(input.unreadWhispers) ? Math.max(0, Math.floor(input.unreadWhispers)) : 0;
+      if (!count) return { companion: 'Koru & Friends', title: 'Your briefing is updating.', detail: 'Open the latest activity to check what is available.' };
       return {
         companion: 'Oru',
         title: 'Oru heard something beginning.',
@@ -67,11 +70,12 @@ export function homeCompanionVoice(input: HomeCompanionVoiceInput): CompanionVoi
       };
     }
     case 'vanished': {
-      const count = Math.max(1, input.unreadVanished);
+      const count = Number.isFinite(input.unreadVanished) ? Math.max(0, Math.floor(input.unreadVanished)) : 0;
+      if (!count) return { companion: 'Koru & Friends', title: 'Your briefing is updating.', detail: 'Open the latest activity to check what is available.' };
       return {
         companion: 'Nyxen',
         title: count === 1 ? 'Nyxen marked an opportunity as gone.' : `Nyxen marked ${count} opportunities as gone.`,
-        detail: 'The old live state is no longer being observed as available.',
+        detail: 'These listings were last confirmed unavailable. Check their latest status before buying.',
       };
     }
     case 'loading':
@@ -84,13 +88,13 @@ export function homeCompanionVoice(input: HomeCompanionVoiceInput): CompanionVoi
       return {
         companion: 'Koru & Friends',
         title: 'Part of the signal is unavailable.',
-        detail: 'FateDrop will not fill the gap with a guess.',
+        detail: 'Some updates could not be loaded. Please try again.',
       };
     case 'idle':
     default:
       return {
         companion: 'Koru & Friends',
-        title: 'The companions are keeping watch.',
+        title: 'Your briefing is up to date.',
         detail: 'Nothing personal needs your attention right now.',
       };
   }
@@ -106,7 +110,7 @@ function cleanPath(pathname: string) {
  * what a surface does, rather than claiming a result exists merely because the
  * user opened that page.
  */
-export function companionRouteVoice(pathname: string): CompanionVoiceMessage | null {
+export function companionRouteVoice(pathname: string, area?: string): CompanionVoiceMessage | null {
   const path = cleanPath(pathname);
 
   if (path === '/' || path === '/alerts' || path === '/onboarding' || path === '/tcg-onboarding') return null;
@@ -143,7 +147,7 @@ export function companionRouteVoice(pathname: string): CompanionVoiceMessage | n
     };
   }
 
-  if (path === '/market' || path === '/fate-pulse' || path.startsWith('/fate-pulse/')) {
+  if ((path === '/market' && area !== 'price' && area !== 'collectors') || path === '/fate-pulse' || path.startsWith('/fate-pulse/')) {
     return {
       companion: 'Veyl',
       title: 'Reading the market.',
@@ -151,19 +155,19 @@ export function companionRouteVoice(pathname: string): CompanionVoiceMessage | n
     };
   }
 
-  if (path === '/true-price' || path === '/fate-price' || path.startsWith('/fate-price-')) {
+  if ((path === '/market' && area === 'price') || path === '/true-price' || path === '/fate-price' || path.startsWith('/fate-price-')) {
     return {
       companion: 'Taren',
       title: 'Tracing the value.',
-      detail: 'Exact evidence stays exact. Unknown prices stay unknown.',
+      detail: 'Explore prices and history for the selected card and finish. Missing prices remain unavailable.',
     };
   }
 
-  if (path === '/collections' || path === '/collection') {
+  if ((path === '/market' && area === 'collectors') || path === '/collections' || path === '/collection') {
     return {
       companion: 'Morren',
       title: 'Your collection is in good company.',
-      detail: 'Morren keeps the pieces together while FateDrop tracks ownership and evidence.',
+      detail: 'Keep your cards, binders and graded collection together with Morren.',
     };
   }
 
@@ -178,7 +182,7 @@ export function companionRouteVoice(pathname: string): CompanionVoiceMessage | n
   if (path === '/graded-collection') {
     return {
       companion: 'Morren',
-      title: 'Your graded cards are accounted for.',
+      title: 'A home for your graded cards.',
       detail: 'Slabs stay separate from binder completion while remaining part of your collection.',
     };
   }
@@ -187,7 +191,7 @@ export function companionRouteVoice(pathname: string): CompanionVoiceMessage | n
     return {
       companion: 'Fenn',
       title: 'Listening nearby.',
-      detail: 'Physical-store intelligence stays separate from online stock, and unknown stays unknown.',
+      detail: 'Explore nearby store reports. Check their dates and confirmation before travelling.',
     };
   }
 

@@ -14,7 +14,7 @@ export function CollectionsScreen({ children }: PropsWithChildren) {
   return <SafeAreaView style={collectionsStyles.screen} edges={['top', 'bottom']}>
     <Stack.Screen options={{ headerShown: false }} />
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <FateMarketBackground />
+      <FateMarketBackground section="collectors" />
     </View>
     {loading ? <CollectionState loading text="Morren is opening Fate Collections…" /> : signedIn ? children : <View style={collectionsStyles.gate}>
       <CollectionHeader title="Fate Collections" copy="A home for your cards, binders and graded favourites — with Morren keeping watch." />

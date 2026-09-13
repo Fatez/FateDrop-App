@@ -13,7 +13,7 @@ const onboarding = read('mobile/app/onboarding.tsx');
 test('companion voice is centralized and rendered by the app shell', () => {
   assert.match(shell, /CompanionRouteVoice/);
   assert.match(shell, /<CompanionRouteVoice pathname=\{pathname\} \/>/);
-  assert.match(routeVoice, /companionRouteVoice\(pathname\)/);
+  assert.match(routeVoice, /companionRouteVoice\(pathname, area\)/);
   assert.match(routeVoice, /Dismiss companion note/);
 });
 
@@ -44,7 +44,7 @@ test('Home companion briefing is driven by derived evidence rather than decorati
   assert.match(home, /unreadEchoes: personalUnread\.ECHO/);
   assert.match(home, /unreadWhispers: personalUnread\.WHISPER/);
   assert.match(home, /unreadVanished: personalUnread\.VANISHED/);
-  assert.match(voice, /Koru spotted something you saved live/);
+  assert.match(voice, /Koru found a saved item in stock/);
   assert.match(voice, /Fenn heard the signal getting stronger/);
   assert.match(voice, /Oru heard something beginning/);
   assert.match(voice, /Nyxen marked an opportunity as gone/);

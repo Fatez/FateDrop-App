@@ -90,3 +90,12 @@ Whisper, Echo, Manifested and Vanished describe what FateDrop itself is observin
 ## Legacy local storage
 
 Older local FateFind/watchlist repositories may remain temporarily for migration/backwards compatibility. They must not become a second source of authoritative winner logic or silently re-enable monitoring for passive Wishlist items. Hosted FateFind monitoring and account state are owned by FateDrop ID/Cloud.
+
+### Guardian presentation and voice review — 13 September 2026
+
+- Morren's supplied library wallpaper is used throughout Collections, binders and graded cards. Veyl's supplied market wallpaper is used throughout FateInsight. Taren's supplied blue wallpaper is used throughout FatePrice. The Market hub follows its selected tab.
+- Wallpaper figures, charts and lettering are decorative, never price or trend evidence. Dark veils keep the actual interface readable; artwork is excluded from accessibility and pointer interaction. Home retains its existing composition.
+- Route introductions explain a feature; they must not announce a successful load, a holding, a price or an active hunt. Errors remain plain and actionable. Personal results name the saved companion only when known.
+- Home narration requires a positive, finite evidence count before announcing counted results. Empty or invalid counts cannot be coerced into one result.
+- The dismissible guide occupies layout space rather than covering controls, hides during keyboard entry, and remembers dismissed routes for the current session. Guardian selection changes with the Market tab.
+- Canonical network roles remain Oru / Whisper, Fenn / Echo, Koru / Manifested and Nyxen / Vanished. No market, pricing, matching or alert policy changes accompany the artwork.

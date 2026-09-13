@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { useGlobalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FateDropColors, Fonts } from '@/constants/theme';
 import { companionRouteVoice, type CompanionVoiceName } from '@/lib/companion-voice';
@@ -17,15 +19,24 @@ function accentFor(companion: CompanionVoiceName) {
 }
 
 export function CompanionRouteVoice({ pathname }: { pathname: string }) {
-  const voice = useMemo(() => companionRouteVoice(pathname), [pathname]);
-  const [dismissedPath, setDismissedPath] = useState('');
+  const { area } = useGlobalSearchParams<{ area?: string }>();
+  const insets = useSafeAreaInsets();
+  const voice = useMemo(() => companionRouteVoice(pathname, area), [pathname, area]);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const voiceKey = `${pathname}:${area || ''}`;
 
-  if (!voice || dismissedPath === pathname) return null;
+  if (!voice || keyboardVisible || dismissed.has(voiceKey)) return null;
 
   const accent = accentFor(voice.companion);
 
   return (
-    <View pointerEvents="box-none" style={styles.layer}>
+    <View pointerEvents="box-none" style={[styles.layer, { marginBottom: 88 + insets.bottom }]}>
       <View accessibilityLiveRegion="polite" style={[styles.card, { borderColor: `${accent}4D` }]}>
         <View style={[styles.mark, { borderColor: `${accent}66`, backgroundColor: `${accent}14` }]}>
           <Ionicons name="sparkles-outline" size={16} color={accent} />
@@ -39,7 +50,7 @@ export function CompanionRouteVoice({ pathname }: { pathname: string }) {
           accessibilityRole="button"
           accessibilityLabel="Dismiss companion note"
           hitSlop={8}
-          onPress={() => setDismissedPath(pathname)}
+          onPress={() => setDismissed((previous) => new Set(previous).add(voiceKey))}
           style={({ pressed }) => [styles.dismiss, pressed && styles.pressed]}
         >
           <Ionicons name="close" size={16} color={FateDropColors.muted} />
@@ -51,11 +62,10 @@ export function CompanionRouteVoice({ pathname }: { pathname: string }) {
 
 const styles = StyleSheet.create({
   layer: {
-    position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 88,
-    zIndex: 90,
+    // In layout flow, so the note cannot obscure page controls.
+    flexShrink: 0,
+    paddingHorizontal: 14,
+    backgroundColor: FateDropColors.background,
     alignItems: 'center',
   },
   card: {
@@ -67,8 +77,8 @@ const styles = StyleSheet.create({
     gap: 11,
     paddingHorizontal: 13,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderRadius: 18,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderRadius: 0,
     backgroundColor: 'rgba(5,8,17,.96)',
     shadowColor: '#000',
     shadowOpacity: .34,
@@ -106,12 +116,12 @@ const styles = StyleSheet.create({
   detail: {
     marginTop: 2,
     color: FateDropColors.secondary,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 17,
   },
   dismiss: {
-    width: 30,
-    height: 30,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -4,

@@ -20,9 +20,9 @@ const guideSlides = [
   },
   {
     eyebrow: 'KORU & FRIENDS',
-    title: 'You collect. They keep watch.',
+    title: 'Meet your companions.',
     body: 'The companions are FateDrop’s in-world guides. Morren looks after collections, Veyl reads market movement and Taren traces value. Oru, Fenn, Koru and Nyxen keep their signal roles.',
-    action: 'The metaphor never overrides the facts: a companion only says something was found, live or priced when FateDrop has evidence for that state.',
+    action: 'Explore with your companions. Set a FateFind when you want alerts for your chosen conditions.',
     accent: FateDropColors.violetLight,
     source: require('@/assets/images/home-koru-hero.webp'),
   },

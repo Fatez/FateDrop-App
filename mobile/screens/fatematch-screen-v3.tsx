@@ -26,8 +26,8 @@ const COMPANIONS: { id: CompanionId; name: string; signal: string; icon: keyof t
   { id: 'oru', name: 'Oru', signal: 'Whisper', icon: 'ear-outline', color: FateDropColors.whisper },
   { id: 'nyxen', name: 'Nyxen', signal: 'Vanished', icon: 'moon-outline', color: FateDropColors.vanished },
 ];
-function companionName(id: unknown) { return COMPANIONS.find((companion) => companion.id === id)?.name ?? 'Koru'; }
-function companionFromFateFind(item: Record<string, unknown>) { const preferences = item.notificationPreferences; if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) return 'Koru'; return companionName((preferences as Record<string, unknown>).companionId); }
+function companionName(id: unknown) { return COMPANIONS.find((companion) => companion.id === id)?.name ?? 'Your companion'; }
+function companionFromFateFind(item: Record<string, unknown>) { const preferences = item.notificationPreferences; if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) return 'Your companion'; return companionName((preferences as Record<string, unknown>).companionId); }
 function moneyPence(value: unknown) { return typeof value === 'number' && Number.isFinite(value) ? `£${(value / 100).toFixed(2)}` : null; }
 
 export default function FateMatchScreenV3() {
