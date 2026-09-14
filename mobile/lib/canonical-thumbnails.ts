@@ -1,4 +1,6 @@
-export const CANONICAL_THUMBNAIL_POLICY_VERSION = 'canonical-thumbnails:pilot-1' as const;
+import { SIGNAL_ENGINE_URL } from '@/constants/api';
+
+export const CANONICAL_THUMBNAIL_POLICY_VERSION = 'canonical-thumbnails:verified-artwork-2' as const;
 
 export type CanonicalThumbnailKind = 'set' | 'card';
 
@@ -8,18 +10,16 @@ type PilotSet = Readonly<{
   tcgdexSeriesCode: string;
   tcgdexSetId: string;
   languageCode: 'en';
-  numericLocalIdWidth: 3;
+  numericLocalIdWidth: number;
   verifiedIdentityCount: number;
   verifiedPrintingCount: number;
 }>;
 
 /**
- * Bounded pilot allowlist. Every entry is anchored to an exact verified FateDrop
- * canonical set identity and reviewed TCGdex set mapping. Do not add name-based
- * aliases or fuzzy fallbacks here.
- *
- * The numeric local-id rule was checked against all 1,024 live TCGdex card-source
- * mappings in these four sets on 2026-09-07: 1,024/1,024 matched, 0 mismatches.
+ * Bounded direct-CDN pilot retained for the exact sets whose local-id URL rule
+ * has already been exhaustively reviewed. All other card artwork is resolved
+ * through FateDrop Cloud from the exact verified canonical printing; no fuzzy
+ * set/name matching or retailer artwork is introduced here.
  */
 export const CANONICAL_THUMBNAIL_PILOT_SETS: Readonly<Record<string, PilotSet>> = Object.freeze({
   fdset_20b6a6dcfa52bbe0cc54b919: Object.freeze({
@@ -75,6 +75,11 @@ function assetRoot(setId: string | null | undefined) {
   return { set, root: `https://assets.tcgdex.net/${set.languageCode}/${encodeURIComponent(set.tcgdexSeriesCode)}/${encodeURIComponent(set.tcgdexSetId)}` };
 }
 
+function verifiedArtworkRoute(setId: string, collectorNumber: string) {
+  const query = `setId=${encodeURIComponent(setId)}&collectorNumber=${encodeURIComponent(collectorNumber)}`;
+  return `${SIGNAL_ENGINE_URL}/v1/card-artwork?${query}`;
+}
+
 export function resolveCanonicalSetThumbnailUrl(setId: string | null | undefined) {
   const resolved = assetRoot(setId);
   return resolved ? `${resolved.root}/logo.webp` : null;
@@ -84,16 +89,22 @@ export function resolveCanonicalCardThumbnailUrl({ setId, collectorNumber }: {
   setId: string | null | undefined;
   collectorNumber: string | null | undefined;
 }) {
-  const resolved = assetRoot(setId);
+  const canonicalSetId = text(setId);
   const rawCollector = text(collectorNumber);
-  if (!resolved || !rawCollector) return null;
+  if (!canonicalSetId || !rawCollector) return null;
 
-  // This is not a guessed formatting convention: the rule is allowlisted only
-  // for the four sets where every persisted exact TCGdex source mapping matched.
-  const sourceLocalId = /^\d+$/.test(rawCollector)
-    ? rawCollector.padStart(resolved.set.numericLocalIdWidth, '0')
-    : rawCollector;
-  return `${resolved.root}/${encodeURIComponent(sourceLocalId)}/low.webp`;
+  const resolved = assetRoot(canonicalSetId);
+  if (resolved) {
+    // The direct rule remains restricted to the reviewed four-set pilot.
+    const sourceLocalId = /^\d+$/.test(rawCollector)
+      ? rawCollector.padStart(resolved.set.numericLocalIdWidth, '0')
+      : rawCollector;
+    return `${resolved.root}/${encodeURIComponent(sourceLocalId)}/low.webp`;
+  }
+
+  // Production-wide path: Cloud resolves this exact canonical set + collector
+  // pair to the persisted verified printing artwork and redirects to the CDN.
+  return verifiedArtworkRoute(canonicalSetId, rawCollector);
 }
 
 export function resolveCanonicalCardImageUrl({ setId, collectorNumber }: {
@@ -101,7 +112,8 @@ export function resolveCanonicalCardImageUrl({ setId, collectorNumber }: {
   collectorNumber: string | null | undefined;
 }) {
   const thumbnail = resolveCanonicalCardThumbnailUrl({ setId, collectorNumber });
-  return thumbnail ? thumbnail.replace('/low.webp', '/high.webp') : null;
+  if (!thumbnail) return null;
+  return thumbnail.includes('assets.tcgdex.net') ? thumbnail.replace('/low.webp', '/high.webp') : thumbnail;
 }
 
 export function isCanonicalThumbnailPilotSet(setId: string | null | undefined) {
