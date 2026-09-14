@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { FateDropColors } from '@/constants/theme';
@@ -28,10 +28,8 @@ export function CanonicalThumbnail({
     : resolveCanonicalCardThumbnailUrl({ setId, collectorNumber })), [collectorNumber, kind, setId, sourceUrl]);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    setFailedUrl(null);
-  }, [canonicalUrl]);
-
+  // Failure is keyed by the exact URL. If a recycled row receives a different
+  // canonical identity, its new URL is automatically eligible without an effect.
   const showImage = Boolean(canonicalUrl && canonicalUrl !== failedUrl);
   const radius = kind === 'card' ? Math.max(5, Math.round(width * 0.16)) : Math.max(8, Math.round(width * 0.22));
 
