@@ -30,13 +30,13 @@ test('direct thumbnail pilot stays bounded while all other exact cards use verif
   assert.match(policy, /padStart\(resolved\.set\.numericLocalIdWidth, '0'\)/);
 });
 
-test('shared thumbnail component is remote-only, contain-fit, cache-backed and recovers when the identity changes', () => {
+test('shared thumbnail component is remote-only, contain-fit, cache-backed and failure is scoped to the exact URL', () => {
   assert.match(component, /source=\{\{ uri: canonicalUrl! \}\}/);
   assert.match(component, /contentFit="contain"/);
   assert.match(component, /cachePolicy="memory-disk"/);
-  assert.match(component, /onError=\{\(\) => setFailedUrl/);
-  assert.match(component, /useEffect\(\(\) => \{/);
-  assert.match(component, /setFailedUrl\(null\)/);
+  assert.match(component, /onError=\{\(\) => setFailedUrl\(canonicalUrl!\)\}/);
+  assert.match(component, /canonicalUrl && canonicalUrl !== failedUrl/);
+  assert.doesNotMatch(component, /useEffect/);
   assert.doesNotMatch(component, /require\(/);
 });
 
