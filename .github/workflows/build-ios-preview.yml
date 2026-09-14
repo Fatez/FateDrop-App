@@ -1,3 +1,4 @@
+# Re-triggered after EXPO_TOKEN rotation on 2026-09-14
 name: Build FateDrop iOS Preview
 
 on:
