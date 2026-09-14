@@ -8,7 +8,7 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export function FatePriceScreenBackground({ sceneKey }: { sceneKey: string }) {
-  return <FateMarketBackground key={sceneKey} />;
+  return <FateMarketBackground key={sceneKey} section="price" />;
 }
 
 export function FatePriceTopBar({ step, backLabel = 'Fate Market' }: { step: Step; backLabel?: string }) {

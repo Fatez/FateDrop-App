@@ -103,7 +103,7 @@ export default function FatePulseOverviewScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <FateMarketBackground />
+      <FateMarketBackground section="pulse" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}

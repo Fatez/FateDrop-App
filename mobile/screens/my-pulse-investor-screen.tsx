@@ -177,7 +177,7 @@ function MyPulseInvestorContent({ identity }: { identity: string }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateMarketBackground />
+        <FateMarketBackground section="pulse" />
 
         <View style={styles.cosmicHorizon} />
         <View style={styles.cosmicArc} />

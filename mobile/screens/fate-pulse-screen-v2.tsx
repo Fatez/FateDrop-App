@@ -190,7 +190,7 @@ export default function FatePulseScreenV2({ initialView = 'overview' }: { initia
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <FateMarketBackground />
+        <FateMarketBackground section="pulse" />
 
       </View>
 

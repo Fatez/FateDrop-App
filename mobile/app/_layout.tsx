@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import '@/lib/notifications';
 
 import { ClosedBetaBoundary } from '@/components/closed-beta-boundary';
+import { CompanionRouteVoice } from '@/components/companion-route-voice';
 import { FirstRunTourBoundary } from '@/components/first-run-tour-boundary';
 import { TcgOnboardingBoundary } from '@/components/tcg-onboarding-boundary';
 import { PersistentBottomNav } from '@/components/persistent-bottom-nav';
@@ -197,6 +198,7 @@ function FateDropShell() {
       <Stack.Screen name="fatebounty" options={{ headerShown: false }} />
       <Stack.Screen name="demand-signal" options={{ headerShown: false }} />
     </Stack>
+    <CompanionRouteVoice pathname={pathname} />
     {pathname !== '/onboarding' && pathname !== '/tcg-onboarding' ? <PersistentBottomNav /> : null}
     {pathname === '/local-radar' && notice ? <LocalRadarOperatorNotice notice={notice} collapsed={collapsed} onCollapse={collapseNotice} onExpand={expandNotice} onDismiss={dismissNotice} /> : null}
     <StatusBar style="light" />

@@ -202,7 +202,7 @@ export default function FateMarketScreenV2() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <FateMarketBackground />
+      <FateMarketBackground section={activeArea} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

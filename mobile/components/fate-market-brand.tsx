@@ -9,8 +9,15 @@ import { FateDropColors, Fonts } from '@/constants/theme';
 import { useFateDropId } from '@/contexts/fatedrop-id-context';
 import { loadProfileCustomisation, type ProfileWallpaperId } from '@/services/profile-customisation';
 
-/** The home artwork continues into Market, with a quiet layer behind the data. */
-export function FateMarketBackground() {
+export type FateMarketSection = 'pulse' | 'price' | 'collectors';
+const guardianArtwork = {
+  pulse: require('../assets/images/fate-market-veyl-wallpaper.jpeg'),
+  price: require('../assets/images/fate-market-taren-wallpaper.jpeg'),
+  collectors: require('../assets/images/fate-market-morren-wallpaper.jpeg'),
+};
+
+/** Decorative artwork only: embedded graphs and figures are never market data. */
+export function FateMarketBackground({ section }: { section?: FateMarketSection }) {
   const { snapshot } = useFateDropId();
   const identity = snapshot?.user.fateId || 'guest';
   const [theme, setTheme] = useState<{ identity: string; wallpaper: ProfileWallpaperId } | null>(null);
@@ -22,8 +29,8 @@ export function FateMarketBackground() {
     return () => { active = false; };
   }, [identity]));
   const wallpaper = theme?.identity === identity ? theme.wallpaper : 'koruHome';
-  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-    {wallpaper === 'koruHome'
+  return <View pointerEvents="none" accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
+    {section ? <Image key={section} accessible={false} source={guardianArtwork[section]} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" transition={180} /> : wallpaper === 'koruHome'
       ? <Image source={require('../assets/images/home-living-stage-v2.png')} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top center" cachePolicy="disk" />
       : <ProfileWallpaperArt wallpaperId={wallpaper} home />}
     <View style={styles.veil} />
