@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { fatePriceVerdict } from '@/lib/fate-price-verdict';
 import { AddToFateCollectorAction } from '@/components/add-to-fate-collector-action';
 import { CanonicalThumbnail } from '@/components/canonical-thumbnail';
 import { FatePriceScreenBackground, FatePriceTopBar } from '@/components/fate-price-chrome';
@@ -108,6 +109,10 @@ export default function FatePriceScreen() {
   const [results, setResults] = useState<FatePriceCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<FatePriceCard | null>(null);
   const [selectedCardId, setSelectedCardId] = useState(routeCardId);
+  const { width } = useWindowDimensions();
+  const cardArtWidth = Math.min(200, Math.max(120, width * 0.44));
+  const priceRequest = useRef(0);
+  const historyRequest = useRef(0);
   const [price, setPrice] = useState<FatePriceSnapshot | null>(null);
   const [history, setHistory] = useState<FatePriceHistorySnapshot | null>(null);
   const [historyDays, setHistoryDays] = useState<FatePriceHistoryDays>(30);
@@ -119,30 +124,36 @@ export default function FatePriceScreen() {
   const [historyNotice, setHistoryNotice] = useState('');
 
   const loadPrice = useCallback(async (cardIdentityId: string, scope: FatePriceScope | null = null, force = false) => {
+    const request = ++priceRequest.current;
+    setPrice(null);
     setPriceLoading(true);
     setPriceNotice('');
     try {
       const next = await fetchFatePrice(cardIdentityId, { force, scope });
-      setPrice(next);
+      if (request === priceRequest.current) setPrice(next);
     } catch (error) {
+      if (request !== priceRequest.current) return;
       setPrice(null);
       setPriceNotice(error instanceof FateMarketApiError ? error.message : 'FatePrice evidence is temporarily unavailable.');
     } finally {
-      setPriceLoading(false);
+      if (request === priceRequest.current) setPriceLoading(false);
     }
   }, []);
 
   const loadHistory = useCallback(async (cardIdentityId: string, scope: FatePriceScope | null = null, days: FatePriceHistoryDays = 30, force = false) => {
+    const request = ++historyRequest.current;
+    setHistory(null);
     setHistoryLoading(true);
     setHistoryNotice('');
     try {
       const next = await fetchFatePriceHistory(cardIdentityId, { days, force, scope });
-      setHistory(next);
+      if (request === historyRequest.current) setHistory(next);
     } catch (error) {
+      if (request !== historyRequest.current) return;
       setHistory(null);
       setHistoryNotice(error instanceof FateMarketApiError ? error.message : 'FatePrice history is temporarily unavailable.');
     } finally {
-      setHistoryLoading(false);
+      if (request === historyRequest.current) setHistoryLoading(false);
     }
   }, []);
 
@@ -172,16 +183,28 @@ export default function FatePriceScreen() {
   useEffect(() => {
     let active = true;
     if (routeCardId) {
+      const priceGeneration = ++priceRequest.current;
+      const historyGeneration = ++historyRequest.current;
+      setSelectedCard(null);
+      setPrice(null);
+      setHistory(null);
+      setHistoryDays(30);
+      setPriceNotice('');
+      setHistoryNotice('');
       setSelectedCardId(routeCardId);
       void Promise.allSettled([fetchFatePriceCard(routeCardId), fetchFatePrice(routeCardId), fetchFatePriceHistory(routeCardId, { days: 30 })]).then(([cardResult, priceResult, historyResult]) => {
         if (!active) return;
-        if (cardResult.status === 'fulfilled') setSelectedCard(cardResult.value.card);
-        if (priceResult.status === 'fulfilled') setPrice(priceResult.value);
-        else setPriceNotice(priceResult.reason instanceof FateMarketApiError ? priceResult.reason.message : 'FatePrice evidence is temporarily unavailable.');
-        if (historyResult.status === 'fulfilled') setHistory(historyResult.value);
-        else setHistoryNotice(historyResult.reason instanceof FateMarketApiError ? historyResult.reason.message : 'FatePrice history is temporarily unavailable.');
-        setPriceLoading(false);
-        setHistoryLoading(false);
+        if (cardResult.status === 'fulfilled' && priceGeneration === priceRequest.current) setSelectedCard(cardResult.value.card);
+        if (priceGeneration === priceRequest.current) {
+          if (priceResult.status === 'fulfilled') setPrice(priceResult.value);
+          else setPriceNotice(priceResult.reason instanceof FateMarketApiError ? priceResult.reason.message : 'FatePrice evidence is temporarily unavailable.');
+          setPriceLoading(false);
+        }
+        if (historyGeneration === historyRequest.current) {
+          if (historyResult.status === 'fulfilled') setHistory(historyResult.value);
+          else setHistoryNotice(historyResult.reason instanceof FateMarketApiError ? historyResult.reason.message : 'FatePrice history is temporarily unavailable.');
+          setHistoryLoading(false);
+        }
       });
       setPriceLoading(true);
       setHistoryLoading(true);
@@ -190,7 +213,7 @@ export default function FatePriceScreen() {
     } else if (routeQuery || routeName) {
       void searchCards(routeQuery || routeName, '');
     }
-    return () => { active = false; };
+    return () => { active = false; priceRequest.current++; historyRequest.current++; };
   }, [routeCardId, routeName, routeQuery, routeSetId, searchCards]);
 
   const selectCard = useCallback((card: FatePriceCard) => {
@@ -213,7 +236,7 @@ export default function FatePriceScreen() {
   const selectedTitle = selectedCard?.name || (selectedCardId === routeCardId ? routeName : '') || 'Exact canonical card';
   const selectedSet = selectedCard?.setName || (selectedCardId === routeCardId ? routeSetName : '') || 'Verified identity';
   const selectedNumber = selectedCard?.collectorNumber || (selectedCardId === routeCardId ? routeCollectorNumber : '');
-  const selectedPrintingId = selectedCard?.printingId || routePrintingId;
+  const selectedPrintingId = selectedCard?.printingId || (selectedCardId === routeCardId ? routePrintingId : '');
   const status = priceLoading ? 'READING CLOUD' : price?.available ? 'EVIDENCE LIVE' : selectedCardId ? 'EVIDENCE GATED' : 'CHOOSE A CARD';
   const currency = price?.price?.currencyCode || price?.marketScope?.currencyCode || price?.evidence.availableScopes[0]?.currencyCode || 'EUR';
   const scopeOptions = price?.evidence.availableScopes ?? [];
@@ -286,6 +309,8 @@ export default function FatePriceScreen() {
           ))}</View> : null}
         </View> : null}
 
+        {selectedCardId ? <View style={{ alignItems: 'center', paddingVertical: 16 }}><CanonicalThumbnail key={selectedCardId} kind="card" setId={selectedCard?.setId || routeSetId} collectorNumber={selectedNumber} width={cardArtWidth} height={cardArtWidth * 1.4} cornerRadius={8} /></View> : null}
+
         {selectedCardId ? <View style={styles.identityStrip}>
           <CanonicalThumbnail kind="card" setId={selectedCard?.setId || routeSetId} collectorNumber={selectedNumber} width={50} height={70} />
           <View style={styles.flex}><Text style={styles.identityStripEyebrow}>EXACT CANONICAL IDENTITY</Text><Text style={styles.identityStripTitle}>{selectedTitle}</Text><Text style={styles.identityStripMeta}>{titleDetail || selectedSet}</Text></View>
@@ -307,12 +332,19 @@ export default function FatePriceScreen() {
           </View>
 
           <View style={styles.metricLedger}>
-            <PriceMetric accent={movementAccent(price?.movement.d7)} detail={price?.movement.d7.available ? 'Verified history' : 'Not available'} label="7D MOVE" value={movementText(price?.movement.d7)} />
+            <PriceMetric accent={movementAccent(price?.movement.d7)} detail={price?.movement.d7.available ? formatMoney(price.movement.d7.absolute, currency) : 'Not available'} label="7D MOVE" value={movementText(price?.movement.d7)} />
             <View style={styles.ledgerDivider} />
-            <PriceMetric accent={movementAccent(price?.movement.d30)} detail={price?.movement.d30.available ? 'Verified history' : 'Not available'} label="30D MOVE" value={movementText(price?.movement.d30)} />
+            <PriceMetric accent={movementAccent(price?.movement.d30)} detail={price?.movement.d30.available ? formatMoney(price.movement.d30.absolute, currency) : 'Not available'} label="30D MOVE" value={movementText(price?.movement.d30)} />
             <View style={styles.ledgerDivider} />
             <PriceMetric accent={FateDropColors.echo} detail={price?.confidence ? `${price.confidence.sourceCount} source${price.confidence.sourceCount === 1 ? '' : 's'}` : 'Not scored'} label="CONFIDENCE" value={price?.confidence?.level.toUpperCase() || '—'} />
           </View>
+
+          {selectedCardId ? <View style={styles.verdict}>
+            <Text style={styles.sectionEyebrow}>FATE VERDICT · 30D CONTEXT</Text>
+            <Text style={styles.verdictTitle}>{priceLoading ? 'Checking price evidence…' : fatePriceVerdict(price).title}</Text>
+            <Text style={styles.verdictCopy}>{priceLoading ? 'Loading this exact card’s market evidence.' : fatePriceVerdict(price).detail}</Text>
+            <Text style={styles.verdictDisclaimer}>Based on available market data. Not financial advice or a prediction of future returns. Market value is not a retailer offer.</Text>
+          </View> : null}
 
           {selectedCardId ? <View style={styles.journeyActions}>
             <Pressable
@@ -493,7 +525,7 @@ const styles = StyleSheet.create({
   identityStrip: { minHeight: 116, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 15, padding: 11, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.43)', borderRadius: 15, backgroundColor: 'rgba(4,9,22,.82)' },
   identityStripEyebrow: { color: FateDropColors.goldBright, fontSize: 6.5, fontWeight: '900', letterSpacing: .7 },
   identityStripTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 17, marginTop: 4 },
-  identityStripMeta: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 4, textTransform: 'capitalize' },
+  identityStripMeta: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 4, textTransform: 'capitalize' },
   identityVerified: { alignItems: 'center', gap: 4 },
   identityVerifiedText: { color: FateDropColors.manifested, fontSize: 5.3, fontWeight: '900', letterSpacing: .5 },
   pricePanel: { marginTop: 21 },
@@ -504,7 +536,7 @@ const styles = StyleSheet.create({
   statusText: { color: FateDropColors.goldBright, fontSize: 6.3, fontWeight: '900', letterSpacing: .55, textAlign: 'center' },
   valueInstrument: { minHeight: 232, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   valueOrbit: { position: 'absolute', width: 208, height: 208, borderRadius: 104, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.48)' },
-  valueLabel: { color: FateDropColors.gold, fontSize: 6.8, fontWeight: '900', letterSpacing: .8, marginTop: 8 },
+  valueLabel: { color: FateDropColors.gold, fontSize: 11, fontWeight: '900', letterSpacing: .8, marginTop: 8 },
   valueMain: { maxWidth: 190, color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 37, lineHeight: 44, marginTop: 2 },
   valueSub: { maxWidth: 240, color: FateDropColors.secondary, fontSize: 8, lineHeight: 12, textAlign: 'center', marginTop: 3 },
   metricLedger: { minHeight: 72, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.27)' },
@@ -518,13 +550,17 @@ const styles = StyleSheet.create({
   journeyActionPrimary: { borderColor: 'rgba(124,110,255,.68)', backgroundColor: 'rgba(124,110,255,.14)' },
   journeyActionLabel: { color: FateDropColors.goldBright, fontSize: 5.2, fontWeight: '900', letterSpacing: .5 },
   journeyActionTitle: { color: FateDropColors.ivory, fontFamily: Fonts.serif, fontSize: 10.5, marginTop: 3 },
+  verdict: { paddingVertical: 18, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.3)' },
+  verdictTitle: { fontFamily: Fonts.serif, fontSize: 21, color: FateDropColors.goldBright },
+  verdictCopy: { fontSize: 13, lineHeight: 20, color: FateDropColors.ivory },
+  verdictDisclaimer: { fontSize: 11, lineHeight: 16, color: FateDropColors.secondary },
   historyPanel: { marginTop: 14, paddingHorizontal: 8, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(124,110,255,.34)', backgroundColor: 'rgba(3,8,20,.28)' },
   historyHeading: { minHeight: 34, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  historyCopy: { color: FateDropColors.secondary, fontSize: 7.5, lineHeight: 11, marginTop: 4 },
+  historyCopy: { color: FateDropColors.secondary, fontSize: 11, lineHeight: 16, marginTop: 4 },
   historyWindowRail: { alignSelf: 'flex-start', flexDirection: 'row', marginTop: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(226,197,141,.26)' },
-  historyWindow: { minWidth: 44, minHeight: 29, alignItems: 'center', justifyContent: 'center', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.20)' },
+  historyWindow: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: 'rgba(226,197,141,.20)' },
   historyWindowActive: { backgroundColor: 'rgba(226,197,141,.11)' },
-  historyWindowText: { color: FateDropColors.muted, fontSize: 6.8, fontWeight: '900', letterSpacing: .5 },
+  historyWindowText: { color: FateDropColors.muted, fontSize: 11, fontWeight: '900', letterSpacing: .5 },
   historyWindowTextActive: { color: FateDropColors.goldBright },
   historyRange: { minHeight: 25, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 7 },
   historyRangeText: { color: FateDropColors.muted, fontSize: 6.4 },
