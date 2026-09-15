@@ -32,13 +32,14 @@ test('Binder is ready for exact Cloud-ranked top missing cards', () => {
   assert.match(binder, /binder\?\.topMissingCards\?\.slice\(0, 3\)/);
 });
 
-test('Binder completion is previewed, explicitly confirmed and kept outside exact value', () => {
+test('Binder completion is previewed, explicitly confirmed and materializes exact collection cards', () => {
   assert.match(service, /\/complete\/preview\?language=en&variant=standard/);
   assert.match(service, /\/complete\/confirm/);
-  assert.match(service, /createsExactCardItems: false/);
-  assert.match(service, /changesCollectionValue: false/);
+  assert.match(service, /createsExactCardItems: true/);
+  assert.match(service, /changesCollectionValue: true/);
   assert.match(binder, /MARK CHECKLIST COMPLETE/);
-  assert.match(binder, /No finish, condition or price will be invented/);
+  assert.match(binder, /One verified exact raw card will be added/);
+  assert.match(binder, /ADD ANOTHER/);
   assert.match(binder, /confirmFateCollectorSetCompletion/);
   assert.match(binder, /removeFateCollectorSetCompletion/);
 });

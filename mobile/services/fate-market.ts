@@ -191,6 +191,7 @@ export type FatePriceSet = {
   total: number | null;
   releasedAt: number | null;
   verificationStatus: string;
+  editionTracks?: { code: string; label: string }[];
 };
 
 export type FatePriceScope = {

@@ -53,6 +53,8 @@ export type FateCollectorPersonalPulsePeriod = {
 
 export type FateCollectorSetBinder = {
   setId: string;
+  editionCode?: string;
+  editionLabel?: string;
   setName: string | null;
   tcgCode: string | null;
   status: 'available' | 'unavailable';
@@ -178,17 +180,17 @@ export type FateCollectorSetCompletionPreview = {
   progress: FateCollectorSetBinder;
   action: {
     printingCount: number;
-    createsExactCardItems: false;
-    changesCollectionValue: false;
+    createsExactCardItems: true;
+    changesCollectionValue: true;
     defaultQuantity: 1;
     copyState: 'raw';
-    exactFinish: null;
-    conditionCode: null;
+    exactFinish: 'verified_regular_identity';
+    conditionCode: 'unknown';
   };
   requiresUserConfirmation: boolean;
   confirmationToken: string;
   truth: {
-    ownershipScope: 'verified_printing_checklist';
+    ownershipScope: 'verified_exact_regular_identity';
     valuationPolicy: 'exact_identity_only';
     message: string;
   };
@@ -201,6 +203,7 @@ export type FateCollectorSetCompletionResult = {
   duplicate: boolean;
   writesPerformed: boolean;
   newlyConfirmedPrintingCount: number;
+  createdCardItemCount: number;
   progress: FateCollectorSetBinder;
 };
 
@@ -446,49 +449,49 @@ export async function fetchFateCollectorIntelligence({ force = false }: { force?
   return promise;
 }
 
-export async function fetchFateCollectorSetProgress(setId: string) {
+export async function fetchFateCollectorSetProgress(setId: string, editionCode = 'standard') {
   const id = setId.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
-  const { data } = await authenticatedRequest<FateCollectorSetProgressSnapshot>(`/v1/collectors/sets/${encodeURIComponent(id)}/progress?currency=GBP&language=en&variant=standard`);
+  const { data } = await authenticatedRequest<FateCollectorSetProgressSnapshot>(`/v1/collectors/sets/${encodeURIComponent(id)}/progress?currency=GBP&language=en&variant=standard&edition=${encodeURIComponent(editionCode)}`);
   return data;
 }
 
-export async function previewFateCollectorSetCompletion(setId: string) {
+export async function previewFateCollectorSetCompletion(setId: string, editionCode = 'standard') {
   const id = setId.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
-  const { data } = await authenticatedRequest<FateCollectorSetCompletionPreview>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete/preview?language=en&variant=standard`, {
+  const { data } = await authenticatedRequest<FateCollectorSetCompletionPreview>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete/preview?language=en&variant=standard&edition=${encodeURIComponent(editionCode)}`, {
     method: 'POST',
   });
   return data;
 }
 
-export async function confirmFateCollectorSetCompletion(setId: string, confirmationToken: string) {
+export async function confirmFateCollectorSetCompletion(setId: string, confirmationToken: string, editionCode = 'standard') {
   const id = setId.trim();
   const token = confirmationToken.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
   if (!token) throw new FateCollectorApiError('Preview this set before confirming it.', 400, 'SET_COMPLETION_TOKEN_REQUIRED');
   const { data } = await authenticatedRequest<FateCollectorSetCompletionResult>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete/confirm`, {
     method: 'POST',
-    body: JSON.stringify({ confirmationToken: token, confirmed: true, preferredLanguageCode: 'en', preferredVariantCode: 'standard' }),
+    body: JSON.stringify({ confirmationToken: token, confirmed: true, editionCode, preferredLanguageCode: 'en', preferredVariantCode: 'standard' }),
   });
   invalidateFateCollectorCache();
   return data;
 }
 
-export async function removeFateCollectorSetCompletion(setId: string) {
+export async function removeFateCollectorSetCompletion(setId: string, editionCode = 'standard') {
   const id = setId.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
-  const { data } = await authenticatedRequest<{ contractVersion: 1; removed: boolean; progress: FateCollectorSetBinder }>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete`, {
+  const { data } = await authenticatedRequest<{ contractVersion: 1; removed: boolean; progress: FateCollectorSetBinder }>(`/v1/collectors/sets/${encodeURIComponent(id)}/complete?edition=${encodeURIComponent(editionCode)}`, {
     method: 'DELETE',
   });
   invalidateFateCollectorCache();
   return data;
 }
 
-export async function setFateCollectorBinderTracked(setId: string, tracked: boolean) {
+export async function setFateCollectorBinderTracked(setId: string, tracked: boolean, editionCode = 'standard') {
   const id = setId.trim();
   if (!id) throw new FateCollectorApiError('Choose a verified set first.', 400, 'SET_IDENTITY_REQUIRED');
-  const { data } = await authenticatedRequest<{ contractVersion: 1; binder: { setId: string; tracked: boolean } }>(`/v1/collectors/binders/${encodeURIComponent(id)}`, {
+  const { data } = await authenticatedRequest<{ contractVersion: 1; binder: { setId: string; editionCode: string; tracked: boolean } }>(`/v1/collectors/binders/${encodeURIComponent(id)}?edition=${encodeURIComponent(editionCode)}`, {
     method: tracked ? 'PUT' : 'DELETE',
   });
   invalidateFateCollectorCache();
