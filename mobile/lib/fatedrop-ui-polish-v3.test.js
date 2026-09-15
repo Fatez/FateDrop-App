@@ -73,6 +73,6 @@ test('Binders foreground verified completion and exact missing-card identity', (
   assert.match(binders, /Collectr/);
   assert.match(binder, /STILL NEEDED/);
   assert.match(binder, /NEEDED/);
-  assert.match(binder, /Exact raw printings only/);
-  assert.match(binder, /Graded cards never fill binder slots/);
+  assert.match(binder, /exact raw identities for this print run/);
+  assert.match(binder, /Reverse holos and other master-set variants remain separate/);
 });
