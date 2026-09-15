@@ -45,3 +45,14 @@ jobs:
       - name: Lint and typecheck mobile
         working-directory: mobile
         run: npm run verify
+
+      - name: Prebuild Android notification resources
+        working-directory: mobile
+        run: |
+          npx expo prebuild --platform android --no-install --clean
+          for icon in fatedrop_oru fatedrop_fenn fatedrop_koru fatedrop_nyxen fatedrop_radar; do
+            test -s "android/app/src/main/res/drawable/${icon}.xml" || {
+              echo "Missing generated notification drawable: ${icon}.xml"
+              exit 1
+            }
+          done
