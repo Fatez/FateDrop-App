@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -120,6 +120,12 @@ export default function FateCollectionsDashboardScreen() {
           />
         </View>
 
+        <Pressable accessibilityRole="button" accessibilityLabel="Scan a Card with Koru" onPress={() => router.push('/scan-card' as Href)} style={styles.scanLink}>
+          <Ionicons name="scan-outline" size={28} color={FateDropColors.goldBright} />
+          <View style={styles.flex}><Text style={styles.sectionTitle}>Scan a Card</Text><Text style={styles.sectionCopy}>Let Koru find your card. Confirm it, price it, collect it.</Text></View>
+          <Ionicons name="chevron-forward" size={18} color={FateDropColors.goldBright} />
+        </Pressable>
+
         <View style={styles.sectionHead}>
           <View style={styles.flex}>
             <Text style={styles.sectionEyebrow}>YOUR COLLECTION PULSE</Text>
@@ -230,6 +236,7 @@ function SetMoverColumn({ accent, items, label, positive = false }: { accent: st
 }
 
 const styles = StyleSheet.create({
+  scanLink: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginTop: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: FateDropColors.borderSoft },
   stacked: { flexDirection: 'column' },
   safe: { flex: 1, backgroundColor: FateDropColors.background },
   veil: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3,7,18,.56)' },
